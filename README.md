@@ -72,7 +72,7 @@
 - `main`, `develop` 브랜치에 직접 Push하지 않습니다.
 - 기능 개발은 별도의 작업 브랜치에서 진행합니다.
 - Pull Request를 통해 코드를 병합합니다.
-- PR은 main은 2명 이상, develop은 1명 이상의 승인을 받은 후 Merge합니다.
+- main으로의 PR은 2명 이상 승인을 받은 후 Merge합니다.
 - Force Push를 금지합니다.
 - `.env`, API Key, DB 비밀번호 등 민감정보는 GitHub에 업로드하지 않도록 주의합니다.
 
