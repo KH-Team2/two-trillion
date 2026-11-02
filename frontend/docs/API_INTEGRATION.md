@@ -57,3 +57,12 @@
 ## 소비 유형 표 복구 후 표시 경계
 
 대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 향후 시뮬레이션 API 연결 시에도 해당 컴포넌트에 실제 연결 상태를 전달해야 합니다.
+
+## 청년 혜택 자격 진단 (S-05 · F-03-02)
+
+`src/api/benefit-service.js`의 `fetchBenefits(taxYear)`가 `GET /api/benefits/{taxYear}`를 호출합니다. 응답 `{taxYear, results[]}`의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 유지하며 화면에서 다른 값으로 바꾸지 않습니다. 오류 `{error, message}`는 `error.code`로 전달합니다.
+
+- 개발 서버(`npm run dev`)는 `vite.config.js` 프록시로 `/api`를 Spring 서버(`VITE_API_PROXY`, 기본 `http://localhost:8080`)에 넘깁니다.
+- 로그인(Spring Security) 연결 전까지 `.env`의 `VITE_DEV_MEMBER_ID`를 `X-Member-Id` 헤더로 보냅니다. 숫자가 아니면 보내지 않습니다. 운영에서는 비워 두고 서버가 로그인 정보로 회원을 정합니다.
+- 서버에 연결할 수 없으면(`OFFLINE`) 기존 입력 기준 체험 판정(`benefitChecks`)을 보여 줍니다.
+- 준비 서류 안내는 `PREPARE_DOCS` 고정 문구입니다 (국세청 「2025 원천징수의무자를 위한 연말정산 신고안내」 쪽수 표기).
