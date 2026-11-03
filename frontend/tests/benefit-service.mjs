@@ -70,6 +70,27 @@ try {
   await fetchBenefits(2026, { fetchImpl: fake(200, ok, seen2), memberId: '1; DROP' });
   assert.equal(seen2.headers['X-Member-Id'], undefined);
 
+  // 개발용 회원번호(.env)는 개발 서버(DEV)에서만 보냄 · 빌드 파일에서는 보내지 않음
+  for (const [dev, expected] of [
+    [true, '7'],
+    [false, undefined],
+  ]) {
+    const out = `${dir}/benefit-${dev}.mjs`;
+    await build({
+      entryPoints: ['src/api/benefit-service.js'],
+      outfile: out,
+      platform: 'node',
+      format: 'esm',
+      bundle: true,
+      logLevel: 'silent',
+      define: { 'import.meta.env': JSON.stringify({ DEV: dev, VITE_DEV_MEMBER_ID: '7' }) },
+    });
+    const mod = await import(pathToFileURL(out));
+    const seenDev = {};
+    await mod.fetchBenefits(2026, { fetchImpl: fake(200, ok, seenDev) });
+    assert.equal(seenDev.headers['X-Member-Id'], expected);
+  }
+
   // 서버 오류 {error, message}는 code·message 그대로
   await assert.rejects(
     fetchBenefits(2026, {
