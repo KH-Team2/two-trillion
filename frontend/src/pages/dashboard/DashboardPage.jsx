@@ -25,7 +25,13 @@ export default function DashboardPage({
       normalInput={normalInput}
       go={go}
       chart={(rows) => <Donut transactions={rows} />}
-      chat={<ChatPanel data={data} reply={dashboardReply} />}
+      chat={
+        <ChatPanel
+          // 상담 방은 입력값별로 저장돼요 → 서버 계산 결과마다 새 방을 열어 예전 체험 숫자가 남지 않게 해요
+          data={isDemo ? data : { ...data, predictionId: result?.predictionId }}
+          reply={(q, d) => dashboardReply(q, d, isDemo ? undefined : result)}
+        />
+      }
     />
   );
 }
