@@ -55,6 +55,11 @@ export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBe
           <h3>나의 자격 정보</h3>
           <Tag tone="amber">증빙 확인 필요</Tag>
         </div>
+        {state.status === 'ok' && (
+          <p className="muted">
+            아래 값은 이 브라우저에 입력한 값이에요. 혜택 판정은 서버에 저장된 회원 정보로 해요.
+          </p>
+        )}
         {[
           ['생년월일', '취업 당시 나이 계산에 써요', data.birth || '입력 필요'],
           ['입사일', '취업 당시 나이 · 감면 기간(5년) 계산', data.employed || '입력 필요'],

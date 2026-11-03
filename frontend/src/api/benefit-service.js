@@ -1,6 +1,9 @@
 // 청년 혜택 자격 진단 API 연결 (F-03-02 · S-05) · GET /api/benefits/{taxYear}
 // 판정은 서버(계산 서버의 BENEFIT_CONDITION 규칙)가 해요. 화면은 받은 결과를 그대로 보여 주기만 해요.
 const env = import.meta.env || {};
+// 개발용 회원번호는 개발 서버(npm run dev)에서만 써요.
+// 빌드한 파일(npm run build)에서는 DEV가 false라 보내지 않아요 → 배포 화면이 모두 같은 회원으로 요청하는 사고 방지
+const devMemberId = env.DEV ? env.VITE_DEV_MEMBER_ID : undefined;
 
 /** 서버 응답 상태값 → 화면 표시 (true 해당 · false 비해당 · null 정보 부족) */
 export function benefitStatus(eligible) {
@@ -69,15 +72,15 @@ export function parseBenefitResponse(raw) {
 
 /**
  * 혜택 진단 요청.
- * - 회원 구분: 로그인(Spring Security) 연결 전까지 개발용 .env의 VITE_DEV_MEMBER_ID를 X-Member-Id 헤더로 보내요.
- *   운영에서는 이 값을 비워 두고, 서버가 로그인 정보로 회원을 정해요.
+ * - 회원 구분: 로그인(Spring Security) 연결 전까지 개발 서버에서만 .env의 VITE_DEV_MEMBER_ID를 X-Member-Id 헤더로 보내요.
+ *   빌드한 파일에서는 보내지 않고, 서버가 로그인 정보로 회원을 정해요.
  * - 서버에 연결할 수 없으면 code가 'OFFLINE'인 오류를 던져요 (화면은 체험 판정으로 돌아가요).
  */
 export async function fetchBenefits(taxYear, { fetchImpl = globalThis.fetch, memberId } = {}) {
   if (!Number.isInteger(taxYear) || taxYear < 2000 || taxYear > 2100) {
     throw apiError('VALIDATION', '귀속 연도를 확인해주세요.');
   }
-  const id = memberId ?? env.VITE_DEV_MEMBER_ID;
+  const id = memberId ?? devMemberId;
   const headers = { Accept: 'application/json' };
   if (id && /^\d+$/.test(String(id))) headers['X-Member-Id'] = String(id);
 

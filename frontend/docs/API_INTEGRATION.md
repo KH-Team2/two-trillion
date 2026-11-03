@@ -63,6 +63,17 @@
 `src/api/benefit-service.js`의 `fetchBenefits(taxYear)`가 `GET /api/benefits/{taxYear}`를 호출합니다. 응답 `{taxYear, results[]}`의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 유지하며 화면에서 다른 값으로 바꾸지 않습니다. 오류 `{error, message}`는 `error.code`로 전달합니다.
 
 - 개발 서버(`npm run dev`)는 `vite.config.js` 프록시로 `/api`를 Spring 서버(`VITE_API_PROXY`, 기본 `http://localhost:8080`)에 넘깁니다.
-- 로그인(Spring Security) 연결 전까지 `.env`의 `VITE_DEV_MEMBER_ID`를 `X-Member-Id` 헤더로 보냅니다. 숫자가 아니면 보내지 않습니다. 운영에서는 비워 두고 서버가 로그인 정보로 회원을 정합니다.
+- 로그인(Spring Security) 연결 전까지 개발 서버(`npm run dev`)에서만 `.env`의 `VITE_DEV_MEMBER_ID`를 `X-Member-Id` 헤더로 보냅니다. 숫자가 아니면 보내지 않습니다. 빌드한 파일(`npm run build`)에서는 보내지 않고 서버가 로그인 정보로 회원을 정합니다.
+- 서버가 판정하면 「나의 자격 정보」 위에 「브라우저 입력값이며 판정은 서버 저장 정보로 함」 안내를 보여 줍니다 (소득·자격 입력이 서버 저장으로 연결되기 전까지 두 값이 다를 수 있음).
 - 서버에 연결할 수 없으면(`OFFLINE`) 기존 입력 기준 체험 판정(`benefitChecks`)을 보여 줍니다.
 - 준비 서류 안내는 `PREPARE_DOCS` 고정 문구입니다 (국세청 「2025 원천징수의무자를 위한 연말정산 신고안내」 쪽수 표기).
+
+## 백엔드 오류 코드 추가 (11/03)
+
+| API | 상태 · error | 뜻 | 화면 안내 예 |
+| --- | --- | --- | --- |
+| `PUT /api/incomes/{taxYear}` | 409 `CONFLICT` | 같은 소득 첫 저장이 동시에 두 번 와서 겹침 (저장 버튼 두 번 클릭 등) | 잠시 후 다시 저장 |
+| `POST /api/calculations/{taxYear}` | 400 `CALC_REJECTED` | 계산 서버가 입력값을 거부 (다시 시도해도 같음) | 소득 정보 확인 |
+| `POST /api/calculations/{taxYear}` | 503 `CALC_UNAVAILABLE` | 계산 서버 연결 불가 · 설정 문제 (기존) | 잠시 후 다시 시도 |
+
+- `PUT /api/incomes/{taxYear}`는 보낸 값으로 전체를 덮어씁니다. 요청에 없는 칸은 0(또는 `N`)으로 저장되므로, 화면은 `GET`으로 불러온 값에 수정한 칸을 합쳐 **모든 칸을 보내야** 합니다.
