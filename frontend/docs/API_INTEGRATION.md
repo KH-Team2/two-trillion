@@ -68,6 +68,28 @@
 - 서버에 연결할 수 없으면(`OFFLINE`) 기존 입력 기준 체험 판정(`benefitChecks`)을 보여 줍니다.
 - 준비 서류 안내는 `PREPARE_DOCS` 고정 문구입니다 (국세청 「2025 원천징수의무자를 위한 연말정산 신고안내」 쪽수 표기).
 
+## 소득 저장 · 세액 계산 연결 (F-03-01 · 11/03)
+
+`App.calculate()`(일반 계산)가 `src/api/calculation-service.js`의 `saveAndCalculate(d)`를 호출합니다.
+
+1. `PUT /api/incomes/{taxYear}` — `income-service.js`의 `incomeRequest(d)`로 화면 값을 back 이름으로 바꿔 **모든 칸**을 보냅니다.
+2. 저장이 성공하면 `POST /api/calculations/{taxYear}` (본문 없음) → `parseCalculationResult()`로 응답 검사 (`taxableIncome`도 숫자 필수).
+3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘기고, 계산 이력에 `source: 'API'`로 저장합니다.
+
+| 화면 값 | back 이름 | 처리 |
+| --- | --- | --- |
+| `salary` · `paid` | `totalSalary` · `withheldTax` | 필수 · 비었거나 음수면 저장 전에 막음 |
+| `nationalPension` · `healthEmploymentInsurance` | `nationalPension` · `healthInsurance` | 비면 0 |
+| `family` · `children` | `dependents` · `children` | 비면 0 |
+| `rent` | `monthlyRent` | 월 금액 그대로 |
+| `housingSaving` · `pensionSaving` · `irp` | `housingSaving` · `pensionSaving` · `irpSaving` | 연금저축과 IRP를 따로 보냄 |
+| `sme` | `smeReductionYn` | 예·해당 = Y · 아니요·미해당 = N · '확인 필요'는 N으로 바꾸지 않고 선택 안내 |
+
+- 서버 오류(`VALIDATION` · `NO_CRITERIA` · `CALC_REJECTED` · `CALC_UNAVAILABLE` · `CONFLICT` 등)는 서버 `message`를 알림으로 띄우고 **입력 화면에 머뭅니다** (입력값 유지).
+- 서버에 연결할 수 없을 때(`OFFLINE`)만 기존 체험 계산(`taxService.calculate`)으로 보여 주고 「예시 계산」이라고 알립니다. 대시보드는 `isDemo`로 체험/계산 결과 문구를 나눕니다.
+- 계산 버튼을 연달아 눌러도 요청은 한 번만 보냅니다.
+- 아직 연결 안 된 부분: **시뮬레이션**(비교 화면 `br` · `sr`)은 체험 계산 그대로입니다. 계산 API가 저장된 소득으로만 계산하므로, 가상 조건 계산은 「저장하지 않는 계산 API」가 따로 필요합니다. **카드 사용액**은 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다. 챗봇 화면의 `r`은 서버 결과가 있으면 서버 결과를 받습니다.
+
 ## 백엔드 오류 코드 추가 (11/03)
 
 | API | 상태 · error | 뜻 | 화면 안내 예 |
