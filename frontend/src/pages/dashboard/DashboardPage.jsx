@@ -28,7 +28,15 @@ export default function DashboardPage({
       chat={
         <ChatPanel
           // 상담 방은 입력값별로 저장돼요 → 서버 계산 결과마다 새 방을 열어 예전 체험 숫자가 남지 않게 해요
-          data={isDemo ? data : { ...data, predictionId: result?.predictionId }}
+          // (계산 응답 검사에서 predictionId는 빠지므로 결과 숫자로 구분해요)
+          data={
+            isDemo
+              ? data
+              : {
+                  ...data,
+                  calcResultKey: `API-${result.taxYear}-${result.decidedTax}-${result.expectedRefund}`,
+                }
+          }
           reply={(q, d) => dashboardReply(q, d, isDemo ? undefined : result)}
         />
       }
