@@ -482,8 +482,8 @@ export default function Dashboard({
               값이며 Oracle DB·실시간 API는 미연동입니다.
             </p>
             <p className="dash-description">
-              나의 결과는 {m.taxYear}년 귀속 체험용 계산, 비교 통계는 2024년 귀속입니다. 귀속연도가
-              달라 직접 비교할 수 없습니다.
+              나의 결과는 {m.taxYear}년 귀속 {isDemo ? '체험용 계산' : '계산 결과'}, 비교 통계는
+              2024년 귀속입니다. 귀속연도가 달라 직접 비교할 수 없습니다.
             </p>
             <Jump onClick={() => go('stats')}>그룹 통계 상세 보기</Jump>
           </section>
