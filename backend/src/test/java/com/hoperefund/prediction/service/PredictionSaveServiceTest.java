@@ -6,11 +6,9 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
-
+import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import java.util.List;
 
 /**
  * 결과 저장(PredictionSaveService) 규칙만 따로 확인해요 (DB 없이 가짜 매퍼). 저장 성공 · 기준값 0개는 CalculationServiceTest에서

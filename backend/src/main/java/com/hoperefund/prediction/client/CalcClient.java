@@ -5,7 +5,6 @@ import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
-
 import java.util.List;
 
 /**

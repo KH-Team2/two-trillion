@@ -16,16 +16,14 @@ import com.hoperefund.prediction.dto.BenefitResultDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.service.BenefitService;
 import com.hoperefund.prediction.service.CalculationService;
-
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.function.Supplier;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
-
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * 계산 · 혜택 진단 API의 요청 · 응답 모양을 확인해요 (서버 · DB · 계산 서버 없이 MockMvc). 서비스는 정해 둔 결과나 오류만 돌려주는 가짜로 바꿔서,
