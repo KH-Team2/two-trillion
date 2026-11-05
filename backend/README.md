@@ -117,12 +117,16 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | 환경변수 | 설명 | 기본값 |
 |---|---|---|
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
+| `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
-| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 | 없음 |
+| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) | 없음 |
+| `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
 | `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
 
-Python Calc 및 Chatbot 서버와의 실제 통신은 아직 구현되지 않았습니다.
+환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
+
+Python Chatbot 서버와의 실제 통신은 아직 구현되지 않았습니다.
 
 챗봇 서버의 포트 및 인증 방식은 추후 확정이 필요합니다.
 
@@ -230,15 +234,18 @@ mvnw -B verify
 - React 개발 서버 CORS 설정
 - Health API
 - 공통 오류 응답 DTO
-- 기본 공통 예외 처리
+- 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
+- 소득 정보 입력·조회 API (`GET` · `PUT /api/incomes/{taxYear}`)
+- 예상 세액 계산 API + 결과 저장 (`POST /api/calculations/{taxYear}`)
+- 청년 혜택 자격 진단 API (`GET /api/benefits/{taxYear}`)
+- Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - JUnit 자동 테스트 및 코드 품질 검사 환경
 
 ### 추후 구현 예정
 
 - Spring Security 인증·권한 처리
 - 기능별 Controller·Service·Mapper·DTO
-- 회원·소득·지출·계산 결과·관리자 API
-- Python 계산 서버 HTTP 통신
+- 회원·지출·관리자 API
 - Python AI 챗봇 서버 HTTP 통신
 - 공통 오류 처리 확장
 - API 및 DB 통합 테스트
