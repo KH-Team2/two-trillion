@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.hoperefund.income.mapper.IncomeMapper">
+
+    <select id="findByMemberAndYear" resultType="com.hoperefund.income.dto.IncomeResponseDTO">
+        SELECT INCOME_ID, TAX_YEAR, TOTAL_SALARY, WITHHELD_TAX, NATIONAL_PENSION, HEALTH_INSURANCE,
+               DEPENDENTS, CHILDREN, MONTHLY_RENT, HOUSING_SAVING, PENSION_SAVING, IRP_SAVING,
+               SME_REDUCTION_YN, UPDATED_AT
+          FROM INCOME
+         WHERE MEMBER_ID = #{memberId}
+           AND TAX_YEAR = #{taxYear}
+    </select>
+
+    <!-- INCOME_ID는 시퀀스 · DATA_ORIGIN('INPUT') · CREATED_AT(SYSDATE)은 DB 기본값을 써요 -->
+    <update id="upsert">
+        MERGE INTO INCOME t
+        USING (SELECT #{memberId} AS MEMBER_ID, #{taxYear} AS TAX_YEAR FROM DUAL) s
+           ON (t.MEMBER_ID = s.MEMBER_ID AND t.TAX_YEAR = s.TAX_YEAR)
+        WHEN MATCHED THEN UPDATE SET
+             t.TOTAL_SALARY     = #{req.totalSalary},
+             t.WITHHELD_TAX     = #{req.withheldTax},
+             t.NATIONAL_PENSION = #{req.nationalPension},
+             t.HEALTH_INSURANCE = #{req.healthInsurance},
+             t.DEPENDENTS       = #{req.dependents},
+             t.CHILDREN         = #{req.children},
+             t.MONTHLY_RENT     = #{req.monthlyRent},
+             t.HOUSING_SAVING   = #{req.housingSaving},
+             t.PENSION_SAVING   = #{req.pensionSaving},
+             t.IRP_SAVING       = #{req.irpSaving},
+             t.SME_REDUCTION_YN = #{req.smeReductionYn},
+             t.UPDATED_AT       = SYSDATE
+        WHEN NOT MATCHED THEN INSERT
+             (INCOME_ID, MEMBER_ID, TAX_YEAR, TOTAL_SALARY, WITHHELD_TAX, NATIONAL_PENSION, HEALTH_INSURANCE,
+              DEPENDENTS, CHILDREN, MONTHLY_RENT, HOUSING_SAVING, PENSION_SAVING, IRP_SAVING, SME_REDUCTION_YN)
+        VALUES
+             (SEQ_INCOME.NEXTVAL, #{memberId}, #{taxYear}, #{req.totalSalary}, #{req.withheldTax}, #{req.nationalPension},
+              #{req.healthInsurance}, #{req.dependents}, #{req.children}, #{req.monthlyRent}, #{req.housingSaving},
+              #{req.pensionSaving}, #{req.irpSaving}, #{req.smeReductionYn})
+    </update>
+
+    <!-- 기준값이 있는 연도인지 (관리자가 새 연도 기준값을 넣으면 코드 수정 없이 바로 쓸 수 있어요) -->
+    <select id="countCriteria" resultType="int">
+        SELECT COUNT(*)
+          FROM DEDUCTION_TYPE
+         WHERE TAX_YEAR = #{taxYear}
+    </select>
+
+</mapper>
