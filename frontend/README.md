@@ -1,77 +1,255 @@
-# 희망환급 React JSX 전체 소스 · 현재 배포 버전 13
+# 희망환급 (Hope Refund) — Frontend
 
-현재 배포 버전 13의 실제 개발용 원본을 그대로 추출했습니다. v10 대시보드 UI를 복원한 최신 상태이며, 새 계산 API 데이터 구조와 기존 체험 기능을 유지합니다. 이번 추출에서는 기능·계산·화면을 수정하지 않았습니다. 기존 파란색·흰색 스타일, 공통 UI, 페이지와 해시 주소, 회원/관리자 체험은 유지합니다. 개발용 원본이며 압축된 빌드 코드가 아닙니다.
+희망환급은 근로자의 연말정산 예상 환급액을 계산하고, 청년 맞춤형 절세 혜택과 AI 상담을 제공하는 웹 서비스입니다.
 
-## 실행
+본 프로젝트는 **React 기반 프론트엔드**로, 사용자 화면과 입력 흐름을 담당하고 Spring Boot REST API를 통해 서버와 데이터를 주고받도록 설계되어 있습니다.
 
-Node.js 22.13 이상에서 ZIP의 `hope-refund` 폴더를 VS Code로 열고 실행합니다.
+> **현재 상태:** React 초기 화면 및 체험 기능 구성 완료 / Spring Boot API 연동 예정
+
+## 1. 개발 환경
+
+| 구분 | 기술 |
+|---|---|
+| Language | JavaScript (JSX) |
+| Framework | React 19 |
+| Build Tool | Vite 8 |
+| Runtime | Node.js 22.13 이상 |
+| Package Manager | npm |
+| UI | CSS, Radix UI 등 |
+| Charts | Recharts |
+| Icons | Lucide React |
+| Code Formatting | Prettier |
+| Testing | Node.js 기반 기존 테스트 스크립트 |
+| IDE | VS Code 권장 |
+
+코드 작성 규칙, 컴포넌트 설계, API 연동 원칙 및 협업 규칙은 [`AGENTS.md`](AGENTS.md)를 참고합니다.
+
+## 2. 프로젝트 구성
+
+전체 프로젝트는 다음과 같이 구성됩니다.
+
+```text
+two-trillion/
+├── frontend/       # React + Vite
+├── backend/        # Spring Boot + MyBatis
+├── calc/           # Python 계산 서버
+└── chatbot/        # Python AI 챗봇 서버 (추가 예정)
+```
+
+Frontend 주요 디렉터리는 다음과 같습니다.
+
+```text
+frontend/
+├── public/
+├── src/
+│   ├── api/             # 데이터 서비스·API 연동
+│   ├── components/      # 공통 UI·레이아웃
+│   ├── pages/           # 화면별 컴포넌트
+│   ├── routes/          # 해시 라우팅
+│   ├── hooks/
+│   ├── utils/
+│   ├── config/
+│   ├── data/
+│   ├── styles/
+│   ├── App.jsx
+│   └── main.jsx
+├── docs/                # 기존 개발·검증 기록
+├── .env.example
+├── package.json
+├── package-lock.json
+└── vite.config.js
+```
+
+기존 화면의 구조와 라우팅은 유지하며, 새로운 기능은 팀 기능명세서와 API 명세를 기준으로 연동합니다.
+
+## 3. 개발환경 준비
+
+### 3.1 사전 준비
+
+- Node.js 22.13 이상
+- npm
+- Git
+- VS Code 또는 React 개발이 가능한 IDE
+
+### 3.2 프로젝트 가져오기
+
+GitHub에서 공통 초기 프로젝트 브랜치를 Clone합니다.
+
+```bash
+git clone -b feature/project-base https://github.com/KH-Team2/two-trillion.git
+cd two-trillion/frontend
+```
+
+이미 저장소를 Clone한 경우에는 현재 작업 상태를 확인하고 해당 브랜치로 전환합니다.
+
+### 3.3 패키지 설치
 
 ```bash
 npm install
-npm run format
+```
+
+설치 과정에서 `package.json`과 `package-lock.json`을 기준으로 필요한 패키지를 준비합니다.
+
+생성된 `node_modules/` 폴더는 Git에서 관리하지 않습니다.
+
+## 4. 환경변수 설정
+
+환경변수 예시는 다음 파일에 있습니다.
+
+```text
+frontend/.env.example
+```
+
+현재 정의된 항목은 다음과 같습니다.
+
+| 환경변수 | 설명 |
+|---|---|
+| `VITE_TERMS_VERSION` | 서비스 이용약관 버전 |
+| `VITE_PRIVACY_VERSION` | 개인정보 처리 동의 버전 |
+| `VITE_FINANCE_VERSION` | 금융정보 저장 동의 버전 |
+
+필요한 경우 `.env.example`을 복사해 `.env` 파일을 생성하고 팀에서 확정한 버전값을 입력합니다.
+
+미설정 상태에서도 기존 로컬 체험은 가능하지만, 서버 저장용 동의 정보 구성에는 확정된 버전값이 필요할 수 있습니다.
+
+**주의:** `VITE_` 환경변수는 브라우저에 공개될 수 있으므로 비밀번호, API 토큰 등의 민감정보를 저장하지 않습니다.
+
+향후 Spring Boot API 연결에 필요한 서버 주소 및 개발용 회원 식별 설정은 팀의 공통 API 규칙에 맞춰 추가합니다.
+
+## 5. 개발 서버 실행
+
+`frontend` 디렉터리에서 실행합니다.
+
+```bash
 npm run dev
 ```
 
-터미널에 표시된 localhost 주소를 엽니다. 최초 동의서 버전 설정이나 API 서버 없이 기존 체험 기능을 이용할 수 있습니다.
+기본 개발 서버 주소:
+
+```text
+http://localhost:5173
+```
+
+실제 접속 주소는 터미널에 표시되는 URL을 확인합니다.
+
+서버 종료는 `Ctrl + C`를 사용합니다.
+
+### 배포용 빌드
 
 ```bash
-npm run format:check
-npm test
 npm run build
+```
+
+### 빌드 결과 미리보기
+
+```bash
 npm run preview
 ```
 
-`npm test`는 계정·업로드·문의 등 서비스 회귀, 피드백 계약, 16개 화면 서버 렌더 및 전체 101개 JS/JSX 모듈 번들 검사를 수행합니다. 실제 사용자 조작·백엔드·메일·Oracle 테스트를 대신하지 않습니다.
+## 6. 현재 화면 및 기능
 
-## 구조와 읽는 순서
+현재 프론트엔드에는 다음 화면과 체험 흐름이 구성되어 있습니다.
 
-- `src/App.jsx`: 입력·거래·원본/시뮬레이션·로그인 상태 연결.
-- `src/pages/`: 기존 인증, 입력, 대시보드, 시뮬레이션, 통계, 챗봇, 혜택, 고객센터, 관리자, 마이페이지.
-- `src/components/layout/`: 기존 Sidebar·Topbar·PublicHeader.
-- `src/components/expense/ExpenseUpload.jsx`: CSV/XLSX, 다중 파일·삭제·중복 확인·결제수단 확인·분류 조회.
-- `src/components/common/DeductionDetails.jsx`: 새 API 공제 내역, 0원·음수 조정액과 합계·근거 표시.
-- `src/api/`: 기존 브라우저 서비스 및 향후 서버 DTO/응답 경계.
-- `src/utils/tax-year.js`: 한국 시간 기본 귀속 연도 정책.
-- `src/utils/benefit-model.js`: 입력 기준 예비 혜택 점검.
-- `src/config/consent-versions.js`: 확정할 동의서 운영 버전.
-- `src/data/statistics/`: 기존 2024년 공식 통계 원본/정제 자료. DB 필드와 원본 검증용 보조 메타데이터를 별도 JSON으로 구분.
-- `src/styles/globals.css`: 기존 전체 CSS와 음수 공제 막대 스타일.
-- `docs/FEEDBACK_REPORT.md`: 반영 사항·실제 수정 파일 전체 목록·보류 사항.
-- `docs/API_INTEGRATION.md`: 서버 연결 순서·주의할 함수.
-- `docs/VERIFICATION.md`: 검증 결과와 미검증 범위.
-- `docs/SOURCE_MAP.md`, `docs/source-provenance.json`: 버전 10 원본 추출 경로 이력.
+| 영역 | 주요 화면 및 기능 |
+|---|---|
+| 회원 | 로그인, 회원가입, 비밀번호 재설정 |
+| 연말정산 정보 입력 | 소득·공제 정보 입력, 파일 업로드 |
+| 대시보드 | 예상 계산 결과, 공제·감면 상세 |
+| 시뮬레이션 | 조건 변경 및 결과 비교 |
+| 청년 혜택 | 혜택 진단 화면 |
+| AI 상담 | 챗봇 UI 및 체험 응답 |
+| 그룹 통계 | 공식 통계 자료 기반 비교 |
+| 마이페이지 | 회원 정보 및 설정 |
+| 고객센터 | 문의 작성·조회 |
+| 관리자 | 회원·문의 등 관리 화면 |
 
-원본은 React Router 라이브러리 대신 `#dashboard`, `#input`, `#compare`, `#guide`, `#benefits`, `#stats`, `#profile`, `#support`, `#admin`, `#login`, `#signup`, `#reset` 해시 라우팅을 사용했습니다. `src/routes/useHashRouting.js`에 이를 유지했습니다.
+기존 화면의 라우팅에는 React Router 대신 `src/routes/useHashRouting.js` 기반의 해시 라우팅이 사용됩니다.
 
-## 데이터·계산의 현재 상태
+### 데이터 및 서버 연동 상태
 
-- 실제 연동: 제공된 2024년 국세통계 정적 파일만 읽습니다. 은행·국세청 조회 API, Spring Boot, Oracle, 실제 이메일, Gemma3는 미연동입니다.
-- React 상태: 편집 중 입력, 단계, 모달/펼침, 시뮬레이션 비교.
-- LocalStorage/SessionStorage: 계정 체험, 사용자별 입력·거래·업로드 메타·계산 이력·시나리오·상담방·문의·관리 설정. 운영 보안/권한 경계가 아닙니다.
-- 예시 데이터: `src/api/services.js`의 `initial`, `merchantService` 목록, `sampleTransactions`, `aiService` 고정 응답. 초기 카드 금액은 0이며 실제 사용액은 업로드로만 생성합니다.
-- 체험 계산: `taxService.calculate()`. 기존 체험 산식을 유지하고 반환 계약만 새 필드명으로 통일했습니다. 새로 나눈 보험료도 체험 결과에 반영합니다. 이 계산은 법정 산출세액·한도·혜택 적용 선택을 구현하지 않습니다.
-- 과세표준: 기존 엔진에 해당 계산이 없으므로 체험 결과에서는 `taxableIncome: null`과 ‘계산 API 연동 후 제공’을 표시합니다. 실제 응답에는 숫자를 요구하며 숫자가 오면 그대로 표시합니다. 근로소득공제·카드 6종·한도 조정·표준세액공제는 API가 제공하는 모든 행을 표시할 수 있으나 체험 엔진이 법정 결과를 만들어내지는 않습니다.
-- 그룹 평균에 사용자 결과를 합산하지 않습니다. 2024년 공식 자료 연도는 유지하고 사용자의 선택 귀속 연도는 별도로 표시합니다.
+현재 프론트엔드는 **기존 체험 기능과 서버 연동 대상 기능이 혼재된 상태**입니다.
 
-## 팀에서 확인할 사항
+- `src/api/services.js` 등에서 체험 데이터를 제공합니다.
+- 일부 계정·입력·거래·상담 관련 상태는 브라우저 저장소를 사용합니다.
+- 예상 세액 계산의 체험 로직은 실제 법정 세액 계산 결과를 보장하지 않습니다.
+- 그룹 통계는 프로젝트에 포함된 정적 자료를 사용합니다.
+- Spring Boot·Oracle·Python 계산 서버·Gemma3 챗봇과의 실제 연동은 별도로 구현해야 합니다.
 
-`.env.example`을 `.env`로 복사해 팀이 확정한 `VITE_TERMS_VERSION`, `VITE_PRIVACY_VERSION`, `VITE_FINANCE_VERSION`을 설정할 수 있습니다. 임의 운영 버전은 설정하지 않았습니다. 미설정 상태에서는 로컬 체험 가입을 유지하지만 `consentDTO()`가 서버 저장 요청용 객체 생성을 차단합니다. 기존 가입자의 미확정 동의 이력에 새 버전을 소급 적용하지 않습니다. 실제 동의 시각과 버전 검증은 서버 책임입니다.
+브라우저 저장소에 저장된 체험 데이터는 실제 사용자 인증이나 서버 데이터 저장을 대체하지 않습니다.
 
-v3.9 보험료 컬럼명, 시뮬레이션 저장 컬럼, 실제 `CATEGORY_ID`·서버 발급 `UPLOAD_ID` 매핑은 팀 확인이 필요합니다. `insuranceInput()`은 프론트 필드이며 DB 컬럼 확정이 아닙니다. `MEMBER_ID`는 백엔드가 인증정보에서 결정해야 합니다.
+## 7. 테스트 및 코드 검사
 
-예전 통합 보험료와 연간 월세는 임의 분할·12분의 1 환산하지 않습니다. 원래 값을 보존하고 다시 확인해 입력하도록 안내합니다. 예전 결과 이력은 읽기 경계에서 새 필드로 호환합니다. 기존 사이트와 localhost는 저장소가 달라 실제 브라우저 데이터가 자동 복사되지 않습니다.
+모든 명령은 `frontend` 디렉터리에서 실행합니다.
 
-ZIP에는 전체 원본 소스, CSS·SVG·통계 파일, lockfile, Vite·Prettier·테스트·문서를 포함하고 `node_modules`, `dist`, Git 메타데이터·배포 자격증명·개인 입력 데이터는 제외합니다.
+### Prettier 코드 자동 정리
 
-## 이번 추출의 기준과 차이
+```bash
+npm run format
+```
 
-- 기준: https://hope-refund-young.uio8130.chatgpt.site 의 배포 버전 13.
-- 원본 커밋: `4aca76f4fbc72110f08cf1209d2338700f7b2baa`.
-- 추출일: 2026-10-31 (한국 시간). 사이트 재배포나 소스 변경은 하지 않았습니다.
-- 원래부터 JS/JSX + Vite이므로 TypeScript를 재변환하거나 컴포넌트를 재구성하지 않았습니다.
-- 현재 해시 주소 라우팅을 유지했습니다. 원본에 없는 React Router 라이브러리를 추가하지 않았습니다.
-- 포맷팅과 추출 안내 문서만 정리합니다. `src/`의 동작·데이터·스타일은 원본과 비교해 확인합니다.
-- `.openai/hosting.json`도 원본 설정으로 포함했지만 localhost 실행에는 사용되지 않습니다. 배포용 인증정보는 포함하지 않습니다.
-- Noto Sans KR 폰트는 원본처럼 Google Fonts를 사용하므로 동일 폰트를 불러오려면 인터넷 연결이 필요합니다.
-- localhost의 브라우저 저장소는 사이트 도메인과 다릅니다. 배포 사이트에 입력한 개인 데이터가 ZIP에 포함되거나 자동 이전되지는 않습니다.
-- `docs/FEEDBACK_REPORT.md`, `SOURCE_MAP.md`, `VERIFICATION.md`는 이전 작업의 기록입니다. 이번 추출 검증은 `docs/EXPORT_VERIFICATION.md`를 참고하세요.
+### Prettier 코드 형식 검사
+
+```bash
+npm run format:check
+```
+
+### 기존 프론트엔드 테스트
+
+```bash
+npm test
+```
+
+현재 `npm test`는 기존 프로젝트에 포함된 화면·기능 흐름 및 응답 계약 검증 스크립트를 실행합니다.
+
+실제 브라우저 조작, Spring Boot API, Oracle DB, 이메일 전송 및 AI 서버 연동을 검증하는 테스트는 아닙니다.
+
+### 빌드 검증
+
+```bash
+npm run build
+```
+
+현재 `package.json`에는 ESLint 및 Vitest 실행 스크립트가 등록되어 있지 않습니다. 관련 개발 규칙 및 테스트 환경은 향후 팀 표준에 맞춰 정리해야 합니다.
+
+## 8. 현재 구현 상태
+
+### 구성 완료
+
+- React JSX + Vite 프로젝트
+- 기존 페이지 및 공통 레이아웃
+- 사용자 입력·대시보드·시뮬레이션 UI
+- 카드·홈택스 파일 업로드 체험 기능
+- AI 챗봇 UI 및 체험 응답
+- 그룹 통계 화면
+- 회원·관리자 체험 기능
+- Prettier 설정
+- 기존 프론트엔드 테스트 스크립트
+- 개발용 API 데이터 계약 및 연동 메모
+
+### 추후 구현 및 검증 예정
+
+- Spring Boot REST API 연동
+- 서버 기반 회원 인증 및 권한 적용
+- 소득·지출·업로드 데이터의 서버 저장·조회
+- Python 계산 결과 및 공제 상세 데이터 반영
+- AI 챗봇 서버 연결 및 대화 기록 연동
+- 실제 이메일 인증
+- API 오류·로딩 처리 및 통합 테스트
+- 팀 표준 ESLint·Vitest 환경 검토
+
+## 9. 관련 문서
+
+| 문서 | 용도 |
+|---|---|
+| `AGENTS.md` | 프론트엔드 개발 규칙 및 협업 기준 |
+| `docs/API_INTEGRATION.md` | 백엔드 API 연결 참고 |
+| `docs/FEEDBACK_REPORT.md` | 기존 수정 사항과 보류 사항 |
+| `docs/VERIFICATION.md` | 기존 검증 결과 |
+| `docs/EXPORT_VERIFICATION.md` | 원본 추출 검증 기록 |
+| `docs/SOURCE_MAP.md` | 기존 소스 구성 및 추출 이력 |
+
+기능 구현은 [희망환급 기능명세서 v1.13](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)을 기준으로 합니다.
+
+API 요청·응답의 상세 계약은 팀 공식 API 명세서를 따릅니다.
+
+기존 사이트 추출 이력과 세부 수정 기록은 `docs/`의 관련 문서를 참고합니다.
