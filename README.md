@@ -90,6 +90,7 @@
 
 ## 📂 프로젝트 구조
 
+```text
  two-trillion/
  ├── .gitignore                               # 4개 프로젝트 공통 Git 제외 설정
  ├── README.md                                # 저장소 최상위 안내
@@ -301,7 +302,7 @@ chatbot/app/
 └── core/             # 환경설정·내부 인증
 chatbot/data/         # RAG 문서·전처리 자료
 chatbot/docs/         # 개발 이력·결정·작업 문서
-
+```
 ## 🖥 실행 방법
 
 개발 진행 후 작성 예정
