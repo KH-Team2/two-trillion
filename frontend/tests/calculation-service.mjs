@@ -120,6 +120,7 @@ try {
   assert.equal(calls[1].body, undefined);
   assert.equal(calls[1].headers['X-Member-Id'], '1');
   assert.equal(result.expectedRefund, 435500);
+  assert.equal(result.predictionId, 7); // 저장된 결과 번호를 버리지 않음 (챗봇 · 절세 가이드용)
   assert.equal(result.details[0].typeCode, 'EARNED_DEDUCTION');
 
   // 저장이 실패하면 계산 요청을 보내지 않음 · 서버 문구 그대로

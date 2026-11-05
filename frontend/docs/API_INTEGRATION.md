@@ -74,6 +74,7 @@
 
 1. `PUT /api/incomes/{taxYear}` — `income-service.js`의 `incomeRequest(d)`로 화면 값을 back 이름으로 바꿔 **모든 칸**을 보냅니다.
 2. 저장이 성공하면 `POST /api/calculations/{taxYear}` (본문 없음) → `parseCalculationResult()`로 응답 검사 (`taxableIncome`도 숫자 필수).
+   - 응답의 `predictionId`(저장된 결과 번호)는 그대로 남깁니다 (11/05). 챗봇 대화방 생성 `POST /api/chat-sessions`(본문 `predictionId`)과 절세 가이드 `GET /api/recommendations/{predictionId}`가 이 값을 씁니다. 예전 브라우저 이력에는 없을 수 있어 그때는 `null`입니다.
 3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘기고, 계산 이력에 `source: 'API'`로 저장합니다.
 
 | 화면 값 | back 이름 | 처리 |
