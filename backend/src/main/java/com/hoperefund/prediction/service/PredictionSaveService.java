@@ -4,11 +4,9 @@ import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
-
+import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.List;
 
 /**
  * 계산 결과 저장 (PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL)

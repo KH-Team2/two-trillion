@@ -9,7 +9,6 @@ import com.hoperefund.income.service.IncomeService;
 import com.hoperefund.prediction.client.MockCalcClient;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
-
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

@@ -4,11 +4,9 @@ import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
-
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 /**
  * 계산 결과 저장 (PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL) SQL은

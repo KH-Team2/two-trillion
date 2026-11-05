@@ -11,16 +11,14 @@ import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.sun.net.httpserver.HttpServer;
-
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Test;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 /**
  * 계산 서버 호출(HttpCalcClient)을 진짜 파이썬 서버 없이 확인해요. JDK에 들어 있는 작은 HTTP 서버(HttpServer)를 테스트 안에서 띄워 계산 서버인
@@ -99,7 +97,7 @@ class HttpCalcClientTest {
         String url =
                 startServer(
                         200,
-                        """
+"""
 {"taxYear":2026,"totalSalary":36000000,"withheldTax":1523000,"taxableIncome":23850000,
  "calculatedTax":2317500,"decidedTax":1471500,"expectedRefund":51500,
  "details":[{"typeCode":"EARNED_DEDUCTION","typeName":"근로소득공제","kind":"INCOME_DEDUCTION",

@@ -10,13 +10,11 @@ import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.mapper.IncomeMapper;
-
+import java.util.HashMap;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /** DB 없이 서비스 규칙만 확인해요 (가짜 매퍼 사용). */
 class IncomeServiceTest {

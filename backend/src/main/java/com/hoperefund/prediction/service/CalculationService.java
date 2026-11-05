@@ -9,13 +9,11 @@ import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
-
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import java.util.List;
 
 /**
  * 계산 요청 (F-03-01) 흐름: Controller → CalculationService → (소득 · 무주택 · 카드 합계 조회) → CalcClient(계산) →

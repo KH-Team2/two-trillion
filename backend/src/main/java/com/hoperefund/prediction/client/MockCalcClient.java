@@ -7,11 +7,9 @@ import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
-
+import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
 
 /**
  * 가짜 계산 결과 (파이썬 서버 연결 전까지 화면 연결용) - 세액을 실제로 계산하지 않아요. 과세표준·산출세액·결정세액·공제액은 모두 0이에요. - 대상

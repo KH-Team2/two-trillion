@@ -7,7 +7,6 @@ import com.hoperefund.prediction.client.CalcClient;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;

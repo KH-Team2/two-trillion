@@ -8,7 +8,12 @@ import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
-
+import java.net.http.HttpClient;
+import java.time.Duration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -18,13 +23,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
-
-import java.net.http.HttpClient;
-import java.time.Duration;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
 
 /**
  * 파이썬 계산 서버를 HTTP로 불러요 (calc.mode=http 일 때만 Bean 등록) - POST {CALC_BASE_URL}/calculate · /benefit
