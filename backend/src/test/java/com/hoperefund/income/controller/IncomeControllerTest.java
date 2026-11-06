@@ -10,9 +10,7 @@ import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.mapper.IncomeMapper;
 import com.hoperefund.income.service.IncomeService;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -20,6 +18,10 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 소득 API의 요청 · 응답 모양을 확인해요 (서버 · DB 없이 MockMvc). 화면이 받는 상태 코드와 {"error", "message"} 모양이
@@ -133,6 +135,51 @@ class IncomeControllerTest {
 
         assertEquals(400, res.getStatus());
         assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+    }
+
+    @Test
+    void 총급여가_10억을_넘으면_400_VALIDATION이고_저장하지_않는다() throws Exception {
+        // 0 하나 더 붙인 오타: 3,600만 → 36억
+        String tooBig = BODY.replace("\"totalSalary\":36000000", "\"totalSalary\":3600000000");
+        MockHttpServletResponse res =
+                call(
+                        put("/api/incomes/2026")
+                                .header("X-Member-Id", "81")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(tooBig));
+
+        assertEquals(400, res.getStatus());
+        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(text(res).contains("총급여가 너무 커요"));
+        assertTrue(mapper.rows.isEmpty());
+    }
+
+    @Test
+    void 총급여가_딱_10억이면_저장된다() throws Exception {
+        String limit = BODY.replace("\"totalSalary\":36000000", "\"totalSalary\":1000000000");
+        MockHttpServletResponse res =
+                call(
+                        put("/api/incomes/2026")
+                                .header("X-Member-Id", "81")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(limit));
+
+        assertEquals(200, res.getStatus());
+    }
+
+    @Test
+    void 연금저축이_1억을_넘으면_400_VALIDATION() throws Exception {
+        String tooBig = BODY.replace("\"pensionSaving\":0", "\"pensionSaving\":100000001");
+        MockHttpServletResponse res =
+                call(
+                        put("/api/incomes/2026")
+                                .header("X-Member-Id", "81")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(tooBig));
+
+        assertEquals(400, res.getStatus());
+        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(mapper.rows.isEmpty());
     }
 
     @Test
