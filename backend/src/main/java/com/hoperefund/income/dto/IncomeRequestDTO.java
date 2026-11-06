@@ -5,27 +5,32 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 
-/** 소득 입력 요청 (화면 S-02 → INCOME). 금액은 원 단위 정수, 모두 0 이상 (DB CHECK CK_INCOME_AMOUNT와 같은 규칙). */
+/**
+ * 소득 입력 요청 (화면 S-02 → INCOME). 금액은 원 단위 정수, 모두 0 이상 (DB CHECK CK_INCOME_AMOUNT와 같은 규칙).
+ *
+ * <p>상한은 오타(0 하나 더 붙임)를 거르는 용도예요. 총급여·세액·보험료는 10억(청년 근로소득 범위 밖), 월세·청약·연금저축·IRP는 1억(법적 연 납입 한도
+ * 1,800만보다 훨씬 위). 업무 규칙이 아니라서 필요하면 숫자만 올리면 돼요.
+ */
 public class IncomeRequestDTO {
 
     @NotNull(message = "총급여를 입력해 주세요")
     @Min(value = 0, message = "총급여는 0원 이상이어야 해요")
-    @Max(value = 999_999_999_999L, message = "총급여가 너무 커요")
+    @Max(value = 1_000_000_000L, message = "총급여가 너무 커요")
     private Long totalSalary;
 
     @NotNull(message = "기납부세액을 입력해 주세요")
     @Min(value = 0, message = "기납부세액은 0원 이상이어야 해요")
-    @Max(value = 999_999_999_999L, message = "기납부세액이 너무 커요")
+    @Max(value = 1_000_000_000L, message = "기납부세액이 너무 커요")
     private Long withheldTax;
 
     @NotNull(message = "국민연금보험료를 입력해 주세요")
     @Min(value = 0, message = "국민연금보험료는 0원 이상이어야 해요")
-    @Max(value = 999_999_999_999L, message = "금액이 너무 커요")
+    @Max(value = 1_000_000_000L, message = "금액이 너무 커요")
     private Long nationalPension = 0L;
 
     @NotNull(message = "건강·고용보험료를 입력해 주세요")
     @Min(value = 0, message = "건강·고용보험료는 0원 이상이어야 해요")
-    @Max(value = 999_999_999_999L, message = "금액이 너무 커요")
+    @Max(value = 1_000_000_000L, message = "금액이 너무 커요")
     private Long healthInsurance = 0L;
 
     @NotNull(message = "부양가족 수를 입력해 주세요")
@@ -40,22 +45,22 @@ public class IncomeRequestDTO {
 
     @NotNull(message = "월세를 입력해 주세요")
     @Min(value = 0, message = "월세는 0원 이상이어야 해요")
-    @Max(value = 9_999_999_999L, message = "금액이 너무 커요")
+    @Max(value = 100_000_000L, message = "금액이 너무 커요")
     private Long monthlyRent = 0L;
 
     @NotNull(message = "주택청약 납입액을 입력해 주세요")
     @Min(value = 0, message = "주택청약 납입액은 0원 이상이어야 해요")
-    @Max(value = 9_999_999_999L, message = "금액이 너무 커요")
+    @Max(value = 100_000_000L, message = "금액이 너무 커요")
     private Long housingSaving = 0L;
 
     @NotNull(message = "연금저축 납입액을 입력해 주세요")
     @Min(value = 0, message = "연금저축 납입액은 0원 이상이어야 해요")
-    @Max(value = 9_999_999_999L, message = "금액이 너무 커요")
+    @Max(value = 100_000_000L, message = "금액이 너무 커요")
     private Long pensionSaving = 0L;
 
     @NotNull(message = "IRP 납입액을 입력해 주세요")
     @Min(value = 0, message = "IRP 납입액은 0원 이상이어야 해요")
-    @Max(value = 9_999_999_999L, message = "금액이 너무 커요")
+    @Max(value = 100_000_000L, message = "금액이 너무 커요")
     private Long irpSaving = 0L;
 
     @NotNull(message = "중소기업 감면 신청 여부를 입력해 주세요")
