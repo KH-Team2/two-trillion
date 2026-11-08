@@ -23,5 +23,11 @@ public class TestErrorController {
         throw new IllegalStateException("테스트용 오류");
     }
 
+    @GetMapping("/api/test-errors/business")
+    public String businessError() {
+        throw new BusinessException(
+                org.springframework.http.HttpStatus.CONFLICT, "TEST_CONFLICT", "테스트 업무 오류");
+    }
+
     public record TestRequest(String content) {}
 }

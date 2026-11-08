@@ -48,6 +48,16 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.message").exists());
     }
 
+    // 업무 오류 테스트 (서비스가 정한 상태 코드 · 오류 코드 · 문구)
+    @Test
+    void businessErrorReturnsGivenStatus() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/business"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error").value("TEST_CONFLICT"))
+                .andExpect(jsonPath("$.message").value("테스트 업무 오류"));
+    }
+
     // 예상하지 못한 서버 오류 테스트
     @Test
     void unexpectedErrorReturns500() throws Exception {

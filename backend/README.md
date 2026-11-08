@@ -257,5 +257,6 @@ mvnw -B verify
 기능 요구사항은 [희망환급 기능명세서 v1.13](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
 
 ERD는 팀에서 공유한 v4.1을 기준으로 합니다.
+https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
 일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.

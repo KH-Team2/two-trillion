@@ -39,6 +39,19 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 
+    // 업무 규칙 위반 (중복 아이디 등) - 서비스에서 정한 상태 코드·오류 코드·문구로 응답
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ErrorResponseDTO> handleBusiness(BusinessException e) {
+
+        // 원인은 오류 코드만 로그로 남김 (개인정보 제외)
+        org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class)
+                .warn("업무 오류 발생: {}", e.getCode());
+
+        ErrorResponseDTO response = new ErrorResponseDTO(e.getCode(), e.getMessage());
+
+        return ResponseEntity.status(e.getStatus()).body(response);
+    }
+
     // 존재하지 않는 정적 리소스 또는 API 경로
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ErrorResponseDTO> handleNotFound(NoResourceFoundException e) {
