@@ -1,4 +1,4 @@
-# API 공통 규칙 (11/03 · 이우진 제안 · back 코드 기준)
+# API 공통 규칙 (11/03 · 이우진 제안 · back 코드 기준 · 11/09 응답 봉투 팀 합의)
 
 > 개별 주소는 기능 담당자가 정하고, 주소를 지을 때 모두 아래 모양을 따른다.
 > 이 back 레포의 API(소득 · 계산 · 혜택 진단)는 이 규칙대로 만들어져 있다 → 예시로 보면 된다.
@@ -40,13 +40,28 @@
 - 금액: 원 단위 정수 (소수 없음)
 - 날짜: `"2026-11-03"` · 일시: `"2026-11-03T10:20:30"`
 - 여부: DB에 저장하는 값은 `"Y"` / `"N"` (예: `smeReductionYn`) · 판정 결과처럼 "모름"이 있으면 `true` / `false` / `null` (예: 혜택 진단 `eligible`)
-- 성공하면 결과를 그대로 보낸다 (감싸지 않음) · 목록은 배열
+- 응답은 성공 · 실패 모두 **공통 봉투**로 감싼다 (11/09 팀 합의 · 선생님 샘플과 같은 모양 · `common/dto/ApiResponse`)
+
+```json
+성공(단건) {"success": true,  "data": {...}, "meta": null, "error": null}
+성공(목록) {"success": true,  "data": [...], "meta": {"page": 1, "size": 20, "total": 135, "totalPages": 7}, "error": null}
+실패       {"success": false, "data": null,  "meta": null, "error": {"code": "NOT_FOUND", "message": "..."}}
+```
+
+- Controller: `return ApiResponse.ok(결과);` · 목록은 `ApiResponse.ok(목록, PageMeta.of(page, size, total))` (페이지는 1부터)
+- 화면: 성공이면 `data`를 꺼내 쓰고, 실패면 `error.message`를 띄운다 (`frontend/src/api/api-client.js`가 대신 해 줌)
 
 ## 5. 오류 응답 모양
 
-모든 오류는 한 가지 모양: `{"error": "코드", "message": "화면에 그대로 보여 줄 문구"}`
+모든 오류는 봉투의 `error`에 한 가지 모양: `{"code": "코드", "message": "화면에 그대로 보여 줄 문구"}`
+서버 쪽 오류(500 · 503)에만 추적 번호 `errorId`가 더 붙는다 → 같은 번호가 서버 로그에 `[errorId=...]`로 남아 원인을 바로 찾는다.
 
-| 상태 | error | 언제 |
+```json
+{"success": false, "data": null, "meta": null,
+ "error": {"code": "SERVER_ERROR", "message": "잠시 후 다시 시도해 주세요.", "errorId": "a3f9c2d1"}}
+```
+
+| 상태 | error.code | 언제 |
 | --- | --- | --- |
 | 400 | `VALIDATION` | 입력값 오류 (빈 칸 · 범위 밖 · 형식 · 업무 규칙 위반) |
 | 400 | `NO_CRITERIA` | 기준값이 없는 연도 |
@@ -56,16 +71,17 @@
 | 404 | `NOT_FOUND` | 데이터 · 주소 없음 |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |
-| 500 | `SERVER_ERROR` | 그 밖의 서버 오류 |
-| 503 | `○○_UNAVAILABLE` | 외부 서버 연결 불가 (예: `CALC_UNAVAILABLE`) |
+| 500 | `SERVER_ERROR` | 그 밖의 서버 오류 · `errorId` 있음 |
+| 503 | `○○_UNAVAILABLE` | 외부 서버 연결 불가 (예: `CALC_UNAVAILABLE`) · `errorId` 있음 |
 
-- 오류 문구에 SQL · 스택 트레이스 · DB 주소를 넣지 않는다 (원인은 서버 로그에만).
-- Spring은 `GlobalExceptionHandler` 하나에서 이 모양으로 바꾼다 (이 레포 참고).
+- 오류 문구에 SQL · 스택 트레이스 · DB 주소 · DB 오류 코드(ORA-…)를 넣지 않는다 (원인은 서버 로그에만).
+- `errorId`는 사용자 쪽 오류(400 · 401 · 404 · 409)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
+- Spring은 `GlobalExceptionHandler` 하나에서 이 모양으로 바꾼다 (이 레포 참고). Service는 예외를 던지기만 하면 된다.
 
 ## 6. 예외: 서버끼리 부르는 내부 API
 
 - 계산 서버(FastAPI)의 `POST /calculate` · `POST /benefit`은 화면에 열지 않는 내부 호출이라 위 주소 규칙의 예외.
-- `X-Calc-Token` 헤더로만 받고, Spring 서버만 부른다. 오류 모양(`{"error","message"}`)은 같다.
+- `X-Calc-Token` 헤더로만 받고, Spring 서버만 부른다. 내부 API라 봉투로 감싸지 않고 결과 그대로 · 오류는 `{"error","message"}` (Spring이 받아서 봉투로 바꿔 화면에 보냄).
 
 ## 7. 이 레포의 API (명세 예시)
 

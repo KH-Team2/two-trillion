@@ -1,9 +1,7 @@
 // 청년 혜택 자격 진단 API 연결 (F-03-02 · S-05) · GET /api/benefits/{taxYear}
 // 판정은 서버(계산 서버의 BENEFIT_CONDITION 규칙)가 해요. 화면은 받은 결과를 그대로 보여 주기만 해요.
-const env = import.meta.env || {};
-// 개발용 회원번호는 개발 서버(npm run dev)에서만 써요.
-// 빌드한 파일(npm run build)에서는 DEV가 false라 보내지 않아요 → 배포 화면이 모두 같은 회원으로 요청하는 사고 방지
-const devMemberId = env.DEV ? env.VITE_DEV_MEMBER_ID : undefined;
+// 요청 · 봉투 풀기 · 오류 처리 · 개발용 회원번호는 api-client.js 공통 함수를 써요.
+import { apiError, apiRequest, checkTaxYear } from './api-client.js';
 
 /** 서버 응답 상태값 → 화면 표시 (true 해당 · false 비해당 · null 정보 부족) */
 export function benefitStatus(eligible) {
@@ -41,15 +39,9 @@ export const PREPARE_DOCS = {
 };
 
 /** 서버 오류 응답 {error, message}을 Error로 바꿔요 (code에 error 값) */
-function apiError(code, message) {
-  const error = new Error(message);
-  error.code = code;
-  return error;
-}
 
 /** 응답 모양을 검사해요. 빠진 값을 임의로 채우지 않아요. */
 export function parseBenefitResponse(raw) {
-  if (raw?.error) throw apiError(raw.error, raw.message || '혜택 진단 결과를 불러올 수 없어요.');
   if (!raw || !Number.isInteger(raw.taxYear) || !Array.isArray(raw.results)) {
     throw apiError('INVALID_RESPONSE', '혜택 진단 결과 형식이 올바르지 않아요.');
   }
@@ -77,31 +69,11 @@ export function parseBenefitResponse(raw) {
  * - 서버에 연결할 수 없으면 code가 'OFFLINE'인 오류를 던져요 (화면은 체험 판정으로 돌아가요).
  */
 export async function fetchBenefits(taxYear, { fetchImpl = globalThis.fetch, memberId } = {}) {
-  if (!Number.isInteger(taxYear) || taxYear < 2000 || taxYear > 2100) {
-    throw apiError('VALIDATION', '귀속 연도를 확인해주세요.');
-  }
-  const id = memberId ?? devMemberId;
-  const headers = { Accept: 'application/json' };
-  if (id && /^\d+$/.test(String(id))) headers['X-Member-Id'] = String(id);
-
-  let response;
-  try {
-    response = await fetchImpl(`/api/benefits/${taxYear}`, { headers, credentials: 'same-origin' });
-  } catch {
-    throw apiError('OFFLINE', '혜택 진단 서버에 연결할 수 없어요.');
-  }
-  let body = null;
-  try {
-    body = await response.json();
-  } catch {
-    // JSON이 아니면 서버가 꺼져 있거나(개발 프록시 오류) 다른 서버가 응답한 거예요
-    throw apiError('OFFLINE', '혜택 진단 서버에 연결할 수 없어요.');
-  }
-  if (!response.ok) {
-    throw apiError(
-      body?.error || `HTTP_${response.status}`,
-      body?.message || '혜택 진단 결과를 불러올 수 없어요.',
-    );
-  }
+  checkTaxYear(taxYear);
+  const body = await apiRequest(`/api/benefits/${taxYear}`, {
+    fetchImpl,
+    memberId,
+    offlineMessage: '혜택 진단 서버에 연결할 수 없어요.',
+  });
   return parseBenefitResponse(body);
 }

@@ -44,12 +44,26 @@ try {
       },
     ],
   };
+  // back 공통 봉투(ApiResponse) 모양으로 감싸요 · 테스트 데이터는 {error, message} / 결과 그대로 적고 여기서 변환
+  const envelope = (status, body) =>
+    status < 400
+      ? { success: true, data: body, meta: null, error: null }
+      : {
+          success: false,
+          data: null,
+          meta: null,
+          error: {
+            code: body.error,
+            message: body.message,
+            ...(body.errorId ? { errorId: body.errorId } : {}),
+          },
+        };
   const fake =
     (status, body, seen = {}) =>
     async (url, init) => {
       seen.url = url;
       seen.headers = init.headers;
-      return { ok: status < 400, status, json: async () => body };
+      return { ok: status < 400, status, json: async () => envelope(status, body) };
     };
 
   // 정상 응답: 상태 3가지를 그대로 유지

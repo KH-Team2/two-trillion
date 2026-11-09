@@ -1,7 +1,9 @@
 package com.hoperefund.prediction.controller;
 
+import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.service.BenefitService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,8 +27,8 @@ public class BenefitController {
 
     /** 진단: GET /api/benefits/2026 (저장된 2026년 소득 + 회원 자격 정보로 판정 · 저장하지 않음) */
     @GetMapping("/{taxYear}")
-    public ResponseEntity<BenefitResponseDTO> diagnose(
+    public ResponseEntity<ApiResponse<BenefitResponseDTO>> diagnose(
             @RequestHeader("X-Member-Id") long memberId, @PathVariable("taxYear") int taxYear) {
-        return ResponseEntity.ok(benefitService.diagnose(memberId, taxYear));
+        return ResponseEntity.ok(ApiResponse.ok(benefitService.diagnose(memberId, taxYear)));
     }
 }

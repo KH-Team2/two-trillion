@@ -16,14 +16,16 @@ import com.hoperefund.prediction.dto.BenefitResultDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.service.BenefitService;
 import com.hoperefund.prediction.service.CalculationService;
-import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.function.Supplier;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.function.Supplier;
 
 /**
  * 계산 · 혜택 진단 API의 요청 · 응답 모양을 확인해요 (서버 · DB · 계산 서버 없이 MockMvc). 서비스는 정해 둔 결과나 오류만 돌려주는 가짜로 바꿔서,
@@ -90,6 +92,9 @@ class PredictionControllerTest {
                 call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(200, res.getStatus());
+        // 공통 봉투: 결과는 data 안에
+        assertTrue(text(res).startsWith("{\"success\":true,\"data\":{"));
+        assertTrue(text(res).contains("\"error\":null"));
         assertTrue(text(res).contains("\"decidedTax\":1471500"));
         assertTrue(text(res).contains("\"expectedRefund\":51500"));
         assertEquals(81L, receivedMemberId);
@@ -103,7 +108,7 @@ class PredictionControllerTest {
         MockHttpServletResponse res = call(controller, post("/api/calculations/2026"));
 
         assertEquals(401, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"UNAUTHORIZED\""));
+        assertTrue(text(res).contains("\"code\":\"UNAUTHORIZED\""));
         assertEquals(0, receivedTaxYear);
     }
 
@@ -119,7 +124,7 @@ class PredictionControllerTest {
                 call(controller, post("/api/calculations/2024").header("X-Member-Id", "81"));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"NO_CRITERIA\""));
+        assertTrue(text(res).contains("\"code\":\"NO_CRITERIA\""));
     }
 
     @Test
@@ -134,7 +139,7 @@ class PredictionControllerTest {
                 call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"CALC_REJECTED\""));
+        assertTrue(text(res).contains("\"code\":\"CALC_REJECTED\""));
     }
 
     @Test
@@ -150,7 +155,8 @@ class PredictionControllerTest {
                 call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(503, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"CALC_UNAVAILABLE\""));
+        assertTrue(text(res).contains("\"code\":\"CALC_UNAVAILABLE\""));
+        assertTrue(text(res).matches(".*\"errorId\":\"[0-9a-f]{8}\".*")); // 503은 추적 번호 있음
         assertFalse(text(res).contains("내부주소")); // 원인은 서버 로그에만
     }
 
@@ -166,7 +172,8 @@ class PredictionControllerTest {
                 call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(404, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"NOT_FOUND\""));
+        assertTrue(text(res).contains("\"code\":\"NOT_FOUND\""));
+        assertFalse(text(res).contains("errorId")); // 사용자 쪽 오류엔 추적 번호 없음
     }
 
     @Test
@@ -182,7 +189,8 @@ class PredictionControllerTest {
                 call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(500, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"SERVER_ERROR\""));
+        assertTrue(text(res).contains("\"code\":\"SERVER_ERROR\""));
+        assertTrue(text(res).matches(".*\"errorId\":\"[0-9a-f]{8}\".*")); // 500은 추적 번호 있음
         assertFalse(text(res).contains("ORA-"));
         assertFalse(text(res).contains("SELECT"));
     }
@@ -195,7 +203,7 @@ class PredictionControllerTest {
                 call(controller, get("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(405, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"METHOD_NOT_ALLOWED\""));
+        assertTrue(text(res).contains("\"code\":\"METHOD_NOT_ALLOWED\""));
     }
 
     // ---------- 혜택 진단 GET /api/benefits/{taxYear} ----------

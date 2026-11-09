@@ -10,9 +10,7 @@ import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.mapper.IncomeMapper;
 import com.hoperefund.income.service.IncomeService;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
-import java.util.Map;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
@@ -20,6 +18,10 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
+
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * 소득 API의 요청 · 응답 모양을 확인해요 (서버 · DB 없이 MockMvc). 화면이 받는 상태 코드와 {"error", "message"} 모양이
@@ -89,6 +91,8 @@ class IncomeControllerTest {
                                 .content(BODY));
 
         assertEquals(200, res.getStatus());
+        assertTrue(text(res).contains("\"success\":true"));
+        assertTrue(text(res).contains("\"data\":{"));
         assertTrue(text(res).contains("\"totalSalary\":36000000"));
         assertTrue(mapper.rows.containsKey("81-2026"));
     }
@@ -102,7 +106,7 @@ class IncomeControllerTest {
                                 .content(BODY));
 
         assertEquals(401, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"UNAUTHORIZED\""));
+        assertTrue(text(res).contains("\"code\":\"UNAUTHORIZED\""));
         assertTrue(mapper.rows.isEmpty());
     }
 
@@ -117,7 +121,7 @@ class IncomeControllerTest {
                                 .content(noSalary));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(text(res).contains("\"code\":\"VALIDATION\""));
         assertTrue(mapper.rows.isEmpty());
     }
 
@@ -132,7 +136,7 @@ class IncomeControllerTest {
                                 .content(negative));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(text(res).contains("\"code\":\"VALIDATION\""));
     }
 
     @Test
@@ -147,7 +151,7 @@ class IncomeControllerTest {
                                 .content(tooBig));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(text(res).contains("\"code\":\"VALIDATION\""));
         assertTrue(text(res).contains("총급여가 너무 커요"));
         assertTrue(mapper.rows.isEmpty());
     }
@@ -176,7 +180,7 @@ class IncomeControllerTest {
                                 .content(tooBig));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(text(res).contains("\"code\":\"VALIDATION\""));
         assertTrue(mapper.rows.isEmpty());
     }
 
@@ -185,7 +189,7 @@ class IncomeControllerTest {
         MockHttpServletResponse res = call(get("/api/incomes/abc").header("X-Member-Id", "81"));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"VALIDATION\""));
+        assertTrue(text(res).contains("\"code\":\"VALIDATION\""));
     }
 
     @Test
@@ -198,7 +202,7 @@ class IncomeControllerTest {
                                 .content(BODY));
 
         assertEquals(400, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"NO_CRITERIA\""));
+        assertTrue(text(res).contains("\"code\":\"NO_CRITERIA\""));
     }
 
     @Test
@@ -206,7 +210,7 @@ class IncomeControllerTest {
         MockHttpServletResponse res = call(get("/api/incomes/2026").header("X-Member-Id", "81"));
 
         assertEquals(404, res.getStatus());
-        assertTrue(text(res).contains("\"error\":\"NOT_FOUND\""));
+        assertTrue(text(res).contains("\"code\":\"NOT_FOUND\""));
     }
 
     @Test
@@ -233,7 +237,7 @@ class IncomeControllerTest {
 
         assertEquals(400, res.getStatus());
         String body = text(res);
-        assertTrue(body.contains("\"error\":\"VALIDATION\""));
+        assertTrue(body.contains("\"code\":\"VALIDATION\""));
         assertTrue(!body.contains("Exception") && !body.contains("at com."));
     }
 }

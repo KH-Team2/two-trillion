@@ -49,12 +49,26 @@ try {
     ],
   };
   // 요청을 순서대로 기록하는 가짜 fetch
+  // back 공통 봉투(ApiResponse) 모양으로 감싸요 · 테스트 데이터는 {error, message} / 결과 그대로 적고 여기서 변환
+  const envelope = (status, body) =>
+    status < 400
+      ? { success: true, data: body, meta: null, error: null }
+      : {
+          success: false,
+          data: null,
+          meta: null,
+          error: {
+            code: body.error,
+            message: body.message,
+            ...(body.errorId ? { errorId: body.errorId } : {}),
+          },
+        };
   const fakeSeq =
     (responses, calls = []) =>
     async (url, init) => {
       calls.push({ url, method: init.method, headers: init.headers, body: init.body });
       const [status, body] = responses[calls.length - 1];
-      return { ok: status < 400, status, json: async () => body };
+      return { ok: status < 400, status, json: async () => envelope(status, body) };
     };
   const input = {
     taxYear: 2025,
@@ -146,10 +160,28 @@ try {
   await assert.rejects(
     requestCalculation(2025, {
       fetchImpl: fakeSeq([
-        [503, { error: 'CALC_UNAVAILABLE', message: '계산 서버에 잠시 연결할 수 없어요' }],
+        [
+          503,
+          {
+            error: 'CALC_UNAVAILABLE',
+            message: '계산 서버에 잠시 연결할 수 없어요',
+            errorId: 'a3f9c2d1',
+          },
+        ],
       ]),
     }),
-    (e) => e.code === 'CALC_UNAVAILABLE',
+    // 서버 오류의 추적 번호는 문구 뒤에 붙어 사용자에게 보여요
+    (e) =>
+      e.code === 'CALC_UNAVAILABLE' &&
+      e.errorId === 'a3f9c2d1' &&
+      e.message === '계산 서버에 잠시 연결할 수 없어요 (오류 번호 a3f9c2d1)',
+  );
+  // 공통 봉투가 아닌 JSON(다른 서버 응답) → OFFLINE
+  await assert.rejects(
+    requestCalculation(2025, {
+      fetchImpl: async () => ({ ok: true, status: 200, json: async () => ({ decidedTax: 1 }) }),
+    }),
+    (e) => e.code === 'OFFLINE',
   );
   // 서버 꺼짐(네트워크 오류 · JSON 아님) → OFFLINE
   await assert.rejects(

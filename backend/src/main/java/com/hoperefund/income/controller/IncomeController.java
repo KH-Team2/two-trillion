@@ -1,9 +1,12 @@
 package com.hoperefund.income.controller;
 
+import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.service.IncomeService;
+
 import jakarta.validation.Valid;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,17 +31,17 @@ public class IncomeController {
 
     /** 조회: GET /api/incomes/2026 */
     @GetMapping("/{taxYear}")
-    public IncomeResponseDTO get(
+    public ApiResponse<IncomeResponseDTO> get(
             @RequestHeader("X-Member-Id") long memberId, @PathVariable("taxYear") int taxYear) {
-        return incomeService.get(memberId, taxYear);
+        return ApiResponse.ok(incomeService.get(memberId, taxYear));
     }
 
     /** 저장(없으면 새로, 있으면 수정): PUT /api/incomes/2026 */
     @PutMapping("/{taxYear}")
-    public IncomeResponseDTO save(
+    public ApiResponse<IncomeResponseDTO> save(
             @RequestHeader("X-Member-Id") long memberId,
             @PathVariable("taxYear") int taxYear,
             @Valid @RequestBody IncomeRequestDTO req) {
-        return incomeService.save(memberId, taxYear, req);
+        return ApiResponse.ok(incomeService.save(memberId, taxYear, req));
     }
 }

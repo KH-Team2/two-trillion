@@ -1,7 +1,9 @@
 package com.hoperefund.prediction.controller;
 
+import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.service.CalculationService;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -28,9 +30,9 @@ public class CalculationController {
 
     /** 계산: POST /api/calculations/2026 저장된 2026년 소득으로 계산해요. 요청 본문(body)은 없어요. */
     @PostMapping("/{taxYear}")
-    public ResponseEntity<CalculationResponseDTO> calculate(
+    public ResponseEntity<ApiResponse<CalculationResponseDTO>> calculate(
             @RequestHeader("X-Member-Id") long memberId, @PathVariable("taxYear") int taxYear) {
         CalculationResponseDTO result = calculationService.calculate(memberId, taxYear);
-        return ResponseEntity.ok(result); // 200 OK + JSON
+        return ResponseEntity.ok(ApiResponse.ok(result)); // 200 OK + 공통 봉투 JSON
     }
 }
