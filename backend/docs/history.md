@@ -4,6 +4,7 @@
 
 ## 2026-11-09
 
+- API 규칙 팀 합의 반영 (`docs/api-rules.md` 3번): 성공 응답은 모두 200 (201 · 204 안 씀) · 수정은 PUT만 (문의 답변 PATCH → PUT). 이 레포 API는 원래 200 · PUT이라 코드 변경 없음.
 - 보안 재점검 반영: ① 가짜 계산(mock) 시 서버 시작 경고 로그 + 항목 근거에 「[가짜 계산 · 실제 세액 아님]」 표시 (운영에서 CALC_MODE를 빠뜨려도 진짜처럼 안 보이게) ② http 모드인데 계산 토큰이 비어 있으면 서버가 켜지지 않게 ③ 계산 서버 토큰에 비ASCII 글자가 오면 500이 나던 것을 401로 (바이트 비교). 테스트 4개 추가.
 - 본문 형식(Content-Type)이 JSON이 아닌 요청이 500으로 나가던 것을 415 `UNSUPPORTED_MEDIA_TYPE`으로 (보안 점검 4-1). 공통 처리기 1개 · 테스트 1개 추가.
 - API 응답을 공통 봉투(`ApiResponse` · `{success, data, meta, error}`)로 감쌈 (팀 합의 · 선생님 샘플과 같은 모양). 서버 오류(500 · 503)에만 추적 번호 `errorId`를 응답과 로그에 같이 남김. `ErrorResponseDTO` 삭제 · 컨트롤러 3개 · 화면 api-client · 테스트 · `docs/api-rules.md` 함께 수정.
