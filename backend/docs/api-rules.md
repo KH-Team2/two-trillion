@@ -71,11 +71,12 @@
 | 404 | `NOT_FOUND` | 데이터 · 주소 없음 |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |
+| 415 | `UNSUPPORTED_MEDIA_TYPE` | 본문 형식이 JSON이 아님 (예: `text/plain`으로 PUT) |
 | 500 | `SERVER_ERROR` | 그 밖의 서버 오류 · `errorId` 있음 |
 | 503 | `○○_UNAVAILABLE` | 외부 서버 연결 불가 (예: `CALC_UNAVAILABLE`) · `errorId` 있음 |
 
 - 오류 문구에 SQL · 스택 트레이스 · DB 주소 · DB 오류 코드(ORA-…)를 넣지 않는다 (원인은 서버 로그에만).
-- `errorId`는 사용자 쪽 오류(400 · 401 · 404 · 409)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
+- `errorId`는 사용자 쪽 오류(400 · 401 · 404 · 405 · 409 · 415)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
 - Spring은 `GlobalExceptionHandler` 하나에서 이 모양으로 바꾼다 (이 레포 참고). Service는 예외를 던지기만 하면 된다.
 
 ## 6. 예외: 서버끼리 부르는 내부 API

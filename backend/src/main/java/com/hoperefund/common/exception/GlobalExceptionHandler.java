@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
@@ -138,6 +139,15 @@ public class GlobalExceptionHandler {
             HttpRequestMethodNotSupportedException e) {
         return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED) // 405
                 .body(ApiResponse.fail("METHOD_NOT_ALLOWED", "지원하지 않는 요청 방식이에요"));
+    }
+
+    // 본문 형식(Content-Type)이 JSON이 아님 (예: text/plain으로 PUT) — 사용자 요청 문제라 500이 아니라 415
+    @ExceptionHandler(HttpMediaTypeNotSupportedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUnsupportedMediaType(
+            HttpMediaTypeNotSupportedException e) {
+        log.warn("지원하지 않는 본문 형식: {}", e.getContentType());
+        return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE) // 415
+                .body(ApiResponse.fail("UNSUPPORTED_MEDIA_TYPE", "JSON 형식으로 보내 주세요"));
     }
 
     // 처리하지 못한 서버 오류 (DB 접속 실패 등)

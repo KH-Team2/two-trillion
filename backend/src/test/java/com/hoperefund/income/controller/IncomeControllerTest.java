@@ -185,6 +185,22 @@ class IncomeControllerTest {
     }
 
     @Test
+    void JSON이_아닌_형식으로_보내면_500이_아니라_415이고_저장하지_않는다() throws Exception {
+        // 보안 점검 4-1: 전에는 처리기가 없어 맨 아래 Exception 처리기(500 SERVER_ERROR)로 떨어졌음
+        MockHttpServletResponse res =
+                call(
+                        put("/api/incomes/2026")
+                                .header("X-Member-Id", "81")
+                                .contentType(MediaType.TEXT_PLAIN)
+                                .content(BODY));
+
+        assertEquals(415, res.getStatus());
+        assertTrue(text(res).contains("\"code\":\"UNSUPPORTED_MEDIA_TYPE\""));
+        assertTrue(!text(res).contains("errorId")); // 사용자 쪽 오류라 추적 번호 없음
+        assertTrue(mapper.rows.isEmpty());
+    }
+
+    @Test
     void 연도가_숫자가_아니면_400_VALIDATION() throws Exception {
         MockHttpServletResponse res = call(get("/api/incomes/abc").header("X-Member-Id", "81"));
 

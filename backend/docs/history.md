@@ -4,6 +4,7 @@
 
 ## 2026-11-09
 
+- 본문 형식(Content-Type)이 JSON이 아닌 요청이 500으로 나가던 것을 415 `UNSUPPORTED_MEDIA_TYPE`으로 (보안 점검 4-1). 공통 처리기 1개 · 테스트 1개 추가.
 - API 응답을 공통 봉투(`ApiResponse` · `{success, data, meta, error}`)로 감쌈 (팀 합의 · 선생님 샘플과 같은 모양). 서버 오류(500 · 503)에만 추적 번호 `errorId`를 응답과 로그에 같이 남김. `ErrorResponseDTO` 삭제 · 컨트롤러 3개 · 화면 api-client · 테스트 · `docs/api-rules.md` 함께 수정.
 
 ## 2026-11-06
