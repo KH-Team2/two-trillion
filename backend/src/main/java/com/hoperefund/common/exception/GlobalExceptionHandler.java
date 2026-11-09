@@ -18,13 +18,16 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
- * 공통 API 예외 처리 클래스. 모든 오류를 공통 봉투 {@code {"success": false, "error": {"code", "message"}}}로 통일한다
- * (ApiResponse · 팀 합의 11/09).
+ * 공통 API 예외 처리 클래스. 모든 오류를 공통 봉투 {@code {"success": false, "error": {"code", "message",
+ * "errorId"}}}로 통일한다 (ApiResponse · 팀 합의 11/09). errorId는 500 · 503에만 있다.
  *
  * <p>보안: 오류 원인(스택 트레이스 · DB 주소 · SQL)은 서버 로그에만 남기고 응답에는 넣지 않는다. 로그: 사용자 실수(400 · 404 등)는 warn, 서버
  * 문제(500 · 503)는 error. 금액 · 생년월일 · 토큰 같은 입력값은 로그에 넣지 않는다.
  *
- * <p>errorId: 서버 쪽 오류(500 · 503)에만 짧은 추적 번호를 만들어 응답과 로그에 같이 남긴다. 사용자가 번호를 알려주면 로그에서 바로 찾는다.
+ * <p>errorId: 서버 쪽 오류(500 · 503)에만 짧은 추적 번호(UUID 앞 8자리 · 매번 새로 만듦)를 응답과 로그에 같이 남긴다. 사용자가 번호를 알려주면
+ * 로그에서 바로 찾는다. 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 415)엔 붙이지 않는다.
+ *
+ * <p>남의 데이터 요청은 403이 아니라 404(없는 것과 같은 응답)로 보낸다 — 번호를 바꿔 가며 남의 데이터가 있는지 알아낼 수 없게.
  *
  * <p>TODO: 인증·권한(Spring Security) 적용 후 401 · 403 처리 정리
  */

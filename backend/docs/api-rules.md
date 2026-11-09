@@ -53,7 +53,7 @@
 
 ## 5. 오류 응답 모양
 
-모든 오류는 봉투의 `error`에 한 가지 모양: `{"code": "코드", "message": "화면에 그대로 보여 줄 문구"}`
+모든 오류는 봉투의 `error`에 한 가지 모양: `{"code": "코드", "message": "화면에 그대로 보여 줄 문구"}` (+ 500 · 503에만 `"errorId"`)
 서버 쪽 오류(500 · 503)에만 추적 번호 `errorId`가 더 붙는다 → 같은 번호가 서버 로그에 `[errorId=...]`로 남아 원인을 바로 찾는다.
 
 ```json
@@ -67,8 +67,8 @@
 | 400 | `NO_CRITERIA` | 기준값이 없는 연도 |
 | 400 | `CALC_REJECTED` | 계산 서버가 입력을 거부 |
 | 401 | `UNAUTHORIZED` | 로그인 안 함 |
-| 403 | `FORBIDDEN` | 권한 없음 · 남의 데이터 (F-09-02 · ACCESS_LOG에 DENIED) — Security 연결 후 |
-| 404 | `NOT_FOUND` | 데이터 · 주소 없음 |
+| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출 · ACCESS_LOG에 DENIED) — Security 연결 후 |
+| 404 | `NOT_FOUND` | 데이터 · 주소 없음 · **남의 데이터도 404** (없는 것과 같은 응답 · F-09-02) |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 본문 형식이 JSON이 아님 (예: `text/plain`으로 PUT) |
@@ -76,7 +76,7 @@
 | 503 | `○○_UNAVAILABLE` | 외부 서버 연결 불가 (예: `CALC_UNAVAILABLE`) · `errorId` 있음 |
 
 - 오류 문구에 SQL · 스택 트레이스 · DB 주소 · DB 오류 코드(ORA-…)를 넣지 않는다 (원인은 서버 로그에만).
-- `errorId`는 사용자 쪽 오류(400 · 401 · 404 · 405 · 409 · 415)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
+- `errorId`는 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 415)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
 - Spring은 `GlobalExceptionHandler` 하나에서 이 모양으로 바꾼다 (이 레포 참고). Service는 예외를 던지기만 하면 된다.
 
 ## 6. 예외: 서버끼리 부르는 내부 API
