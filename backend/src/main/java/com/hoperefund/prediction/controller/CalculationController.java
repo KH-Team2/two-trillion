@@ -3,7 +3,6 @@ package com.hoperefund.prediction.controller;
 import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.service.CalculationService;
-
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;

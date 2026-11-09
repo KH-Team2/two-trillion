@@ -1,7 +1,7 @@
 package com.hoperefund.common.exception;
 
 import com.hoperefund.common.dto.ApiResponse;
-
+import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -16,8 +16,6 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-
-import java.util.UUID;
 
 /**
  * 공통 API 예외 처리 클래스. 모든 오류를 공통 봉투 {@code {"success": false, "error": {"code", "message"}}}로 통일한다
