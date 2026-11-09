@@ -77,6 +77,16 @@ def test_토큰이_틀리거나_없으면_막는다(client):
     assert no_header.post("/calculate", json=BODY).status_code == 401
 
 
+def test_토큰에_영문이_아닌_글자가_와도_500이_아니라_401(client):
+    # hmac.compare_digest는 문자열에 비ASCII 글자가 있으면 TypeError → 전에는 500이 났음
+    no_header = TestClient(app, raise_server_exceptions=False)
+    response = no_header.post(
+        "/calculate", json=BODY, headers=[(b"X-Calc-Token", b"\xe9abc")]
+    )
+    assert response.status_code == 401
+    assert response.json()["error"] == "UNAUTHORIZED"
+
+
 def test_서버에_토큰이_설정되지_않으면_모두_막는다(client, monkeypatch):
     monkeypatch.delenv("CALC_API_TOKEN")
     response = client.post("/calculate", json=BODY)

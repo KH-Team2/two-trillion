@@ -8,6 +8,8 @@ import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
@@ -16,10 +18,24 @@ import org.springframework.stereotype.Component;
  * 금액(baseAmount)에는 입력한 소득 값만 그대로 넣어요. - 항목 코드·이름·종류·근거는 DB DEDUCTION_TYPE(2026) 기준이에요.
  *
  * <p>calc.mode가 mock이거나 비어 있을 때만 Bean으로 등록돼요 (http면 HttpCalcClient가 쓰여요).
+ *
+ * <p>운영에서 CALC_MODE=http를 빠뜨려도 가짜 결과가 진짜처럼 보이지 않게: 서버가 켜질 때 경고 로그를 남기고, 항목별 근거(sourceNote) 앞에 「[가짜
+ * 계산 · 실제 세액 아님]」을 붙여 화면에도 보이게 해요.
  */
 @Component
 @ConditionalOnProperty(name = "calc.mode", havingValue = "mock", matchIfMissing = true)
 public class MockCalcClient implements CalcClient {
+
+    private static final Logger log = LoggerFactory.getLogger(MockCalcClient.class);
+
+    /** 화면 항목별 근거 앞에 붙는 표시 (가짜 결과가 진짜처럼 보이지 않게) */
+    static final String MOCK_NOTE = "[가짜 계산 · 실제 세액 아님] ";
+
+    public MockCalcClient() {
+        log.warn(
+                "CALC_MODE=mock: 가짜 계산으로 응답해요 (결정세액 0 · 기납부세액 전부가 환급으로 보임)."
+                        + " 실제 서비스에서는 CALC_MODE=http와 계산 서버 주소·토큰을 설정하세요");
+    }
 
     private static final String CARD_SOURCE = "국세청 신고안내 132p";
 
@@ -86,6 +102,9 @@ public class MockCalcClient implements CalcClient {
                                 0L,
                                 0L,
                                 "국세청 신고안내 170p")));
+        // 모든 항목 근거 앞에 가짜 표시 (화면 「공제 항목별 내역」의 근거 칸에 보여요)
+        result.getDetails().forEach(d -> d.setSourceNote(MOCK_NOTE + d.getSourceNote()));
+        log.warn("가짜 계산 결과를 돌려줬어요 (CALC_MODE=mock) year={}", taxYear);
         return result;
     }
 

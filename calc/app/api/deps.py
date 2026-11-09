@@ -33,7 +33,10 @@ def check_token(
     if not expected:
         log.error("CALC_API_TOKEN이 설정되지 않아 요청을 막았어요 (.env 확인)")
         raise HTTPException(status_code=503, detail="TOKEN_NOT_SET")
-    if not (x_calc_token and hmac.compare_digest(x_calc_token, expected)):
+    # 바이트로 바꿔서 비교한다: 문자열 그대로 넘기면 비ASCII 글자(예: é)가 왔을 때
+    # compare_digest가 TypeError를 내서 401이 아니라 500이 됐음
+    sent = (x_calc_token or "").encode("utf-8", "surrogateescape")
+    if not (x_calc_token and hmac.compare_digest(sent, expected.encode("utf-8"))):
         # 보낸 토큰 값은 남기지 않고, 어디서 왔는지만 남긴다
         log.warning(
             "토큰이 없거나 틀린 요청 차단: %s %s from %s",

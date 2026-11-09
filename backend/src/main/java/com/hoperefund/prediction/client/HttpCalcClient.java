@@ -48,6 +48,13 @@ public class HttpCalcClient implements CalcClient {
             @Value("${calc.api-token:}") String token,
             @Value("${calc.connect-timeout:3s}") Duration connectTimeout,
             @Value("${calc.read-timeout:10s}") Duration readTimeout) {
+        // http 모드인데 토큰이 없으면 계산 서버가 모든 요청을 막아요(503)
+        // → 서버를 켜는 순간 바로 알려서 설정 누락을 늦게 알지 않게
+        if (token == null || token.isBlank()) {
+            throw new IllegalStateException(
+                    "calc.mode=http인데 CALC_API_TOKEN이 비어 있어요."
+                            + " backend/.env에 계산 서버(calc/.env)와 같은 값을 넣어 주세요");
+        }
         // 연결 · 응답 제한 시간: 계산 서버 주소가 틀리거나 멈춰도 요청이 무한정 기다리지 않게
         // HTTP/1.1 고정: 계산 서버(uvicorn)가 HTTP/2 전환 요청을 거절해 남기던 경고(Unsupported upgrade request) 없애기
         HttpClient httpClient =
@@ -58,9 +65,7 @@ public class HttpCalcClient implements CalcClient {
         JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
         factory.setReadTimeout(readTimeout);
         RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl).requestFactory(factory);
-        if (!token.isBlank()) {
-            builder.defaultHeader("X-Calc-Token", token);
-        }
+        builder.defaultHeader("X-Calc-Token", token);
         this.restClient = builder.build();
     }
 

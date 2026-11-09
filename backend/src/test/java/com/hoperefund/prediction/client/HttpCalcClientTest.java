@@ -129,6 +129,18 @@ class HttpCalcClientTest {
     }
 
     @Test
+    void http_모드인데_토큰이_비어_있으면_서버가_켜지지_않는다() {
+        // 전에는 정상으로 켜지고, 계산할 때 처음으로 503이 나서 설정 누락을 늦게 알았음
+        IllegalStateException e =
+                assertThrows(
+                        IllegalStateException.class,
+                        () -> new HttpCalcClient("http://127.0.0.1:1", ""));
+        assertTrue(e.getMessage().contains("CALC_API_TOKEN"));
+        assertThrows(
+                IllegalStateException.class, () -> new HttpCalcClient("http://127.0.0.1:1", "  "));
+    }
+
+    @Test
     void 토큰이_틀리면_사용자가_고칠_수_없는_오류라_CALC_UNAVAILABLE() throws IOException {
         String url = startServer(401, "{\"error\":\"UNAUTHORIZED\",\"message\":\"토큰 확인\"}");
         assertThrows(CalcUnavailableException.class, () -> calculate(url));
