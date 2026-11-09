@@ -59,3 +59,22 @@ export function fetchIncome(taxYear, options = {}) {
     offlineMessage: '소득 조회 서버에 연결할 수 없어요.',
   });
 }
+
+// 서버가 주는 이름(ss: ff 중 ss) 화면이 아는 이름(ss: ff 중 ff)으로 매핑(번역)
+// ?? 0: 값이 "비어" 있을 때만 0으로 채우기. (||와의 차이: ||는 falsy 값일 때도 0으로 채움)
+export function incomeToForm(res) {
+  return {
+    salary: res.totalSalary,
+    paid: res.withheldTax,      // 기납부세액
+    nationalPension: res.nationalPension ?? 0,    // 국민연금 납입액
+    healthEmploymentInsurance: res.healthInsurance ?? 0,  // 건강보험료 납입액
+    family: res.dependents ?? 0,
+    children: res.children ?? 0,
+    rent: res.monthlyRent ?? 0,
+    rentPeriod: 'monthly',
+    housingSaving: res.housingSaving ?? 0,  // 주택청약 납입액
+    pensionSaving: res.pensionSaving ?? 0,  // 연금저축 납입액
+    irp: res.irpSaving ?? 0,
+    sme: res.smeReductionYn === 'Y' ? '예' : '아니오'
+  }
+}
