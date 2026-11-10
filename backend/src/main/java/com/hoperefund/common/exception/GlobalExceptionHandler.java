@@ -12,9 +12,13 @@ import org.springframework.web.HttpMediaTypeNotSupportedException;
 import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.support.MissingServletRequestPartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -25,7 +29,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  * 문제(500 · 503)는 error. 금액 · 생년월일 · 토큰 같은 입력값은 로그에 넣지 않는다.
  *
  * <p>errorId: 서버 쪽 오류(500 · 503)에만 짧은 추적 번호(UUID 앞 8자리 · 매번 새로 만듦)를 응답과 로그에 같이 남긴다. 사용자가 번호를 알려주면
- * 로그에서 바로 찾는다. 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 415)엔 붙이지 않는다.
+ * 로그에서 바로 찾는다. 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 413 · 415)엔 붙이지 않는다.
  *
  * <p>남의 데이터 요청은 403이 아니라 404(없는 것과 같은 응답)로 보낸다 — 번호를 바꿔 가며 남의 데이터가 있는지 알아낼 수 없게.
  *
@@ -149,6 +153,39 @@ public class GlobalExceptionHandler {
         log.warn("지원하지 않는 본문 형식: {}", e.getContentType());
         return ResponseEntity.status(HttpStatus.UNSUPPORTED_MEDIA_TYPE) // 415
                 .body(ApiResponse.fail("UNSUPPORTED_MEDIA_TYPE", "JSON 형식으로 보내 주세요"));
+    }
+
+    // 필수 쿼리 값이 빠졌을 때 (예: ?year= 없이 목록 호출) — 사용자 요청 문제라 500이 아니라 400
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingParameter(
+            MissingServletRequestParameterException e) {
+        log.warn("필수 요청 값 없음: {}", e.getParameterName());
+        return ResponseEntity.badRequest().body(ApiResponse.fail("VALIDATION", "필수 요청 값이 빠졌어요"));
+    }
+
+    // 쿼리 · 경로 값이 검증 규칙(@Min 등)에 걸렸을 때 — 입력한 값은 로그에 남기지 않는다
+    @ExceptionHandler(HandlerMethodValidationException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMethodValidation(
+            HandlerMethodValidationException e) {
+        log.warn("요청 값 검사 실패");
+        return ResponseEntity.badRequest().body(ApiResponse.fail("VALIDATION", "요청 값을 확인해 주세요"));
+    }
+
+    // 파일 업로드 요청에 파일이 없을 때
+    @ExceptionHandler(MissingServletRequestPartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMissingPart(
+            MissingServletRequestPartException e) {
+        log.warn("업로드 파일 없음: {}", e.getRequestPartName());
+        return ResponseEntity.badRequest().body(ApiResponse.fail("VALIDATION", "파일을 선택해 주세요"));
+    }
+
+    // 업로드 파일이 허용 크기를 넘었을 때 — 다시 시도해도 같으니 500이 아니라 413
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleUploadTooLarge(
+            MaxUploadSizeExceededException e) {
+        log.warn("업로드 파일 크기 초과");
+        return ResponseEntity.status(413)
+                .body(ApiResponse.fail("PAYLOAD_TOO_LARGE", "파일이 너무 커요. 더 작은 파일로 올려 주세요"));
     }
 
     // 처리하지 못한 서버 오류 (DB 접속 실패 등)

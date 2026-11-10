@@ -1,6 +1,7 @@
 package com.hoperefund.common.exception;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -61,5 +62,49 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error.code").value("SERVER_ERROR"))
                 .andExpect(jsonPath("$.error.message").exists())
                 .andExpect(jsonPath("$.error.errorId").isString());
+    }
+
+    // 필수 쿼리 값 없이 호출 → 500이 아니라 400
+    @Test
+    void missingRequiredParamReturns400() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/param"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
+    }
+
+    // 쿼리 값이 검증 규칙에 걸림 (page는 1 이상) → 500이 아니라 400
+    @Test
+    void invalidParamValueReturns400() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/page").param("page", "0"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
+    }
+
+    // 업로드 요청에 파일이 없음 → 500이 아니라 400
+    @Test
+    void missingUploadFileReturns400() throws Exception {
+
+        mockMvc.perform(multipart("/api/test-errors/upload"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
+    }
+
+    // 업로드 파일 크기 초과 → 500이 아니라 413
+    @Test
+    void uploadTooLargeReturns413() throws Exception {
+
+        mockMvc.perform(post("/api/test-errors/too-large"))
+                .andExpect(status().is(413))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("PAYLOAD_TOO_LARGE"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
     }
 }

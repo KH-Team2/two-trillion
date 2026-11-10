@@ -64,7 +64,7 @@
 
 | 상태 | error.code | 언제 |
 | --- | --- | --- |
-| 400 | `VALIDATION` | 입력값 오류 (빈 칸 · 범위 밖 · 형식 · 업무 규칙 위반) |
+| 400 | `VALIDATION` | 입력값 오류 (빈 칸 · 범위 밖 · 형식 · 업무 규칙 위반 · 필수 쿼리 값 누락 · 업로드 파일 누락) |
 | 400 | `NO_CRITERIA` | 기준값이 없는 연도 |
 | 400 | `CALC_REJECTED` | 계산 서버가 입력을 거부 |
 | 401 | `UNAUTHORIZED` | 로그인 안 함 |
@@ -72,12 +72,13 @@
 | 404 | `NOT_FOUND` | 데이터 · 주소 없음 · **남의 데이터도 404** (없는 것과 같은 응답 · F-09-02) |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |
+| 413 | `PAYLOAD_TOO_LARGE` | 업로드 파일이 허용 크기를 넘음 |
 | 415 | `UNSUPPORTED_MEDIA_TYPE` | 본문 형식이 JSON이 아님 (예: `text/plain`으로 PUT) |
 | 500 | `SERVER_ERROR` | 그 밖의 서버 오류 · `errorId` 있음 |
 | 503 | `○○_UNAVAILABLE` | 외부 서버 연결 불가 (예: `CALC_UNAVAILABLE`) · `errorId` 있음 |
 
 - 오류 문구에 SQL · 스택 트레이스 · DB 주소 · DB 오류 코드(ORA-…)를 넣지 않는다 (원인은 서버 로그에만).
-- `errorId`는 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 415)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
+- `errorId`는 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 413 · 415)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
 - Spring은 `GlobalExceptionHandler` 하나에서 이 모양으로 바꾼다 (이 레포 참고). Service는 예외를 던지기만 하면 된다.
 
 ## 6. 예외: 서버끼리 부르는 내부 API
