@@ -31,7 +31,7 @@ _KEEP = re.compile(r"[^0-9A-Z가-힣]")
 
 # --------------정제 단계별 목록 데이터 ---------------------- 
 
-def normalized_name(name):
+def normalize_name(name):
     """
         가맹점명 정제
 

@@ -12,6 +12,8 @@ import {
 import { normalizeTaxData, validateTaxData } from '@/api/services.js';
 import { uploadTotals, uploadBlocker } from '@/api/expense-service.js';
 import { ExpenseUpload } from '@/components/expense/ExpenseUpload.jsx';
+// 추가 (담당: 이고은 11/10)
+import { fetchIncome, incomeToForm } from '@/api/income-service';
 const steps = ['기본 정보', '소득 정보', '지출 정보', '부양가족', '주거 정보', '공제·감면'];
 function Field({ label, children, hint }) {
   return (
@@ -41,6 +43,28 @@ export default function TaxInfoForm({
   useEffect(() => {
     setD((current) => ({ ...current, ...uploadTotals(tx, current.taxYear) }));
   }, [tx, d.taxYear]);
+  // 추가 (담당: 이고은 11/10)
+  // 저장 후 조회 연결용
+  // 저장된 소득 정보가 없으면 지금 폼 상태 유지
+  // 시뮬레이션용 입력 정보를 서버 값에 덮어쓰지 않음
+  useEffect( () => {
+    if (mode === 'simulation') return;
+    // 응답이 오기 전에 이 화면에서 나감 OR 연도를 변경하면 구버전 응답 버리기
+    let alive = true;
+    fetchIncome(d.taxYear).then( (res) => {
+      if (alive) setD( (current) => ({...current, ...incomeToForm(res)}) );
+    } ).catch( (error) => {
+      // 서버가 오프라인이면 브라우저 체험 모드용을 쓸 수 있도록 조건에 추가
+      if (alive && error.code !== 'NOT_FOUND' && error.code !== 'OFFLINE') {
+         setErr(error.message);
+      }
+    } );
+    return () => {
+      // useEffect 정리 (다음 요청을 보내기 전에 실행)
+      alive = false;
+    };
+    // d.taxYear, mode가 바뀔 때만 다시 실행
+  }, [d.taxYear, mode] );  // 여기까지 이고은 (11/10)
   const familyError =
     (d.children ?? 0) > d.family
       ? '20세 이하 자녀 수는 추가 부양가족 수(본인 제외)보다 많을 수 없습니다.'
