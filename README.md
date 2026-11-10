@@ -208,33 +208,53 @@
  │   ├── AGENTS.md                            # 백엔드 개발 규칙
  │   ├── README.md                            # 실행·DB 환경변수·검증 안내
  │   ├── pom.xml                              # Maven 의존성·빌드 설정
- │   ├── mvnw                                 # Maven Wrapper (Unix)
- │   ├── mvnw.cmd                             # Maven Wrapper (Windows)
- │   ├── .mvn/wrapper/
- │   │   └── maven-wrapper.properties         # Wrapper 설정
+ │   ├── .mvn/
+ │   ├── .env.example                         # 환경변수 이름 안내 (.env는 커밋하지 않음)
+ │   ├── docs/
+ │   │    ├── api-rules.md                    # API 공통 규칙 (주소 모양 · 응답 봉투 · 오류 응답)
+ │   │    ├── history.md                      # 작업 이력
+ │   │    └── tasks.md                        # 남은 작업 (세액 계산·진단 파트)
+ │   │   
  │   └── src/
  │       ├── main/
  │       │   ├── java/com/hoperefund/
- │       │   │   ├── HopeRefundBackendApplication.java # Spring Boot 진입점
- │       │   │   └── common/                  # 현재 구현된 공통 영역
- │       │   │       ├── config/
- │       │   │       │   └── CorsConfig.java  # React CORS 설정
- │       │   │       ├── controller/
- │       │   │       │   └── HealthController.java # 상태 확인 API
- │       │   │       ├── dto/
- │       │   │       │   └── ErrorResponseDTO.java # 오류 응답 형식
- │       │   │       └── exception/
- │       │   │           └── GlobalExceptionHandler.java # 공통 예외 처리
+ │       │   │   ├── HopeRefundBackendApplication.java
+ │       │   │   │
+ │       │   │   ├── common/                    # 공통 설정·응답·예외 처리
+ │       │   │   │   ├── config/
+ │       │   │   │   │    └── CorsConfig.java
+ │       │   │   │   ├── controller/
+ │       │   │   │   │    └── HealthController.java
+ │       │   │   │   ├── dto/
+ │       │   │   │   │    ├── ApiResponse.java  # 공통 응답 봉투 {success, data, meta, error}
+ │       │   │   │   │    └── PageMeta.java     # 목록 응답의 페이지 정보
+ │       │   │   │   └── exception/
+ │       │   │   │        ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
+ │       │   │   │        └── *Exception.java               # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
+ │       │   │   │
+ │       │   │   ├── income/                    # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
+ │       │   │   │   ├── controller/
+ │       │   │   │   ├── service/
+ │       │   │   │   ├── mapper/
+ │       │   │   │   └── dto/
+ │       │   │   │
+ │       │   │   └── prediction/                # 예상 세액 계산·청년 혜택 진단
+ │       │   │       ├── controller/            # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
+ │       │   │       ├── service/               # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
+ │       │   │       ├── client/                # Python 계산 서버 연동
+ │       │   │       ├── mapper/                # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
+ │       │   │       └── dto/
+ │       │   │
  │       │   └── resources/
- │       │       └── application.yml          # 환경변수 기반 서버·DB·내부 서비스 설정
+ │       │       ├── application.yml            # Spring Boot 공통 설정
+ │       │       └── mapper/                    # MyBatis SQL (기능별 폴더)
+ │       │           ├── income/IncomeMapper.xml
+ │       │           └── prediction/PredictionMapper.xml
+ │       │
  │       └── test/java/com/hoperefund/
- │           ├── HopeRefundBackendApplicationTests.java
- │           └── common/
- │               ├── config/CorsConfigTest.java
- │               ├── controller/HealthControllerTest.java
- │               └── exception/
- │                   ├── GlobalExceptionHandlerTest.java
- │                   └── TestErrorController.java
+ │           ├── common/
+ │           ├── income/
+ │           └── prediction/
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
  │   ├── .env.example                         # DB·내부 토큰·서버 실행 변수 예시
