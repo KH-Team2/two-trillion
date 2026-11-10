@@ -6,6 +6,7 @@ import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
 import { saveAndCalculate } from '@/api/calculation-service.js';
+import { canUseDemo } from '@/api/api-client.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -179,7 +180,8 @@ export default function App() {
     go('input');
   }
   // 일반 계산: 소득을 서버에 저장(PUT)하고 계산 API(POST)로 계산해요.
-  // 서버에 연결할 수 없을 때만 기존 체험용 계산으로 보여 줘요. 시뮬레이션은 아직 체험용 계산이에요.
+  // 서버에 연결할 수 없을 때 개발 서버에서만 기존 체험용 계산으로 보여 줘요 (배포본은 연결 실패 안내만).
+  // 시뮬레이션은 아직 체험용 계산이에요.
   async function calculate(input, tx, meta) {
     const d = { ...input, ...uploadTotals(tx, input.taxYear) };
     recordAccess(mode === 'simulation' ? 'SIMULATION_CALCULATE' : 'CALCULATE');
@@ -196,7 +198,8 @@ export default function App() {
         server = await saveAndCalculate(d);
       } catch (error) {
         // 입력 오류 · 기준값 없음 등은 입력 화면에 그대로 머물러요 (입력값 유지)
-        if (error.code !== 'OFFLINE') {
+        // 연결 실패도 배포본에서는 체험용 계산으로 넘어가지 않고 안내만 띄워요
+        if (!canUseDemo(error)) {
           notify(error.message);
           return;
         }

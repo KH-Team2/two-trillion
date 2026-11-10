@@ -7,6 +7,16 @@ const env = import.meta.env || {};
 // 빌드한 파일에서는 보내지 않아요 → 배포 화면이 모두 같은 회원으로 요청하는 사고 방지
 const devMemberId = env.DEV ? env.VITE_DEV_MEMBER_ID : undefined;
 
+// 서버에 연결할 수 없을 때(OFFLINE) 체험용 계산으로 대신 보여 줘도 되는지.
+// 개발 서버(npm run dev)에서만 허용해요 → 백엔드 없이 화면만 띄워 개발할 수 있게.
+// 빌드한 파일(배포본)에서는 허용하지 않아요 → 서버가 꺼졌을 때 가짜 숫자가 결과처럼 보이지 않게.
+export const demoFallbackAllowed = Boolean(env.DEV);
+
+/** 이 오류를 체험용 계산으로 대신해도 되는지 (연결 실패 + 개발 서버일 때만) */
+export function canUseDemo(error, allowed = demoFallbackAllowed) {
+  return error?.code === 'OFFLINE' && allowed;
+}
+
 export function apiError(code, message, errorId) {
   // 서버 오류(500 · 503)엔 추적 번호가 와요 → 문구 뒤에 붙여서 사용자가 알려줄 수 있게
   const error = new Error(errorId ? `${message} (오류 번호 ${errorId})` : message);

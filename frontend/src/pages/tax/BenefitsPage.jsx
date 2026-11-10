@@ -1,5 +1,6 @@
 import { benefitChecks } from '@/utils/benefit-model.js';
 import { benefitStatus, fetchBenefits, PREPARE_DOCS } from '@/api/benefit-service.js';
+import { canUseDemo } from '@/api/api-client.js';
 import { getTaxYear } from '@/utils/tax-year.js';
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, FilePenLine, Info, CheckCircle2, Building2, Users } from 'lucide-react';
@@ -7,7 +8,8 @@ import { Btn, Tag } from '@/components/common/site-primitives.jsx';
 
 // 청년 혜택 자격 진단 화면 (S-05 · F-03-02)
 // 서버(GET /api/benefits/{taxYear})가 판정한 결과를 그대로 보여 줘요.
-// 서버에 연결할 수 없을 때만 입력값 기준 체험 판정(benefitChecks)을 보여 줘요.
+// 서버에 연결할 수 없을 때 개발 서버에서만 입력값 기준 체험 판정(benefitChecks)을 보여 줘요.
+// 배포본에서는 체험 판정 없이 연결 실패 안내만 보여 줘요.
 export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBenefits }) {
   const taxYear = getTaxYear(data);
   const [state, setState] = useState({ status: 'loading' });
@@ -18,8 +20,7 @@ export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBe
     loadBenefits(taxYear)
       .then((result) => alive && setState({ status: 'ok', results: result.results }))
       .catch(
-        (error) =>
-          alive && setState({ status: error.code === 'OFFLINE' ? 'offline' : 'error', error }),
+        (error) => alive && setState({ status: canUseDemo(error) ? 'offline' : 'error', error }),
       );
     return () => {
       alive = false;
