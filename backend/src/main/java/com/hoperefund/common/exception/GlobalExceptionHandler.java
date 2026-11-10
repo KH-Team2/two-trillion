@@ -68,7 +68,7 @@ public class GlobalExceptionHandler {
 
         // 민감정보가 포함될 가능성이 있는 상세 예외 메시지는 출력하지 않음
         org.slf4j.LoggerFactory.getLogger(GlobalExceptionHandler.class)
-                .error("서버 오류 발생: {}", e.getClass().getSimpleName());
+                .error("서버 오류 발생: {}", e.getClass().getSimpleName(), e);
 
         ErrorResponseDTO response = new ErrorResponseDTO("SERVER_ERROR", "잠시 후 다시 시도해 주세요.");
 
