@@ -68,7 +68,8 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 
 - 주소는 `/api/복수형명사/...` · 회원번호는 주소에 넣지 않는다 (로그인 정보로 회원을 정함 · 개발 중에만 `X-Member-Id` 헤더)
 - 조회 GET · 생성·실행 POST · 한 건 전체 저장 PUT · 삭제 DELETE
-- 오류 응답은 `GlobalExceptionHandler`에서 `{"error": "코드", "message": "화면 문구"}` 하나로 보낸다. DB 오류 코드는 기능명세서 「7_오류 메시지」 시트 문구로 바꾼다.
+- 응답은 성공 · 실패 모두 공통 봉투 `{"success", "data", "meta", "error"}`로 보낸다 (`common/dto/ApiResponse` · 11/09 팀 합의). Controller는 `ApiResponse.ok(결과)`를 돌려주고, 성공 상태 코드는 모두 200이다 (201 · 204 안 씀).
+- 오류는 예외를 던지기만 한다. `GlobalExceptionHandler`가 봉투의 `error`에 `{"code": "코드", "message": "화면 문구"}`로 바꿔 보낸다 (서버 오류 500 · 503에는 추적 번호 `errorId`도). Controller에서 예외를 직접 잡아 응답을 만들지 않는다. DB 오류 코드는 기능명세서 「7_오류 메시지」 시트 문구로 바꾼다.
 - 화면 문구와 서버 로그를 나눈다: 응답에는 짧은 안내만, 원인(예외 · 상태 코드 · 회원번호 · 연도)은 `log.warn` / `log.error`로. 로그에도 금액 · 생년월일 · 비밀번호 · 토큰은 넣지 않는다.
 
 ## 계산 서버 연동
