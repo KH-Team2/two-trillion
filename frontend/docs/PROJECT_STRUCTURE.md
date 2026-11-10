@@ -28,9 +28,13 @@ hope-refund/
   scripts/refresh-group-stat.mjs
   src/App.jsx
   src/api/account-service.js
+  src/api/api-client.js
+  src/api/benefit-service.js
   src/api/calculation-contract.js
+  src/api/calculation-service.js
   src/api/erd-contract.js
   src/api/expense-service.js
+  src/api/income-service.js
   src/api/prototype-records.js
   src/api/services.js
   src/components/common/DeductionDetails.jsx
@@ -135,6 +139,8 @@ hope-refund/
   src/utils/dashboard-model.js
   src/utils/group-model.js
   src/utils/tax-year.js
+  tests/benefit-service.mjs
+  tests/calculation-service.mjs
   tests/feedback-contract.mjs
   tests/prototype-flows.mjs
   tests/render-pages.mjs
