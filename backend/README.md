@@ -42,26 +42,49 @@ backend/
 ├── .mvn/
 ├── README.md
 ├── AGENTS.md
+├── .env.example                                  # 환경변수 이름 안내 (.env는 커밋하지 않음)
+├── docs/
+│   ├── api-rules.md                              # API 공통 규칙 (주소 모양 · 응답 봉투 · 오류 응답)
+│   ├── history.md                                # 작업 이력
+│   └── tasks.md                                  # 남은 작업 (세액 계산·진단 파트)
 │
 └── src/
     ├── main/
     │   ├── java/com/hoperefund/
     │   │   ├── HopeRefundBackendApplication.java
-    │   │   └── common/
-    │   │       ├── config/
-    │   │       │   └── CorsConfig.java
-    │   │       ├── controller/
-    │   │       │   └── HealthController.java
-    │   │       ├── dto/
-    │   │       │   └── ErrorResponseDTO.java
-    │   │       └── exception/
-    │   │           └── GlobalExceptionHandler.java
+    │   │   ├── common/
+    │   │   │   ├── config/
+    │   │   │   │   └── CorsConfig.java
+    │   │   │   ├── controller/
+    │   │   │   │   └── HealthController.java
+    │   │   │   ├── dto/
+    │   │   │   │   ├── ApiResponse.java          # 공통 응답 봉투 {success, data, meta, error}
+    │   │   │   │   └── PageMeta.java             # 목록 응답의 페이지 정보
+    │   │   │   └── exception/
+    │   │   │       ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
+    │   │   │       └── *Exception.java           # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
+    │   │   ├── income/                           # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
+    │   │   │   ├── controller/
+    │   │   │   ├── service/
+    │   │   │   ├── mapper/
+    │   │   │   └── dto/
+    │   │   └── prediction/                       # 예상 세액 계산 · 청년 혜택 진단
+    │   │       ├── controller/                   # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
+    │   │       ├── service/                      # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
+    │   │       ├── client/                       # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
+    │   │       ├── mapper/
+    │   │       └── dto/
     │   │
     │   └── resources/
-    │       └── application.yml
+    │       ├── application.yml
+    │       └── mapper/                           # MyBatis SQL (기능별 폴더)
+    │           ├── income/IncomeMapper.xml
+    │           └── prediction/PredictionMapper.xml
     │
     └── test/java/com/hoperefund/
-        └── common/
+        ├── common/
+        ├── income/
+        └── prediction/
 ```
 
 회원, 소득, 지출, 계산 결과, AI 상담 등 기능별 패키지는 담당자가 개발 과정에서 추가합니다.
