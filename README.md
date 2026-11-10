@@ -34,24 +34,26 @@
 ## 🛠 기술 스택
 
 ### Backend
-- Java
-- Spring Boot
-- Python
+- Java 17
+- Spring Boot 4.1.0
+- MyBatis
+- Python 3.11
 - FastAPI
 
 ### Frontend
 - React
-- HTML
-- CSS
-- JavaScript
+- JavaScript (JSX)
+- HTML5
+- CSS3
 
 ### Database
-- Oracle
-- Elasticsearch
+- Oracle Database 21c
 
 ### Data / AI
-- Python(numpy, pandas, matplotlib/seaborn, scikit-learn 등)
-- Ollama(Gemma3) 또는 GPT API
+- Python
+- Ollama (Gemma 3 4B)
+- LangChain
+- Elasticsearch
 
 ### Collaboration
 - Git
@@ -70,14 +72,16 @@
 
 ## 📌 Git 규칙
 
-- `main` 브랜치에 직접 Push하지 않습니다.
-- 기능 개발은 별도의 개인 작업 브랜치에서 진행합니다.
-- 개발된 기능은 팀깃에 frature/기능명(ex. feature/login)으로 push합니다.
-- 커밋 메시지는 구현 및 수정 내용을 간단하게 확인할 수 있도록 작성합니다.
-- Pull Request를 통해 코드를 병합합니다.
-- main으로의 PR은 2명 이상 승인을 받은 후 Merge합니다.
-- Force Push를 금지합니다.
-- `.env`, API Key, DB 비밀번호 등 민감정보는 GitHub에 업로드하지 않도록 주의합니다.
+- 기능 개발은 각 담당자의 개인 브랜치에서 진행한다.
+- 개발이 완료된 기능은 해당 `feature/기능명` 브랜치에 반영한다.
+- `feature/기능명` 브랜치의 기능 구현 및 검증이 완료되면 `develop` 브랜치로 PR하여 통합한다.
+- `develop`은 기능 통합 및 최종 검증을 위한 브랜치로 사용한다.
+- `main`은 최종 안정 버전만 반영하는 브랜치로 사용한다.
+- -공통 브랜치나 다른 담당자의 개인·기능 브랜치에 직접 커밋하지 않는다.
+- 커밋은 의미 있는 기능 구현·수정 단위로 한다.
+- 커밋 메시지는 종류: `무엇을 했는지` 형식으로 작성하고 설명은 한글로 작성한다.
+- `커밋 종류`는 feat, fix, chore, docs, test, refactor, ci 등을 사용한다.
+- 사용자 확인 없이 git push, 브랜치 삭제, 강제 푸시(git push -f)를 수행하지 않는다.
 
 ## 🚀 주요 기능
 
@@ -385,9 +389,7 @@
 
 backend/src/main/java/com/hoperefund/
 ├── member/           # MEMBER · PASSWORD_RESET
-├── income/           # INCOME
 ├── expense/          # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY
-├── prediction/       # PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL
 ├── statistics/       # GROUP_STAT · STAT_FILE
 ├── chat/             # CHAT_SESSION · CHAT_MESSAGE · RECOMMENDATION
 ├── inquiry/          # INQUIRY
