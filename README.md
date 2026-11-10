@@ -238,36 +238,128 @@
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
  │   ├── .env.example                         # DB·내부 토큰·서버 실행 변수 예시
- │   ├── AGENTS.md                            # 계산 서버 개발 규칙 및 목표 구조
+ │   ├── AGENTS.md                            # 계산 서버 개발 규칙
  │   ├── README.md                            # 계산 서버 설치·실행 안내
  │   ├── requirements.txt                     # 서버 의존성
  │   ├── requirements-dev.txt                 # 개발·검증 의존성
  │   ├── pyproject.toml                       # Ruff·pytest 설정
+ │   │
  │   ├── app/
  │   │   ├── __init__.py
- │   │   ├── main.py                           # FastAPI 진입점
- │   │   └── api/
+ │   │   ├── main.py                          # FastAPI 진입점
+ │   │   │
+ │   │   ├── api/                             # API 엔드포인트
+ │   │   │   ├── __init__.py
+ │   │   │   ├── benefit.py                   # 청년 혜택 API
+ │   │   │   ├── calculate.py                 # 연말정산 계산 API
+ │   │   │   ├── deps.py                      # API 공통 의존성
+ │   │   │   └── health.py                    # 서버 상태 확인 API
+ │   │   │
+ │   │   ├── db/                              # Oracle DB 연결
+ │   │   │   ├── __init__.py
+ │   │   │   └── oracle.py                    # Oracle 연결 처리
+ │   │   │
+ │   │   ├── repositories/                    # 계산 기준 데이터 조회
+ │   │   │   ├── __init__.py
+ │   │   │   ├── criteria.py                  # 기준 데이터 조회 인터페이스
+ │   │   │   └── oracle_criteria.py           # Oracle 기준 데이터 조회
+ │   │   │
+ │   │   ├── schemas/                         # API 요청·응답 모델
+ │   │   │   ├── __init__.py
+ │   │   │   ├── benefit.py                   # 혜택 요청·응답 모델
+ │   │   │   ├── calculation.py               # 계산 요청·응답 모델
+ │   │   │   └── common.py                    # 공통 데이터 모델
+ │   │   │
+ │   │   └── services/                        # 연말정산 계산 비즈니스 로직
  │   │       ├── __init__.py
- │   │       └── health.py                     # 서버 상태 확인 API
- │   └── tests/
- │       └── test_health.py                   # Health API 테스트
- │
- └── chatbot/                                 # Python FastAPI · Gemma3/RAG 챗봇 서버
-     ├── .env.example                         # 내부 토큰·Ollama·서버 변수 예시
-     ├── AGENTS.md                            # 챗봇 개발 규칙 및 목표 구조
-     ├── README.md                            # 챗봇 서버 설치·실행 안내
-     ├── requirements.txt                     # 서버 의존성
-     ├── requirements-dev.txt                 # 개발·검증 의존성
-     ├── pyproject.toml                       # Ruff·pytest 설정
-     ├── app/
-     │   ├── __init__.py
-     │   ├── main.py                           # FastAPI 진입점
-     │   └── api/
-     │       ├── __init__.py
-     │       └── health.py                     # 서버 상태 확인 API
-     └── tests/
-         └── test_health.py                   # Health API 테스트
-
+ │   │       ├── benefit.py                    # 청년 혜택 판정
+ │   │       ├── bracket.py                    # 과세표준·세율 구간 처리
+ │   │       ├── card_deduction.py             # 카드 사용액 소득공제 계산
+ │   │       ├── errors.py                     # 계산 서버 오류 정의
+ │   │       ├── models.py                     # 계산 내부 모델
+ │   │       ├── tax_calculator.py             # 연말정산 세액 계산
+ │   │       └── tax_rules.py                  # 세액 계산 규칙
+ │   │
+ │   ├── database/                            # 계산용 DB 구축·기준 데이터
+ │   │   ├── 00_초기화.sql
+ │   │   ├── 01_schema.sql
+ │   │   ├── 02_기준데이터.sql
+ │   │   ├── 03_데이터적재.sql
+ │   │   ├── README.md
+ │   │   └── cp949/                           # CP949 인코딩 SQL
+ │   │       ├── 00_초기화.sql
+ │   │       ├── 01_schema.sql
+ │   │       ├── 02_기준데이터.sql
+ │   │       └── 03_데이터적재.sql
+ │   │
+ │   └── tests/                               # 계산 서버 테스트
+ │       ├── __init__.py
+ │       ├── criteria_data.py                  # 테스트용 기준 데이터
+ │       ├── test_api.py                       # 계산 API 테스트
+ │       ├── test_benefit.py                   # 청년 혜택 테스트
+ │       ├── test_bracket.py                   # 세율 구간 테스트
+ │       ├── test_card_deduction.py            # 카드 공제 테스트
+ │       ├── test_health.py                    # Health API 테스트
+ │       ├── test_oracle_criteria.py           # Oracle 기준 데이터 조회 테스트
+ │       ├── test_tax_calculator.py            # 세액 계산 테스트
+ │       └── test_tax_rules.py                 # 세액 계산 규칙 테스트
+ │ 
+ ├── chatbot/                                 # Python FastAPI · Ollama 기반 AI 챗봇 서버
+ │   ├── .env.example                         # Ollama·내부 API 인증 등 환경 변수 예시
+ │   ├── AGENTS.md                            # 챗봇 서버 개발 규칙
+ │   ├── README.md                            # 챗봇 서버 설치·실행 안내
+ │   ├── requirements.txt                     # 서버 의존성
+ │   ├── requirements-dev.txt                 # 개발·검증 의존성
+ │   ├── pyproject.toml                       # Ruff·pytest 설정
+ │   │
+ │   ├── app/
+ │   │   ├── __init__.py
+ │   │   ├── main.py                          # FastAPI 진입점
+ │   │   │
+ │   │   ├── api/                             # 챗봇 API 엔드포인트
+ │   │   │   ├── __init__.py
+ │   │   │   ├── chat.py                      # 채팅 API
+ │   │   │   ├── dependencies.py              # API 공통 의존성
+ │   │   │   ├── health.py                    # 서버 상태 확인 API
+ │   │   │   └── recommendations.py           # 추천 API
+ │   │   │
+ │   │   ├── core/                            # 서버 공통 설정·보안·오류 처리
+ │   │   │   ├── __init__.py
+ │   │   │   ├── config.py                    # 환경 설정
+ │   │   │   ├── errors.py                    # 챗봇 서버 오류 정의
+ │   │   │   └── security.py                  # 내부 API 인증 처리
+ │   │   │
+ │   │   ├── data
+ │   │   │   └── raw/                         # RAG 원본 PDF
+ │   │   │    
+ │   │   ├── llm/                             # LLM 연동
+ │   │   │   ├── __init__.py
+ │   │   │   └── ollama.py                    # Ollama 호출 처리
+ │   │   │
+ │   │   ├── schemas/                         # API 요청·응답 모델
+ │   │   │   ├── __init__.py
+ │   │   │   ├── chat.py                      # 채팅 요청·응답 모델
+ │   │   │   ├── common.py                    # 공통 응답 모델
+ │   │   │   └── recommendation.py            # 추천 요청·응답 모델
+ │   │   │
+ │   │   └── services/                        # 챗봇 비즈니스 로직
+ │   │       ├── __init__.py
+ │   │       ├── chat_service.py               # 채팅 처리
+ │   │       ├── generation.py                 # 답변 생성 처리
+ │   │       └── recommendation_service.py     # 추천 처리
+ │   │
+ │   ├── docs/                                # 챗봇 설계·개발 문서
+ │   │
+ │   ├── prompts/                             # AI 개발 작업용 프롬프트
+ │   │   ├── 01_최초분석요청.md
+ │   │   ├── 02_첫구현요청.md
+ │   │   └── 03_작업이어하기.md
+ │   │
+ │   └── tests/                               # 챗봇 서버 테스트
+ │       ├── test_generation.py                # 답변 생성 테스트
+ │       ├── test_health.py                    # Health API 테스트
+ │       ├── test_internal_api.py              # 내부 API 테스트
+ │       └── test_ollama.py                    # Ollama 연동 테스트
 ──────────────────────────────────────────────────────────────────
 [개발 예정 구조 — AGENTS.md에 명시되었지만 아직 GitHub에 없는 폴더]
 
@@ -283,25 +375,6 @@ backend/src/main/java/com/hoperefund/
 └── common/           # 현재 존재, 보안/예외 처리 등의 확장 예정
 # 기능별 폴더 하위 계층: controller/ service/ mapper/ dto/
 # MyBatis XML: backend/src/main/resources/mapper/ (기능별)
-
-calc/app/
-├── api/              # /calculate · /benefit · deps.py
-├── schemas/          # 요청·응답 모델
-├── db/               # Oracle 읽기 전용 연결
-├── repositories/     # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION 조회
-├── services/         # bracket.py, tax_calculator.py, tax_rules.py, card_deduction.py, benefit.py
-└── card/             # 카드 업로드 파일 정리·분류
-calc/database/        # DB 구축·파이프라인 스크립트
-
-chatbot/app/
-├── api/              # FastAPI 라우터
-├── schemas/          # 요청·응답 모델
-├── services/         # 질문 처리·답변 생성
-├── rag/              # 문서 로딩·분할·임베딩·검색
-├── llm/              # Ollama·Gemma3 연동
-└── core/             # 환경설정·내부 인증
-chatbot/data/         # RAG 문서·전처리 자료
-chatbot/docs/         # 개발 이력·결정·작업 문서
 ```
 ## 🖥 실행 방법
 
