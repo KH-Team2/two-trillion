@@ -2,7 +2,7 @@
 
 조건은 BENEFIT_CONDITION 행에서 읽는다 → 혜택을 더 넣을 때 코드를 고치지 않고 DB에 행만 추가.
 - 나이: 근로계약 체결일(입사일) 기준 만 나이 − 군 복무(최대 MAX_MILITARY_MONTHS개월) · 노션 「청년 대상」 세법 기준값
-- 기간: 입사일부터 PERIOD_YEARS년 안에 귀속 연도가 걸쳐 있는지
+- 기간: 입사일부터 PERIOD_YEARS년 안에 귀속 연도가 걸쳐 있는지 (입사일이 귀속 연도보다 뒤여도 비해당)
 - 회사 규모 · 총급여 한도 · 무주택 세대주
 판정할 정보가 없으면 eligible=None(판단 불가)과 입력 안내 문구를 돌려준다.
 """
@@ -86,6 +86,10 @@ def _judge(cond: BenefitCondition, data: BenefitInput) -> BenefitResult:
                 )
 
     if cond.period_years is not None and data.hire_date is not None:
+        # 입사일이 귀속 연도보다 뒤면 그 해에는 아직 다니지 않은 것 → 비해당 (기간의 시작도 확인)
+        if data.hire_date > date(data.tax_year, 12, 31):
+            result.eligible = False
+            result.reasons.append(f"{data.tax_year}년에는 아직 입사 전이에요")
         period_end = _add_years(data.hire_date, cond.period_years)
         if period_end <= date(data.tax_year, 1, 1):
             result.eligible = False

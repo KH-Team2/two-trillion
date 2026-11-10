@@ -62,6 +62,25 @@ def test_입사일부터_5년이_지나면_비해당():
     )
 
 
+def test_입사일이_귀속_연도보다_뒤면_비해당과_이유():
+    # 2027년 입사인데 2026년 귀속을 진단 → 그 해에는 아직 다니지 않았으니 감면 대상이 아님
+    result = _result(
+        diagnose(criteria(), _input(hire_date=date(2027, 3, 1))), "SME_YOUTH"
+    )
+    assert result.eligible is False
+    assert "2026년에는 아직 입사 전이에요" in result.reasons
+
+
+def test_귀속_연도_마지막_날_입사는_해당():
+    # 경계값: 12월 31일 입사는 그 해에 다닌 것으로 본다
+    assert (
+        _result(
+            diagnose(criteria(), _input(hire_date=date(2026, 12, 31))), "SME_YOUTH"
+        ).eligible
+        is True
+    )
+
+
 def test_무주택_세대주가_아니면_월세_비해당():
     result = _result(diagnose(criteria(), _input(homeless_head_yn="N")), "RENT")
     assert result.eligible is False
