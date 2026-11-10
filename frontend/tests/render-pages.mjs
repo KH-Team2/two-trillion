@@ -216,6 +216,17 @@ for (const [name, node] of cases) {
       !html.includes('공제·감면 상세 내역'))
   )
     throw Error('실제 0원/음수/별도 상세 표 표시 실패');
+  // 계산 API 결과일 때는 체험·데모 문구가 남지 않음 · 계산 상세 단계에 금액 표시
+  if (
+    name === 'dashboard-api' &&
+    (html.includes('데모값') ||
+      html.includes('시연 결과') ||
+      html.includes('법정 계산 미연동') ||
+      !html.includes('계산값'))
+  )
+    throw Error('계산 결과 화면에 체험 문구가 남음');
+  if (name === 'dashboard-demo' && (!html.includes('데모값') || !html.includes('시연 결과')))
+    throw Error('체험 결과 문구 누락');
   if (name === 'dashboard-demo') {
     const panel = html.split('<section class="card deductions">')[1].split('</section>')[0];
     if (

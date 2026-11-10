@@ -3,8 +3,10 @@ import { uploadTotals } from '@/api/expense-service.js';
 import { migrateCalculationHistory } from '@/api/calculation-contract.js';
 import { useHashRouting } from '@/routes/useHashRouting.js';
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
+import { saveAndCalculate } from '@/api/calculation-service.js';
+import { canUseDemo } from '@/api/api-client.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -57,6 +59,9 @@ export default function App() {
   );
   const [authError, setAuthError] = useState('');
   const [formSeed, setFormSeed] = useState(0);
+  // 서버(계산 API) 계산 결과 · 없으면 대시보드는 체험용 계산을 보여 줘요
+  const [calcResult, setCalcResult] = useState(null);
+  const calculating = useRef(false); // 계산 버튼 연타로 같은 요청이 여러 번 가는 것 방지
   useEffect(() => setDraftTaxYear(null), [page, formSeed]);
   function refreshSession() {
     setSession(accountService.current());
@@ -107,7 +112,11 @@ export default function App() {
         })),
     );
     setUpload(userService.load('upload', null));
-    setHistories(userService.load('histories', []).map(migrateCalculationHistory));
+    const loadedHistories = userService.load('histories', []).map(migrateCalculationHistory);
+    setHistories(loadedHistories);
+    // 마지막 계산이 서버 계산이고 같은 귀속 연도면 그 결과를 이어서 보여 줘요
+    const latest = loadedHistories[0];
+    setCalcResult(latest?.source === 'API' && latest.taxYear === loaded.taxYear ? latest : null);
     setSaved(userService.load('saved', []).map(migrateCalculationHistory));
     inquiryService.migrate(userService.load('inquiries', []));
     setInquiries(session ? inquiryService.list() : []);
@@ -170,8 +179,10 @@ export default function App() {
     setFormSeed((s) => s + 1);
     go('input');
   }
-  // TODO: 실제 세액 계산·결과 저장은 Spring Boot API로 교체합니다. 지금은 기존 데모 엔진을 호출합니다.
-  function calculate(input, tx, meta) {
+  // 일반 계산: 소득을 서버에 저장(PUT)하고 계산 API(POST)로 계산해요.
+  // 서버에 연결할 수 없을 때 개발 서버에서만 기존 체험용 계산으로 보여 줘요 (배포본은 연결 실패 안내만).
+  // 시뮬레이션은 아직 체험용 계산이에요.
+  async function calculate(input, tx, meta) {
     const d = { ...input, ...uploadTotals(tx, input.taxYear) };
     recordAccess(mode === 'simulation' ? 'SIMULATION_CALCULATE' : 'CALCULATE');
     if (mode === 'simulation') {
@@ -180,6 +191,22 @@ export default function App() {
       setSimUpload(meta);
       go('compare');
     } else {
+      if (calculating.current) return;
+      calculating.current = true;
+      let server = null;
+      try {
+        server = await saveAndCalculate(d);
+      } catch (error) {
+        // 입력 오류 · 기준값 없음 등은 입력 화면에 그대로 머물러요 (입력값 유지)
+        // 연결 실패도 배포본에서는 체험용 계산으로 넘어가지 않고 안내만 띄워요
+        if (!canUseDemo(error)) {
+          notify(error.message);
+          return;
+        }
+      } finally {
+        calculating.current = false;
+      }
+      setCalcResult(server);
       setTransactions(tx);
       setUpload(meta);
       userService.save('transactions', tx);
@@ -191,21 +218,27 @@ export default function App() {
           id: newPrototypeId(),
           date: new Date().toLocaleDateString('ko-KR'),
           data: d,
-          ...taxService.calculate(d),
+          ...(server ?? taxService.calculate(d)),
+          source: server ? 'API' : 'DEMO',
         },
         ...histories,
       ];
       setHistories(next);
       userService.save('histories', next);
       go('dashboard');
-      notify('입력 정보를 저장하고 예시 계산을 완료했어요.');
+      notify(
+        server
+          ? '입력 정보를 서버에 저장하고 계산을 완료했어요.'
+          : '계산 서버에 연결할 수 없어 예시 계산으로 보여 줘요.',
+      );
     }
   }
   function saveTx(t) {
     setTransactions(t);
     userService.save('transactions', t);
   }
-  const r = taxService.calculate(data);
+  const serverResult = calcResult && calcResult.taxYear === data.taxYear ? calcResult : null;
+  const r = serverResult ?? taxService.calculate(data);
   const sim = simulation || data;
   const baseData = compareBase || data;
   const br = taxService.calculate(baseData);
@@ -281,6 +314,8 @@ export default function App() {
                   {page === 'dashboard' && (
                     <DashboardPage
                       data={data}
+                      result={serverResult ?? undefined}
+                      isDemo={!serverResult}
                       transactions={transactions}
                       go={go}
                       startSim={startSim}
