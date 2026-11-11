@@ -1,6 +1,7 @@
 package com.hoperefund.common.exception;
 
 import jakarta.validation.constraints.Min;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -8,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 공통 예외 처리 테스트를 위한 전용 Controller
@@ -49,6 +51,18 @@ public class TestErrorController {
     @PostMapping("/api/test-errors/too-large")
     public String tooLarge() {
         throw new MaxUploadSizeExceededException(1024);
+    }
+
+    // 코드에서 상태 코드를 직접 정해 던지는 경우 (권한 없음 403)
+    @GetMapping("/api/test-errors/status")
+    public String statusError() {
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "권한이 없어요");
+    }
+
+    // 상태 코드를 직접 정해 던졌는데 서버 쪽 오류(502)인 경우 — 원인 문구가 응답에 나가면 안 된다
+    @GetMapping("/api/test-errors/status-server")
+    public String statusServerError() {
+        throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "내부 서버 연결 실패");
     }
 
     public record TestRequest(String content) {}

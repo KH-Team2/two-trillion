@@ -19,6 +19,7 @@ import org.springframework.web.method.annotation.HandlerMethodValidationExceptio
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.support.MissingServletRequestPartException;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -188,6 +189,22 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("PAYLOAD_TOO_LARGE", "파일이 너무 커요. 더 작은 파일로 올려 주세요"));
     }
 
+    // 코드에서 상태 코드를 직접 정해 던진 예외 — 정한 상태 그대로 내보낸다 (500으로 뭉개지지 않게)
+    // 서버 쪽 상태(5xx)면 원인 문구는 로그에만 남기고 errorId를 붙인다
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<ApiResponse<Void>> handleResponseStatus(ResponseStatusException e) {
+        int status = e.getStatusCode().value();
+        if (e.getStatusCode().is5xxServerError()) {
+            String errorId = newErrorId();
+            log.error("[errorId={}] 서버 오류 응답 ({})", errorId, status, e);
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.fail("SERVER_ERROR", "잠시 후 다시 시도해 주세요.", errorId));
+        }
+        log.warn("요청 오류 응답 ({})", status);
+        String message = e.getReason() != null ? e.getReason() : "요청을 처리할 수 없어요";
+        return ResponseEntity.status(status).body(ApiResponse.fail(codeOf(status), message));
+    }
+
     // 처리하지 못한 서버 오류 (DB 접속 실패 등)
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
@@ -196,6 +213,21 @@ public class GlobalExceptionHandler {
         log.error("[errorId={}] 처리하지 못한 오류", errorId, e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR) // 500 서버 오류
                 .body(ApiResponse.fail("SERVER_ERROR", "잠시 후 다시 시도해 주세요.", errorId));
+    }
+
+    /** 상태 코드에 맞는 오류 코드 이름 (docs/api-rules.md 5번 표와 같은 이름) */
+    private static String codeOf(int status) {
+        return switch (status) {
+            case 400 -> "VALIDATION";
+            case 401 -> "UNAUTHORIZED";
+            case 403 -> "FORBIDDEN";
+            case 404 -> "NOT_FOUND";
+            case 405 -> "METHOD_NOT_ALLOWED";
+            case 409 -> "CONFLICT";
+            case 413 -> "PAYLOAD_TOO_LARGE";
+            case 415 -> "UNSUPPORTED_MEDIA_TYPE";
+            default -> "REQUEST_ERROR";
+        };
     }
 
     /** 오류 추적 번호 8자리 (예: a3f9c2d1) · 추측할 수 있는 순번이 아니라 무작위 값 */

@@ -80,6 +80,7 @@
 - 오류 문구에 SQL · 스택 트레이스 · DB 주소 · DB 오류 코드(ORA-…)를 넣지 않는다 (원인은 서버 로그에만).
 - `errorId`는 사용자 쪽 오류(400 · 401 · 403 · 404 · 405 · 409 · 413 · 415)엔 붙이지 않는다 — 문구만으로 고칠 수 있어서.
 - Spring은 `GlobalExceptionHandler` 하나에서 이 모양으로 바꾼다 (이 레포 참고). Service는 예외를 던지기만 하면 된다.
+- 상태 코드를 직접 정해 던지는 `ResponseStatusException`도 같은 봉투로 나간다 (정한 상태 그대로 · 코드 이름은 위 표 · 표에 없는 4xx는 `REQUEST_ERROR`). 5xx로 던지면 문구는 숨기고 `SERVER_ERROR` + `errorId`.
 
 ## 6. 예외: 서버끼리 부르는 내부 API
 

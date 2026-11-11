@@ -107,4 +107,28 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error.code").value("PAYLOAD_TOO_LARGE"))
                 .andExpect(jsonPath("$.error.errorId").doesNotExist());
     }
+
+    // 상태 코드를 직접 정해 던진 예외(ResponseStatusException) → 500이 아니라 정한 상태(403) 그대로
+    @Test
+    void responseStatusExceptionKeepsStatus() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/status"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("FORBIDDEN"))
+                .andExpect(jsonPath("$.error.message").value("권한이 없어요"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
+    }
+
+    // 직접 정한 상태가 서버 쪽 오류(502)면 원인 문구는 숨기고 errorId를 붙인다
+    @Test
+    void responseStatusException5xxHidesReason() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/status-server"))
+                .andExpect(status().is(502))
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("SERVER_ERROR"))
+                .andExpect(jsonPath("$.error.message").value("잠시 후 다시 시도해 주세요."))
+                .andExpect(jsonPath("$.error.errorId").exists());
+    }
 }
