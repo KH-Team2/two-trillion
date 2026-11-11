@@ -12,15 +12,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.hoperefund.common.exception.ConflictException;
+import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeResponseDTO;
-import com.hoperefund.income.exception.IncomeException;
 import com.hoperefund.income.service.IncomeService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +32,8 @@ import org.springframework.test.web.servlet.MockMvc;
  * <p>@MockitoBean: 진짜 IncomeService 대신 가짜를 넣음 → 응답만 정해 두고 Controller 동작만 본다
  *
  * <p>jsonPath("$.칸") : 응답 JSON의 그 칸 값을 확인
+ *
+ * <p>[수정 11/11] 응답이 공통 봉투로 바뀌어서 경로 변경: 성공은 $.data.칸 · 실패는 $.error.code
  */
 @WebMvcTest(IncomeController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -59,32 +60,32 @@ class IncomeControllerTest {
 
         mockMvc.perform(get("/api/incomes/2026").header("X-Member-Id", "1"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalSalary").value(30_000_000L))
-                .andExpect(jsonPath("$.smeReductionYn").value("N"));
+                .andExpect(jsonPath("$.data.totalSalary").value(30_000_000L))
+                .andExpect(jsonPath("$.data.smeReductionYn").value("N"));
     }
 
     @Test
     void 조회_소득이_없으면_404_NOT_FOUND() throws Exception {
         when(incomeService.getIncome(1L, 2026))
-                .thenThrow(new IncomeException(HttpStatus.NOT_FOUND, "NOT_FOUND", "없음"));
+                .thenThrow(new NotFoundException("없음"));
 
         mockMvc.perform(get("/api/incomes/2026").header("X-Member-Id", "1"))
                 .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.error").value("NOT_FOUND"));
+                .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
     }
 
     @Test
     void 조회_회원번호_헤더가_없으면_401() throws Exception {
         mockMvc.perform(get("/api/incomes/2026"))
                 .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error").value("UNAUTHORIZED"));
+                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     }
 
     @Test
     void 조회_연도가_숫자가_아니면_400() throws Exception {
         mockMvc.perform(get("/api/incomes/abc").header("X-Member-Id", "1"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION"));
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"));
     }
 
     // ── PUT ──
@@ -101,7 +102,7 @@ class IncomeControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(VALID_BODY))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.totalSalary").value(30_000_000L));
+                .andExpect(jsonPath("$.data.totalSalary").value(30_000_000L));
     }
 
     @Test
@@ -112,7 +113,7 @@ class IncomeControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"withheldTax\": 1000000}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION"));
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"));
         verify(incomeService, never()).saveIncome(anyLong(), anyInt(), any());
     }
 
@@ -143,7 +144,7 @@ class IncomeControllerTest {
     @Test
     void 저장_동시에_첫_저장이_겹치면_409() throws Exception {
         when(incomeService.saveIncome(anyLong(), anyInt(), any()))
-                .thenThrow(new DuplicateKeyException("UQ_INCOME_MEMBER_YEAR"));
+                .thenThrow(new ConflictException("동시 저장", null));
 
         mockMvc.perform(
                         put("/api/incomes/2026")
@@ -151,6 +152,6 @@ class IncomeControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(VALID_BODY))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("CONFLICT"));
+                .andExpect(jsonPath("$.error.code").value("CONFLICT"));
     }
 }

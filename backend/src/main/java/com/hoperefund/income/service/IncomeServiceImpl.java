@@ -1,12 +1,15 @@
 package com.hoperefund.income.service;
 
+import com.hoperefund.common.exception.BadRequestException;
+import com.hoperefund.common.exception.ConflictException;
+import com.hoperefund.common.exception.NoCriteriaException;
+import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
-import com.hoperefund.income.exception.IncomeException;
 import com.hoperefund.income.mapper.IncomeMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -22,6 +25,9 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>3. 모든 금액 0 이상 → IncomeRequestDTO의 @PositiveOrZero
  *
  * <p>4. 자녀 수 ≤ 부양가족 수 → checkChildren() (DB 제약으로는 못 막아서 여기서 확인)
+ *
+ * <p>[수정 11/11] 소득 전용 예외(IncomeException) → 공통 예외(NotFound · NoCriteria · BadRequest · Conflict)
+ * · 이유: develop에 공통 예외와 오류 처리기(GlobalExceptionHandler)가 들어와서(PR #6) 그걸 씀
  */
 @Slf4j
 @Service // 스프링이 이 클래스를 Service로 등록 → Controller에서 IncomeService로 주입받음
@@ -43,8 +49,7 @@ public class IncomeServiceImpl implements IncomeService {
         IncomeResponseDTO income = incomeMapper.findByMemberAndYear(memberId, taxYear);
         if (income == null) {
             // 화면은 404를 받으면 빈 입력 폼을 보여 준다
-            throw new IncomeException(
-                    HttpStatus.NOT_FOUND, "NOT_FOUND", taxYear + "년 소득 정보가 아직 없어요.");
+            throw new NotFoundException(taxYear + "년 소득 정보가 아직 없어요."); // → 404 NOT_FOUND
         }
         return income;
     }
@@ -55,7 +60,13 @@ public class IncomeServiceImpl implements IncomeService {
     public IncomeResponseDTO saveIncome(long memberId, int taxYear, IncomeRequestDTO request) {
         checkTaxYear(taxYear);
         checkChildren(request);
-        incomeMapper.upsert(memberId, taxYear, request);
+        // [수정 11/11] 동시 저장 충돌(409)을 여기서 공통 예외로 바꿈 · 이유: 소득 전용 오류 처리기를 지워서
+        try {
+            incomeMapper.upsert(memberId, taxYear, request);
+        } catch (DuplicateKeyException e) {
+            // 같은 회원·연도의 첫 저장이 동시에 두 번 오면 UQ_INCOME_MEMBER_YEAR에 걸림 → 409 CONFLICT
+            throw new ConflictException("소득 동시 저장 member=" + memberId + " year=" + taxYear, e);
+        }
         log.info("소득 저장 member={} year={}", memberId, taxYear); // 금액은 로그에 남기지 않음 (백엔드 규칙)
         // 저장한 값을 다시 읽어서 돌려줌 (DB가 채운 updatedAt · 0으로 바뀐 빈 칸까지 화면에 정확히 보여 주려고)
         return incomeMapper.findByMemberAndYear(memberId, taxYear);
@@ -64,8 +75,7 @@ public class IncomeServiceImpl implements IncomeService {
     /** 연도 검사: 2025 · 2026이 아니면 400 */
     private void checkTaxYear(int taxYear) {
         if (taxYear < MIN_TAX_YEAR || taxYear > MAX_TAX_YEAR) {
-            throw new IncomeException(
-                    HttpStatus.BAD_REQUEST, "NO_CRITERIA", "아직 계산할 수 없는 연도예요.");
+            throw new NoCriteriaException(); // → 400 NO_CRITERIA
         }
     }
 
@@ -74,10 +84,7 @@ public class IncomeServiceImpl implements IncomeService {
         int children = request.getChildren() == null ? 0 : request.getChildren();
         int dependents = request.getDependents() == null ? 0 : request.getDependents();
         if (children > dependents) {
-            throw new IncomeException(
-                    HttpStatus.BAD_REQUEST,
-                    "VALIDATION",
-                    "20세 이하 자녀 수는 부양가족 수보다 많을 수 없어요.");
+            throw new BadRequestException("20세 이하 자녀 수는 부양가족 수보다 많을 수 없어요."); // → 400 VALIDATION
         }
     }
 }

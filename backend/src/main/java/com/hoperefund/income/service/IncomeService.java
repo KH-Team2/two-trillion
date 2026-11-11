@@ -13,7 +13,7 @@ public interface IncomeService {
     /**
      * 소득 조회
      *
-     * @throws com.hoperefund.income.exception.IncomeException 400 연도 오류 · 404 소득 없음
+     * @throws com.hoperefund.common.exception.NotFoundException 404 소득 없음 (연도 오류는 NoCriteriaException 400)
      */
     IncomeResponseDTO getIncome(long memberId, int taxYear);
 
@@ -21,7 +21,7 @@ public interface IncomeService {
      * 소득 저장 (그 연도 행이 있으면 수정, 없으면 새로 등록)
      *
      * @return 저장된 소득
-     * @throws com.hoperefund.income.exception.IncomeException 400 연도 오류 · 자녀 수가 부양가족 수보다 많음
+     * @throws com.hoperefund.common.exception.BadRequestException 400 자녀 수가 부양가족 수보다 많음 (연도 오류는 NoCriteriaException 400)
      */
     IncomeResponseDTO saveIncome(long memberId, int taxYear, IncomeRequestDTO request);
 }

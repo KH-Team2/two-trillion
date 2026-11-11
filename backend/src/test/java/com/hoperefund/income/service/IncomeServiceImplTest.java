@@ -9,16 +9,19 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.hoperefund.common.exception.BadRequestException;
+import com.hoperefund.common.exception.ConflictException;
+import com.hoperefund.common.exception.NoCriteriaException;
+import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
-import com.hoperefund.income.exception.IncomeException;
 import com.hoperefund.income.mapper.IncomeMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
+import org.springframework.dao.DuplicateKeyException;
 
 /**
  * IncomeServiceImpl 테스트 (DB 없이)
@@ -56,17 +59,13 @@ class IncomeServiceImplTest {
         when(incomeMapper.findByMemberAndYear(1L, 2026)).thenReturn(null);
 
         assertThatThrownBy(() -> incomeService.getIncome(1L, 2026))
-                .isInstanceOf(IncomeException.class)
-                .extracting("status")
-                .isEqualTo(HttpStatus.NOT_FOUND);
+                .isInstanceOf(NotFoundException.class);
     }
 
     @Test
     void 조회_받지_않는_연도면_400이고_DB를_조회하지_않는다() {
         assertThatThrownBy(() -> incomeService.getIncome(1L, 2024))
-                .isInstanceOf(IncomeException.class)
-                .extracting("code")
-                .isEqualTo("NO_CRITERIA");
+                .isInstanceOf(NoCriteriaException.class);
         verify(incomeMapper, never()).findByMemberAndYear(anyLong(), anyInt());
     }
 
@@ -94,9 +93,7 @@ class IncomeServiceImplTest {
     @Test
     void 저장_자녀_수가_부양가족_수보다_많으면_400이고_저장하지_않는다() {
         assertThatThrownBy(() -> incomeService.saveIncome(1L, 2026, request(1, 2)))
-                .isInstanceOf(IncomeException.class)
-                .extracting("code")
-                .isEqualTo("VALIDATION");
+                .isInstanceOf(BadRequestException.class);
         verify(incomeMapper, never()).upsert(anyLong(), anyInt(), any());
     }
 
@@ -104,7 +101,7 @@ class IncomeServiceImplTest {
     void 저장_자녀_수만_있고_부양가족_수가_비어_있으면_400() {
         // 비워 보낸 부양가족 수는 0으로 저장되니까, 자녀 1명은 0명보다 많음
         assertThatThrownBy(() -> incomeService.saveIncome(1L, 2026, request(null, 1)))
-                .isInstanceOf(IncomeException.class);
+                .isInstanceOf(BadRequestException.class);
     }
 
     @Test
@@ -117,10 +114,18 @@ class IncomeServiceImplTest {
     @Test
     void 저장_받지_않는_연도면_400이고_저장하지_않는다() {
         assertThatThrownBy(() -> incomeService.saveIncome(1L, 2027, request(0, 0)))
-                .isInstanceOf(IncomeException.class)
-                .extracting("code")
-                .isEqualTo("NO_CRITERIA");
+                .isInstanceOf(NoCriteriaException.class);
         verify(incomeMapper, never()).upsert(anyLong(), anyInt(), any());
+    }
+
+    @Test
+    void 저장_동시에_첫_저장이_겹치면_ConflictException() {
+        // 가짜 매퍼가 UNIQUE 위반(DuplicateKeyException)을 던지게 정함
+        when(incomeMapper.upsert(anyLong(), anyInt(), any()))
+                .thenThrow(new DuplicateKeyException("UQ_INCOME_MEMBER_YEAR"));
+
+        assertThatThrownBy(() -> incomeService.saveIncome(1L, 2026, request(0, 0)))
+                .isInstanceOf(ConflictException.class);
     }
 
     /** 테스트용 요청 (필수 칸 + 부양가족 · 자녀 수) */
