@@ -37,8 +37,7 @@
 - Java 17
 - Spring Boot 4.1.0
 - MyBatis
-- Python 3.11
-- FastAPI
+- Maven
 
 ### Frontend
 - React
@@ -49,8 +48,9 @@
 ### Database
 - Oracle Database 21c
 
-### Data / AI
+### Calculation / AI
 - Python
+- FastAPI
 - Ollama (Gemma 3 4B)
 - LangChain
 - Elasticsearch
@@ -250,7 +250,7 @@
  │       │   │       ├── service/               # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
  │       │   │       ├── client/                # Python 계산 서버 연동
  │       │   │       ├── mapper/                # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
- │       │   │       └── dto/
+ │       │   │       └── dto/                   # 예상 세액·혜택 요청·응답 DTO
  │       │   │
  │       │   └── resources/
  │       │       ├── application.yml            # Spring Boot 공통 설정
@@ -400,7 +400,20 @@ backend/src/main/java/com/hoperefund/
 └── common/           # 현재 존재, 보안/예외 처리 등의 확장 예정
 # 기능별 폴더 하위 계층: controller/ service/ mapper/ dto/
 # MyBatis XML: backend/src/main/resources/mapper/ (기능별)
+
+chatbot/app/
+├── api/             # 채팅·추천 API
+├── schemas/         # 요청·응답 모델
+├── services/        # 챗봇 비즈니스 로직
+├── rag/             # RAG 검색·문서 처리
+├── llm/             # Ollama · Gemma3 연동
+└── core/            # 설정·보안·오류 처리
 ```
 ## 🖥 실행 방법
 
-개발 진행 후 작성 예정
+각 프로젝트의 자세한 설치 및 실행 방법은 해당 폴더의 `README.md`를 참고합니다.
+
+- Frontend: `frontend/README.md`
+- Backend: `backend/README.md`
+- Calculation Server: `calc/README.md`
+- Chatbot Server: `chatbot/README.md`
