@@ -17,6 +17,7 @@
 """
 # @dataclass: 데이터 보관 용도의 클래스 생성기
 from dataclasses import dataclass
+
 from app.card.normalize import normalize_name
 
 # 일치 카테고리 없을 시 분류코드 (일반)
