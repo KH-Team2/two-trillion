@@ -1,0 +1,57 @@
+# Spring Boot 서버 실행 포트
+server:
+  port: ${SERVER_PORT:8080}
+
+# Spring Boot 프로젝트 이름
+spring:
+  application:
+    name: hope-refund-backend
+# DB 접속 정보 등은 backend 폴더의 .env 파일에서도 읽음 (.env는 커밋하지 않음 · 항목 이름은 .env.example 참고)
+# 환경변수(STS Run Configurations)로 넣어도 되고, .env 파일로 넣어도 됨. 둘 다 있으면 환경변수가 우선.
+  config:
+    import: optional:file:.env[.properties]
+# 오류 응답에 내부 정보 노출 방지
+  web:
+    error:
+      include-stacktrace: never
+
+# Oracle DB 연결 설정
+# 실제 접속 정보는 로컬 환경변수에서 가져옴.
+# 환경 변수 설정 Run → Run Configurations → Spring Boot App → 해당 프로젝트 → Environment → add
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: oracle.jdbc.OracleDriver
+
+# MyBatis Mapper XML 및 컬럼 매핑 설정
+mybatis:
+  mapper-locations: classpath:mapper/**/*.xml
+  configuration:
+# ex. MEMBER_ID → memberId 자동 매핑
+    map-underscore-to-camel-case: true
+    jdbc-type-for-null: 'NULL'
+
+# Python 계산 서버 연결 설정
+# prediction/client/HttpCalcClient가 사용 (X-Calc-Token 헤더 · 연결·응답 제한 시간)
+calc:
+# mock: 가짜 계산(파이썬 서버 없이 화면 연결용 · 세액 0) · http: 파이썬 계산 서버 호출
+  mode: ${CALC_MODE:mock}
+  base-url: ${CALC_BASE_URL:http://localhost:8000}
+  api-token: ${CALC_API_TOKEN:}
+  connect-timeout: 3s ## 시간 설정들은 개발하면서 맞게 수정 필요 임의로 해둔 것.
+  read-timeout: 10s
+
+# 계산 결과 저장 (PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL)
+# 파이썬 서버 연결 전에는 false (가짜 결과가 공용 DB에 쌓이지 않게) · calc.mode가 http일 때만 실제로 저장함
+prediction:
+  save-enabled: ${SAVE_ENABLED:false}
+
+# Python AI 챗봇 서버 연결 설정
+# Gemma3 + RAG 기반 AI 답변 생성에 사용
+# TODO: 챗봇 서버 구현 후 실제 API 주소 및 인증 방식 확정
+chatbot:
+  base-url: ${CHATBOT_BASE_URL:http://localhost:8001}
+  api-token: ${CHATBOT_API_TOKEN:}
+  connect-timeout: 3s
+  read-timeout: 60s
