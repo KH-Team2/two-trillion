@@ -58,45 +58,42 @@
 
 대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 향후 시뮬레이션 API 연결 시에도 해당 컴포넌트에 실제 연결 상태를 전달해야 합니다.
 
-## 청년 혜택 자격 진단 (S-05 · F-03-02)
+## 백엔드 API 연결 흐름 — 세액 계산·진단 파트 (F-02-01 · F-03-01 · F-03-02)
 
-`src/api/benefit-service.js`의 `fetchBenefits(taxYear)`가 `GET /api/benefits/{taxYear}`를 호출합니다. 응답 `{taxYear, results[]}`의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 유지하며 화면에서 다른 값으로 바꾸지 않습니다. 오류 `{error, message}`는 `error.code`로 전달합니다.
+화면이 어떤 API를 어떤 순서로 부르는지만 적습니다. 세부 사항은 아래 한 곳에서만 관리하고, 이 문서에 옮겨 적지 않습니다.
 
-- 개발 서버(`npm run dev`)는 `vite.config.js` 프록시로 `/api`를 Spring 서버(`VITE_API_PROXY`, 기본 `http://localhost:8080`)에 넘깁니다.
-- 로그인(Spring Security) 연결 전까지 개발 서버(`npm run dev`)에서만 `.env`의 `VITE_DEV_MEMBER_ID`를 `X-Member-Id` 헤더로 보냅니다. 숫자가 아니면 보내지 않습니다. 빌드한 파일(`npm run build`)에서는 보내지 않고 서버가 로그인 정보로 회원을 정합니다.
-- 서버가 판정하면 「나의 자격 정보」 위에 「브라우저 입력값이며 판정은 서버 저장 정보로 함」 안내를 보여 줍니다 (소득·자격 입력이 서버 저장으로 연결되기 전까지 두 값이 다를 수 있음).
-- 서버에 연결할 수 없으면(`OFFLINE`) 개발 서버(`npm run dev`)에서만 기존 입력 기준 체험 판정(`benefitChecks`)을 보여 줍니다. 빌드한 파일(배포본)에서는 연결 실패 안내만 보여 줍니다 (`api-client.js`의 `canUseDemo`).
-- 준비 서류 안내는 `PREPARE_DOCS` 고정 문구입니다 (국세청 「2025 원천징수의무자를 위한 연말정산 신고안내」 쪽수 표기).
+| 세부 사항 | 관리하는 곳 |
+| --- | --- |
+| 응답 봉투 · 오류 코드 | `backend/docs/api-rules.md` |
+| 화면 값 → 서버 이름 (소득 저장) | `src/api/income-service.js`의 `incomeRequest()` |
+| 계산 결과 응답 검사 | `src/api/calculation-contract.js`의 `parseCalculationResult()` |
+| 개발용 설정 (`VITE_API_PROXY` · `VITE_DEV_MEMBER_ID`) | `.env.example` · `vite.config.js` |
 
-## 소득 저장 · 세액 계산 연결 (F-03-01 · 11/03)
+### 공통
 
-`App.calculate()`(일반 계산)가 `src/api/calculation-service.js`의 `saveAndCalculate(d)`를 호출합니다.
+- 모든 호출은 `src/api/api-client.js`의 `apiRequest()`를 거칩니다. 성공이면 응답 봉투의 `data`만 돌려주고, 실패면 서버의 `error.code` · `error.message`를 가진 오류를 던집니다.
+- 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 체험용 계산 · 판정으로 대신하는 것은 개발 서버(`npm run dev`)에서만이고(`canUseDemo`), 빌드한 파일(배포본)은 연결 실패 안내만 보여 줍니다.
+- 로그인(Spring Security) 연결 전까지 개발 서버에서만 `X-Member-Id` 헤더를 보냅니다.
 
-1. `PUT /api/incomes/{taxYear}` — `income-service.js`의 `incomeRequest(d)`로 화면 값을 back 이름으로 바꿔 **모든 칸**을 보냅니다.
-2. 저장이 성공하면 `POST /api/calculations/{taxYear}` (본문 없음) → `parseCalculationResult()`로 응답 검사 (`taxableIncome`도 숫자 필수).
-   - 응답의 `predictionId`(저장된 결과 번호)는 그대로 남깁니다 (11/05). 챗봇 대화방 생성 `POST /api/chat-sessions`(본문 `predictionId`)과 절세 가이드 `GET /api/recommendations/{predictionId}`가 이 값을 씁니다. 예전 브라우저 이력에는 없을 수 있어 그때는 `null`입니다.
-3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘기고, 계산 이력에 `source: 'API'`로 저장합니다.
+### 소득 저장 · 세액 계산 (F-02-01 · F-03-01)
 
-| 화면 값 | back 이름 | 처리 |
-| --- | --- | --- |
-| `salary` · `paid` | `totalSalary` · `withheldTax` | 필수 · 비었거나 음수면 저장 전에 막음 |
-| `nationalPension` · `healthEmploymentInsurance` | `nationalPension` · `healthInsurance` | 비면 0 |
-| `family` · `children` | `dependents` · `children` | 비면 0 |
-| `rent` | `monthlyRent` | 월 금액 그대로 |
-| `housingSaving` · `pensionSaving` · `irp` | `housingSaving` · `pensionSaving` · `irpSaving` | 연금저축과 IRP를 따로 보냄 |
-| `sme` | `smeReductionYn` | 예·해당 = Y · 아니요·미해당 = N · '확인 필요'는 N으로 바꾸지 않고 선택 안내 |
+`App.calculate()` → `src/api/calculation-service.js`의 `saveAndCalculate(d)`
 
-- 서버 오류(`VALIDATION` · `NO_CRITERIA` · `CALC_REJECTED` · `CALC_UNAVAILABLE` · `CONFLICT` 등)는 서버 `message`를 알림으로 띄우고 **입력 화면에 머뭅니다** (입력값 유지).
-- 서버에 연결할 수 없을 때(`OFFLINE`) 개발 서버(`npm run dev`)에서만 기존 체험 계산(`taxService.calculate`)으로 보여 주고 (배포본에서는 입력 화면에 머물며 연결 실패 안내만 · `canUseDemo`), 「예시 계산」이라고 알립니다. 대시보드는 `isDemo`로 체험/계산 결과 문구를 나눕니다.
+1. `PUT /api/incomes/{taxYear}` — 소득 저장. 한 해 소득 전체를 덮어쓰므로 모든 칸을 보냅니다.
+2. 저장이 성공하면 `POST /api/calculations/{taxYear}` — 계산 + 결과 저장.
+3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘깁니다. 응답의 `predictionId`(저장된 결과 번호)는 챗봇 · 절세 가이드가 쓰도록 그대로 남깁니다.
+
+- 서버 오류면 서버 문구를 알림으로 띄우고 입력 화면에 머뭅니다 (입력값 유지).
 - 계산 버튼을 연달아 눌러도 요청은 한 번만 보냅니다.
-- 아직 연결 안 된 부분: **시뮬레이션**(비교 화면 `br` · `sr`)은 체험 계산 그대로입니다. 계산 API가 저장된 소득으로만 계산하므로, 가상 조건 계산은 「저장하지 않는 계산 API」가 따로 필요합니다. **카드 사용액**은 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다. 챗봇 화면의 `r`은 서버 결과가 있으면 서버 결과를 받습니다.
 
-## 백엔드 오류 코드 추가 (11/03)
+### 청년 혜택 자격 진단 (F-03-02)
 
-| API | 상태 · error | 뜻 | 화면 안내 예 |
-| --- | --- | --- | --- |
-| `PUT /api/incomes/{taxYear}` | 409 `CONFLICT` | 같은 소득 첫 저장이 동시에 두 번 와서 겹침 (저장 버튼 두 번 클릭 등) | 잠시 후 다시 저장 |
-| `POST /api/calculations/{taxYear}` | 400 `CALC_REJECTED` | 계산 서버가 입력값을 거부 (다시 시도해도 같음) | 소득 정보 확인 |
-| `POST /api/calculations/{taxYear}` | 503 `CALC_UNAVAILABLE` | 계산 서버 연결 불가 · 설정 문제 (기존) | 잠시 후 다시 시도 |
+혜택 화면 → `src/api/benefit-service.js`의 `fetchBenefits(taxYear)` → `GET /api/benefits/{taxYear}`
 
-- `PUT /api/incomes/{taxYear}`는 보낸 값으로 전체를 덮어씁니다. 요청에 없는 칸은 0(또는 `N`)으로 저장되므로, 화면은 `GET`으로 불러온 값에 수정한 칸을 합쳐 **모든 칸을 보내야** 합니다.
+- 응답의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 보여 주고, 화면에서 다른 값으로 바꾸지 않습니다.
+- 판정은 서버에 저장된 회원 정보로 합니다. 화면의 「나의 자격 정보」는 아직 브라우저 입력값이라, 두 값이 다를 수 있다는 안내를 함께 보여 줍니다.
+
+### 아직 연결 안 된 부분
+
+- 시뮬레이션(비교 화면): 체험 계산 그대로입니다. 계산 API가 저장된 소득으로만 계산하므로 「저장하지 않는 계산 API」가 따로 필요합니다.
+- 카드 사용액: 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다.
