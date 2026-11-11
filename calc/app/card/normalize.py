@@ -12,6 +12,7 @@
 
 # re: 정규표현식 도구
 import re
+
 # unicodedata: 글자를 표준 모양으로 바꿔주는 파이썬 도구
 import unicodedata
 
