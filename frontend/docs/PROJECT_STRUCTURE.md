@@ -11,6 +11,7 @@ hope-refund/
   .prettierrc.json
   README.md
   docs/API_INTEGRATION.md
+  docs/api_integ_logs/TT-11_소득입력_계산_혜택진단.md
   docs/EXPORT_VERIFICATION.md
   docs/FEEDBACK_REPORT.md
   docs/PROJECT_STRUCTURE.md
