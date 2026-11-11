@@ -1,8 +1,5 @@
 package com.hoperefund.income.exception;
 
-import com.hoperefund.common.dto.ErrorResponseDTO;
-import com.hoperefund.income.controller.IncomeController;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.dao.DuplicateKeyException;
@@ -12,6 +9,11 @@ import org.springframework.web.bind.MissingRequestHeaderException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+
+import com.hoperefund.common.dto.ErrorResponseDTO;
+import com.hoperefund.income.controller.IncomeController;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 소득 API 전용 오류 처리
