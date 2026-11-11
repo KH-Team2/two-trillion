@@ -4,7 +4,7 @@
 
 연말정산 예상 세액 계산, 청년 혜택 진단, 카드·홈택스 파일 처리 및 지출 분류를 담당합니다.
 
-> **현재 상태:** 예상 세액 계산 · 청년 혜택 진단 API 구현 완료 / 카드·홈택스 파일 처리 · 지출 분류 개발 예정
+> **현재 상태:** 예상 세액 계산 · 청년 혜택 진단 API 구현 완료 / 지출 분류 개발 예정
 
 ## 1. 개발 환경
 
@@ -42,7 +42,7 @@ calc/
 └── tests/                 # pytest (기준값은 가짜 데이터로 바꿔 끼움 · DB 없이 실행)
 ```
 
-카드·홈택스 파일 처리, 지출 분류는 담당자가 개발하면서 추가합니다.
+계산 로직, 카드 처리, DB 연결 및 Repository 등은 기능 담당자가 개발하면서 추가합니다.
 
 ## 3. 개발환경 준비
 
@@ -82,10 +82,10 @@ python -m pip install -r requirements-dev.txt
 
 | 환경변수 | 설명 |
 |---|---|
-| `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`database/README.md`) |
+| `DB_URL` | Oracle DB 접속 주소 |
+| `DB_USERNAME` | Oracle DB 계정 |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
-| `DB_DSN` | Oracle 접속 주소 `주소:포트/서비스이름` (python-oracledb는 JDBC 주소를 쓰지 않음) |
-| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **비우면 모든 계산 요청을 막음** |
+| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 |
 | `CALC_HOST` | FastAPI 실행 주소 |
 | `CALC_PORT` | FastAPI 실행 포트 |
 
