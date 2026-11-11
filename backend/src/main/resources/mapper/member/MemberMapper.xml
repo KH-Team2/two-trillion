@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 회원(MEMBER) SQL · 값은 #{}로만 넣는다 -->
+<mapper namespace="com.hoperefund.member.mapper.MemberMapper">
+
+    <!-- 아이디 중복 확인 -->
+    <select id="countByLoginId" resultType="int">
+        SELECT COUNT(*)
+          FROM MEMBER
+         WHERE LOGIN_ID = #{loginId}
+    </select>
+
+    <!-- 이메일 중복 확인 -->
+    <select id="countByEmail" resultType="int">
+        SELECT COUNT(*)
+          FROM MEMBER
+         WHERE EMAIL = #{email}
+    </select>
+
+    <!--
+        회원 저장
+        - 기본값이 있는 칸(MILITARY_MONTHS · HOMELESS_HEAD_YN · ROLE · STATUS · CREATED_AT · LOGIN_FAIL_COUNT)은 넣지 않는다.
+        - 동의 시각 · 수정일은 서버 시각(SYSDATE)으로 기록한다.
+        - TODO: Schema.sql에 MEMBER_ID 시퀀스가 없어 MAX + 1로 번호를 정한다. 시퀀스가 생기면 교체한다.
+    -->
+    <insert id="insertMember" parameterType="com.hoperefund.member.dto.MemberInsertDTO">
+        <selectKey keyProperty="memberId" resultType="long" order="BEFORE">
+            SELECT NVL(MAX(MEMBER_ID), 0) + 1 FROM MEMBER
+        </selectKey>
+        INSERT INTO MEMBER (
+            MEMBER_ID,
+            LOGIN_ID,
+            EMAIL,
+            PASSWORD,
+            BIRTH_DATE,
+            GENDER,
+            UPDATED_AT,
+            TERMS_AGREED_AT,
+            PRIVACY_AGREED_AT,
+            FINANCE_AGREED_AT,
+            TERMS_VERSION,
+            PRIVACY_VERSION,
+            FINANCE_VERSION,
+            EMAIL_VERIFIED_YN,
+            DATA_ORIGIN
+        ) VALUES (
+            #{memberId},
+            #{loginId},
+            #{email},
+            #{password},
+            #{birthDate},
+            #{gender},
+            SYSDATE,
+            SYSDATE,
+            SYSDATE,
+            SYSDATE,
+            #{termsVersion},
+            #{privacyVersion},
+            #{financeVersion},
+            #{emailVerifiedYn},
+            #{dataOrigin}
+        )
+    </insert>
+
+</mapper>

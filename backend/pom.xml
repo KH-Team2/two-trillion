@@ -83,6 +83,11 @@
     		<groupId>org.springframework.boot</groupId>
     		<artifactId>spring-boot-starter-validation</artifactId>
 		</dependency>
+		<!-- 회원 비밀번호 BCrypt 암호화 (인증 필터 없이 암호화 기능만 사용 · 버전은 Spring Boot가 관리) -->
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-crypto</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
