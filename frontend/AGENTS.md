@@ -15,13 +15,12 @@
 패키지 매니저는 **npm**만 사용한다. Node.js 22 이상.
 
 ```bash
-npm install       # 의존성 설치
-npm run dev       # 개발 서버 (http://localhost:5173)
-npm run build     # 프로덕션 빌드
-npm run lint      # ESLint 검사
-npm run lint:fix  # ESLint 자동 수정
-npm test          # 테스트 (vitest run)
-npm run test:flows  # 껍데기 UI 화면 흐름 검사 (기존)
+npm install             # 의존성 설치
+npm run dev             # 개발 서버 (http://localhost:5173)
+npm run build           # 프로덕션 빌드
+npm run format          # Prettier 코드 정리
+npm run format:check    # Prettier 코드 형식 검사
+npm test                # 현재 프로젝트 테스트
 ```
 
 ## 기술 스택
@@ -47,7 +46,7 @@ src/
 - 기존 Sidebar · Topbar 등 공통 레이아웃(`components/layout`)을 재사용하고, 기존 색상 · 폰트 · 버튼 · 입력창 디자인을 유지한다.
 - 스타일은 기존 `src/styles/globals.css` 클래스를 쓰고, 새 화면은 같은 폴더에 `*.module.css`(CSS Modules)로 만든다. 인라인 스타일(`style={{...}}`)은 지양한다.
 - 이미지는 `<img>` 태그를 쓰고 `alt`를 반드시 작성한다.
-- 새 로직(함수)을 만들면 같은 폴더에 `*.test.js` 테스트를 함께 작성한다.
+- 새 로직은 현재 테스트 환경에서 검증하고, Vitest 도입 후 `*.test.js` 단위 테스트를 함께 작성한다.
 - 금액은 원 단위 정수로 다루고, 화면에 보일 때만 `12,000원` 형식으로 바꾼다.
 - 사용자에게 보이는 문구는 한글로 쓴다.
 - 코드 모양: 들여쓰기 2칸(JS/JSX · CSS · HTML) · 변수·함수명 camelCase · 컴포넌트명 PascalCase(예: `TaxResultCard`) · 문자열은 작은따옴표 `'` · 주석은 한글
@@ -57,7 +56,8 @@ src/
 - back API 호출은 `src/api/`에 모은다. 주소 · 방식 · 주고받는 이름은 **API 명세**(팀 노션 「희망환급 API 공통 규칙」 6번 표)를 그대로 따른다. 명세에 없는 이름을 지어 쓰지 않는다.
 - 공통 규칙: 주소는 `/api/복수형명사/...` · 조회 GET / 생성·실행 POST / 한 건 전체 저장 PUT / 삭제 DELETE · JSON 이름 camelCase
 - PUT은 보낸 값으로 전체를 덮어쓴다 → GET으로 불러온 값에 고친 칸을 합쳐 **모든 칸**을 보낸다.
-- 오류 응답은 항상 `{"error": "코드", "message": "문구"}`다. `error`로 분기하고 `message`를 화면에 띄운다. 서버 연결 실패(응답이 JSON이 아님)는 따로 처리한다.
+- 응답은 성공 · 실패 모두 공통 봉투 `{"success", "data", "meta", "error"}`다 (11/09 팀 합의). back API는 `src/api/api-client.js`의 `apiRequest()`로 부른다 → 성공이면 `data`만 돌려주고, 실패면 `error.code` · `error.message`(서버 오류 500 · 503에는 `errorId`)를 가진 Error로 바꿔 준다. `code`로 분기하고 `message`를 화면에 띄운다.
+- 서버 연결 실패(응답이 봉투가 아님 · code `OFFLINE`)는 따로 처리한다. 체험용 계산으로 대신 보여 주는 건 개발 서버에서만 한다 (`api-client.js`의 `canUseDemo`). 빌드한 파일(배포본)에서는 연결 실패 안내만 띄운다.
 - 회원번호는 주소·본문에 넣지 않는다. 로그인 정보는 back이 정한다. 개발 중에만 `.env`의 `VITE_DEV_MEMBER_ID`를 `X-Member-Id` 헤더로 보내고, **개발 서버(`import.meta.env.DEV`)에서만** 보낸다.
 - back 연동 전 데모 데이터는 실제 데이터와 구분되게 둔다. 구현되지 않은 기능을 실제 연동된 것처럼 보여주지 않는다. 화면에 있다고 실제 연결된 것으로 판단하지 않는다 (UI만 / 데모 데이터 / back 연결 상태를 구분).
 - API 명세 · 기능명세서 링크가 로그인 문제로 열리지 않으면 내용을 추측하지 말고, 사용자에게 필요한 부분(복사본 · 캡처)을 요청한다.
@@ -79,11 +79,14 @@ src/
 - 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit
 - 화면 번호(S-01~)와 기능 번호(F-00-00)는 기능명세서를 따른다.
 
-## Git
+## Git 규칙
 
 - 기능 개발은 각 담당자의 개인 브랜치에서 진행한다.
 - 개발이 완료된 기능은 해당 `feature/기능명` 브랜치에 반영한다.
-- `feature/기능명` 브랜치의 기능 구현 및 검증이 완료되면 `develop` 브랜치로 PR하여 통합한다.
+- 기능명세서 1행 완료 시 `develop` 브랜치로 PR하여 통합한다.
+- 2개 이상의 행이 연결되어 개별 검증이 불가능한 경우 하나의 PR로 통합하고, 그 이유를 PR 본문에 작성한다.
+- `feature/기능명` → `develop`: PR 작성자 외 팀원 2인 승인
+- `develop` → `main`: 형상관리자·조장 승인
 - `develop`은 기능 통합 및 최종 검증을 위한 브랜치로 사용한다.
 - `main`은 최종 안정 버전만 반영하는 브랜치로 사용한다.
 - 공통 브랜치나 다른 담당자의 개인·기능 브랜치에 직접 커밋하지 않는다.
@@ -108,13 +111,13 @@ src/
 ## 테스트 기준
 
 - 정상 입력과 예외 입력을 모두 확인한다.
-- front ↔ back API 요청·응답을 확인한다: 정상 응답 · 오류 응답(`error` 코드별) · 서버 연결 실패
+- front ↔ back API 요청·응답을 확인한다: 정상 응답 · 오류 응답(`error.code`별) · 서버 연결 실패
 - 공통 컴포넌트를 고치면 그것을 쓰는 기존 화면이 정상인지 확인한다 (회귀 테스트).
 - 테스트하지 않은 항목은 「미검증」으로 적는다. 하지 않은 작업·테스트를 완료했다고 보고하지 않는다.
 
 ## 문서 관리
 
-`docs/`에 아래 세 가지로만 기록한다 (예외: 초기 세팅 절차 `docs/setup/`). 다른 문서 분류를 임의로 추가하지 않는다.
+신규 작업 기록은 아래 구조를 사용한다. 기존 `docs/` 문서는 임의로 삭제·이동하지 않는다.
 
 - `docs/history.md`: 작업·변경 내역. 작업을 마칠 때마다 기록하고, 최신 작업이 맨 위에 오도록 쌓는다.
 - `docs/decisions/`: 주요 결정과 그 이유
@@ -136,7 +139,7 @@ src/
 작업을 "끝났다"고 말하기 전에 아래를 실행하고, 모두 통과한 결과를 보여준다.
 
 ```bash
-npm run lint && npm test && npm run build
+npm run format:check && npm test && npm run build
 ```
 
 ## 하지 말 것
