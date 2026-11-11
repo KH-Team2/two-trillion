@@ -34,24 +34,26 @@
 ## 🛠 기술 스택
 
 ### Backend
-- Java
-- Spring Boot
-- Python
-- FastAPI
+- Java 17
+- Spring Boot 4.1.0
+- MyBatis
+- Maven
 
 ### Frontend
 - React
-- HTML
-- CSS
-- JavaScript
+- JavaScript (JSX)
+- HTML5
+- CSS3
 
 ### Database
-- Oracle
-- Elasticsearch
+- Oracle Database 21c
 
-### Data / AI
-- Python(numpy, pandas, matplotlib/seaborn, scikit-learn 등)
-- Ollama(Gemma3) 또는 GPT API
+### Calculation / AI
+- Python
+- FastAPI
+- Ollama (Gemma 3 4B)
+- LangChain
+- Elasticsearch
 
 ### Collaboration
 - Git
@@ -66,18 +68,23 @@
 
 ### 개발 흐름
 
-개인 브랜치 → 팀깃 기능 브랜치 → Pull Request → develop(테스트 및 통합) → Pull Request → main
+개인 브랜치 → 팀깃 기능 브랜치 → Pull Request(2인 승인) → develop(테스트 및 통합) → Pull Request(조장, 형상 승인) → main
 
 ## 📌 Git 규칙
 
-- `main` 브랜치에 직접 Push하지 않습니다.
-- 기능 개발은 별도의 개인 작업 브랜치에서 진행합니다.
-- 개발된 기능은 팀깃에 frature/기능명(ex. feature/login)으로 push합니다.
-- 커밋 메시지는 구현 및 수정 내용을 간단하게 확인할 수 있도록 작성합니다.
-- Pull Request를 통해 코드를 병합합니다.
-- main으로의 PR은 2명 이상 승인을 받은 후 Merge합니다.
-- Force Push를 금지합니다.
-- `.env`, API Key, DB 비밀번호 등 민감정보는 GitHub에 업로드하지 않도록 주의합니다.
+- 기능 개발은 각 담당자의 개인 브랜치에서 진행한다.
+- 개발이 완료된 기능은 해당 `feature/기능명` 브랜치에 반영한다.
+- 기능명세서 1행 완료 시 `develop` 브랜치로 PR하여 통합한다.
+- 2개 이상의 행이 연결되어 개별 검증이 불가능한 경우 하나의 PR로 통합하고, 그 이유를 PR 본문에 작성한다.
+- `feature/기능명` → `develop`: PR 작성자 외 팀원 2인 승인
+- `develop` → `main`: 형상관리자·조장 승인
+- `develop`은 기능 통합 및 최종 검증을 위한 브랜치로 사용한다.
+- `main`은 최종 안정 버전만 반영하는 브랜치로 사용한다.
+- 공통 브랜치나 다른 담당자의 개인·기능 브랜치에 직접 커밋하지 않는다.
+- 커밋은 의미 있는 기능 구현·수정 단위로 한다.
+- 커밋 메시지는 종류: `무엇을 했는지` 형식으로 작성하고 설명은 한글로 작성한다.
+- `커밋 종류`는 feat, fix, chore, docs, test, refactor, ci 등을 사용한다.
+- 사용자 확인 없이 git push, 브랜치 삭제, 강제 푸시(git push -f)를 수행하지 않는다.
 
 ## 🚀 주요 기능
 
@@ -208,33 +215,53 @@
  │   ├── AGENTS.md                            # 백엔드 개발 규칙
  │   ├── README.md                            # 실행·DB 환경변수·검증 안내
  │   ├── pom.xml                              # Maven 의존성·빌드 설정
- │   ├── mvnw                                 # Maven Wrapper (Unix)
- │   ├── mvnw.cmd                             # Maven Wrapper (Windows)
- │   ├── .mvn/wrapper/
- │   │   └── maven-wrapper.properties         # Wrapper 설정
+ │   ├── .mvn/
+ │   ├── .env.example                         # 환경변수 이름 안내 (.env는 커밋하지 않음)
+ │   ├── docs/
+ │   │    ├── api-rules.md                    # API 공통 규칙 (주소 모양 · 응답 봉투 · 오류 응답)
+ │   │    ├── history.md                      # 작업 이력
+ │   │    └── tasks.md                        # 남은 작업 (세액 계산·진단 파트)
+ │   │   
  │   └── src/
  │       ├── main/
  │       │   ├── java/com/hoperefund/
- │       │   │   ├── HopeRefundBackendApplication.java # Spring Boot 진입점
- │       │   │   └── common/                  # 현재 구현된 공통 영역
- │       │   │       ├── config/
- │       │   │       │   └── CorsConfig.java  # React CORS 설정
- │       │   │       ├── controller/
- │       │   │       │   └── HealthController.java # 상태 확인 API
- │       │   │       ├── dto/
- │       │   │       │   └── ErrorResponseDTO.java # 오류 응답 형식
- │       │   │       └── exception/
- │       │   │           └── GlobalExceptionHandler.java # 공통 예외 처리
+ │       │   │   ├── HopeRefundBackendApplication.java
+ │       │   │   │
+ │       │   │   ├── common/                    # 공통 설정·응답·예외 처리
+ │       │   │   │   ├── config/
+ │       │   │   │   │    └── CorsConfig.java
+ │       │   │   │   ├── controller/
+ │       │   │   │   │    └── HealthController.java
+ │       │   │   │   ├── dto/
+ │       │   │   │   │    ├── ApiResponse.java  # 공통 응답 봉투 {success, data, meta, error}
+ │       │   │   │   │    └── PageMeta.java     # 목록 응답의 페이지 정보
+ │       │   │   │   └── exception/
+ │       │   │   │        ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
+ │       │   │   │        └── *Exception.java               # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
+ │       │   │   │
+ │       │   │   ├── income/                    # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
+ │       │   │   │   ├── controller/
+ │       │   │   │   ├── service/
+ │       │   │   │   ├── mapper/
+ │       │   │   │   └── dto/
+ │       │   │   │
+ │       │   │   └── prediction/                # 예상 세액 계산·청년 혜택 진단
+ │       │   │       ├── controller/            # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
+ │       │   │       ├── service/               # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
+ │       │   │       ├── client/                # Python 계산 서버 연동
+ │       │   │       ├── mapper/                # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
+ │       │   │       └── dto/                   # 예상 세액·혜택 요청·응답 DTO
+ │       │   │
  │       │   └── resources/
- │       │       └── application.yml          # 환경변수 기반 서버·DB·내부 서비스 설정
+ │       │       ├── application.yml            # Spring Boot 공통 설정
+ │       │       └── mapper/                    # MyBatis SQL (기능별 폴더)
+ │       │           ├── income/IncomeMapper.xml
+ │       │           └── prediction/PredictionMapper.xml
+ │       │
  │       └── test/java/com/hoperefund/
- │           ├── HopeRefundBackendApplicationTests.java
- │           └── common/
- │               ├── config/CorsConfigTest.java
- │               ├── controller/HealthControllerTest.java
- │               └── exception/
- │                   ├── GlobalExceptionHandlerTest.java
- │                   └── TestErrorController.java
+ │           ├── common/
+ │           ├── income/
+ │           └── prediction/
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
  │   ├── .env.example                         # DB·내부 토큰·서버 실행 변수 예시
@@ -365,9 +392,7 @@
 
 backend/src/main/java/com/hoperefund/
 ├── member/           # MEMBER · PASSWORD_RESET
-├── income/           # INCOME
 ├── expense/          # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY
-├── prediction/       # PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL
 ├── statistics/       # GROUP_STAT · STAT_FILE
 ├── chat/             # CHAT_SESSION · CHAT_MESSAGE · RECOMMENDATION
 ├── inquiry/          # INQUIRY
@@ -375,7 +400,20 @@ backend/src/main/java/com/hoperefund/
 └── common/           # 현재 존재, 보안/예외 처리 등의 확장 예정
 # 기능별 폴더 하위 계층: controller/ service/ mapper/ dto/
 # MyBatis XML: backend/src/main/resources/mapper/ (기능별)
+
+chatbot/app/
+├── api/             # 채팅·추천 API
+├── schemas/         # 요청·응답 모델
+├── services/        # 챗봇 비즈니스 로직
+├── rag/             # RAG 검색·문서 처리
+├── llm/             # Ollama · Gemma3 연동
+└── core/            # 설정·보안·오류 처리
 ```
 ## 🖥 실행 방법
 
-개발 진행 후 작성 예정
+각 프로젝트의 자세한 설치 및 실행 방법은 해당 폴더의 `README.md`를 참고합니다.
+
+- Frontend: `frontend/README.md`
+- Backend: `backend/README.md`
+- Calculation Server: `calc/README.md`
+- Chatbot Server: `chatbot/README.md`
