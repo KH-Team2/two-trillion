@@ -40,7 +40,6 @@ app/
 ├── repositories/   # 기준값 읽기 (DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION)
 ├── services/       # 세액 계산: bracket.py · tax_calculator.py · tax_rules.py · card_deduction.py · benefit.py
 └── card/           # 카드 파일 정리 · 지출 분류
-database/           # DB 구축·파이프라인 스크립트 (서버 코드 아님)
 tests/
 ```
 
@@ -151,7 +150,7 @@ ruff check . && pytest
 ## 하지 말 것
 
 - 요청받은 기능의 대상 폴더 외에 다른 기능(도메인) 폴더나 공통 폴더를 임의로 수정하지 않는다. 수정이 필요하면 작업 전에 먼저 확인받는다.
-- `database/` 폴더(DB 구축·파이프라인 스크립트)는 서버 코드가 아니므로 절대 수정·삭제·이동하거나 서버 코드에서 import하지 않는다. 또한 세액 계산(`services/`)과 카드 분류(`card/`) 영역을 승인 없이 교차 수정하지 않는다.
+- 프로젝트 최상위의 `database/` 폴더(DB 구축·파이프라인 스크립트)는 서버 코드가 아니므로 절대 수정·삭제·이동하거나 서버 코드에서 import하지 않는다. 또한 세액 계산(`services/`)과 카드 분류(`card/`) 영역을 승인 없이 교차 수정하지 않는다.
 - 요청받지 않은 기능 추가 · 기존 기능 삭제를 하지 않는다. 요청받지 않은 외부 라이브러리를 설치하지 않는다 (필요하면 이유를 말하고 묻는다).
 - `.env*` 파일을 읽거나 내용을 출력·커밋하지 않는다.
 - 사용자 확인 없이 `git push`, 브랜치 삭제, 강제 푸시(`git push -f`) 금지. 커밋 이력을 지우지 않는다.
@@ -163,5 +162,5 @@ ruff check . && pytest
 ## 참고 문서 (필요할 때만 읽는다)
 
 - 개발 환경 세팅 절차: `docs/setup/` (01-linter → 02-testing → 03-github → 04-github-actions)
-- 읽기 전용 DB 계정 · 기준 데이터: `database/README.md`
+- 읽기 전용 DB 계정 · 기준 데이터: `../database/README.md`
 - 작업 이력: `docs/history.md` · 주요 결정: `docs/decisions/` · 남은 작업: `docs/tasks.md`
