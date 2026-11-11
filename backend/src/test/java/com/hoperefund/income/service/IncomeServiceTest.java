@@ -13,6 +13,7 @@ import com.hoperefund.income.mapper.IncomeMapper;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DuplicateKeyException;
 
@@ -73,7 +74,8 @@ class IncomeServiceTest {
     }
 
     @Test
-    void 저장하면_연금저축과_IRP가_따로_저장된다() {
+    @DisplayName("저장하면 연금저축과 IRP가 따로 저장된다")
+    void savesPensionSavingAndIrpSeparately() {
         // Given
         IncomeRequestDTO req = request(1, 0);
         // When
@@ -83,7 +85,8 @@ class IncomeServiceTest {
     }
 
     @Test
-    void 자녀_수가_부양가족_수보다_많으면_저장하지_않는다() {
+    @DisplayName("자녀 수가 부양가족 수보다 많으면 저장하지 않는다")
+    void rejectsWhenChildrenExceedDependents() {
         // Given
         IncomeRequestDTO req = request(1, 2);
         // When
@@ -93,7 +96,8 @@ class IncomeServiceTest {
     }
 
     @Test
-    void 기준값이_없는_연도는_저장하지_않는다() {
+    @DisplayName("기준값이 없는 연도는 저장하지 않는다")
+    void rejectsYearWithoutCriteria() {
         // Given
         IncomeRequestDTO req = request(0, 0);
         // When · Then
@@ -101,7 +105,8 @@ class IncomeServiceTest {
     }
 
     @Test
-    void 같은_소득을_동시에_저장해_겹치면_충돌_오류() {
+    @DisplayName("같은 소득을 동시에 저장해 겹치면 충돌 오류")
+    void throwsConflictOnConcurrentSave() {
         // Given
         mapper.duplicate = true;
         IncomeRequestDTO req = request(0, 0);
@@ -110,7 +115,8 @@ class IncomeServiceTest {
     }
 
     @Test
-    void 저장한_적_없는_연도를_조회하면_없음_오류() {
+    @DisplayName("저장한 적 없는 연도를 조회하면 없음 오류")
+    void throwsNotFoundWhenIncomeMissing() {
         // When · Then
         assertThrows(NotFoundException.class, () -> service.get(1L, 2026));
     }

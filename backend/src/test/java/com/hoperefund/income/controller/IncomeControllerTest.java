@@ -14,6 +14,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 import org.springframework.mock.web.MockHttpServletResponse;
@@ -80,7 +81,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 저장하면_200과_저장한_소득을_돌려준다() throws Exception {
+    @DisplayName("저장하면 200과 저장한 소득을 돌려준다")
+    void savesAndReturnsIncome() throws Exception {
         MockHttpServletResponse res =
                 call(
                         put("/api/incomes/2026")
@@ -96,7 +98,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 회원번호_헤더가_없으면_401_UNAUTHORIZED() throws Exception {
+    @DisplayName("회원번호 헤더가 없으면 401 UNAUTHORIZED")
+    void returns401WithoutMemberHeader() throws Exception {
         MockHttpServletResponse res =
                 call(
                         put("/api/incomes/2026")
@@ -109,7 +112,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 총급여가_없으면_400_VALIDATION이고_저장하지_않는다() throws Exception {
+    @DisplayName("총급여가 없으면 400 VALIDATION이고 저장하지 않는다")
+    void returns400WhenTotalSalaryMissing() throws Exception {
         String noSalary = BODY.replace("\"totalSalary\":36000000,", "");
         MockHttpServletResponse res =
                 call(
@@ -124,7 +128,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 음수_금액이면_400_VALIDATION() throws Exception {
+    @DisplayName("음수 금액이면 400 VALIDATION")
+    void returns400WhenAmountNegative() throws Exception {
         String negative = BODY.replace("\"withheldTax\":1523000", "\"withheldTax\":-1");
         MockHttpServletResponse res =
                 call(
@@ -138,7 +143,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 총급여가_10억을_넘으면_400_VALIDATION이고_저장하지_않는다() throws Exception {
+    @DisplayName("총급여가 10억을 넘으면 400 VALIDATION이고 저장하지 않는다")
+    void returns400WhenTotalSalaryOverLimit() throws Exception {
         // 0 하나 더 붙인 오타: 3,600만 → 36억
         String tooBig = BODY.replace("\"totalSalary\":36000000", "\"totalSalary\":3600000000");
         MockHttpServletResponse res =
@@ -155,7 +161,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 총급여가_딱_10억이면_저장된다() throws Exception {
+    @DisplayName("총급여가 딱 10억이면 저장된다")
+    void savesWhenTotalSalaryAtLimit() throws Exception {
         String limit = BODY.replace("\"totalSalary\":36000000", "\"totalSalary\":1000000000");
         MockHttpServletResponse res =
                 call(
@@ -168,7 +175,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 연금저축이_1억을_넘으면_400_VALIDATION() throws Exception {
+    @DisplayName("연금저축이 1억을 넘으면 400 VALIDATION")
+    void returns400WhenPensionSavingOverLimit() throws Exception {
         String tooBig = BODY.replace("\"pensionSaving\":0", "\"pensionSaving\":100000001");
         MockHttpServletResponse res =
                 call(
@@ -183,7 +191,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void JSON이_아닌_형식으로_보내면_500이_아니라_415이고_저장하지_않는다() throws Exception {
+    @DisplayName("JSON이 아닌 형식으로 보내면 500이 아니라 415이고 저장하지 않는다")
+    void returns415WhenBodyIsNotJson() throws Exception {
         // 보안 점검 4-1: 전에는 처리기가 없어 맨 아래 Exception 처리기(500 SERVER_ERROR)로 떨어졌음
         MockHttpServletResponse res =
                 call(
@@ -199,7 +208,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 연도가_숫자가_아니면_400_VALIDATION() throws Exception {
+    @DisplayName("연도가 숫자가 아니면 400 VALIDATION")
+    void returns400WhenYearIsNotNumber() throws Exception {
         MockHttpServletResponse res = call(get("/api/incomes/abc").header("X-Member-Id", "81"));
 
         assertEquals(400, res.getStatus());
@@ -207,7 +217,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 기준값이_없는_연도는_400_NO_CRITERIA() throws Exception {
+    @DisplayName("기준값이 없는 연도는 400 NO CRITERIA")
+    void returns400NoCriteriaForUnknownYear() throws Exception {
         MockHttpServletResponse res =
                 call(
                         put("/api/incomes/2024")
@@ -220,7 +231,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 저장한_적_없는_소득을_조회하면_404_NOT_FOUND() throws Exception {
+    @DisplayName("저장한 적 없는 소득을 조회하면 404 NOT FOUND")
+    void returns404WhenIncomeMissing() throws Exception {
         MockHttpServletResponse res = call(get("/api/incomes/2026").header("X-Member-Id", "81"));
 
         assertEquals(404, res.getStatus());
@@ -228,7 +240,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 다른_회원의_소득은_조회되지_않는다() throws Exception {
+    @DisplayName("다른 회원의 소득은 조회되지 않는다")
+    void doesNotReturnOtherMembersIncome() throws Exception {
         call(
                 put("/api/incomes/2026")
                         .header("X-Member-Id", "81")
@@ -241,7 +254,8 @@ class IncomeControllerTest {
     }
 
     @Test
-    void 오류_응답에_서버_내부_정보가_없다() throws Exception {
+    @DisplayName("오류 응답에 서버 내부 정보가 없다")
+    void errorResponseHidesInternalDetails() throws Exception {
         MockHttpServletResponse res =
                 call(
                         put("/api/incomes/2026")
