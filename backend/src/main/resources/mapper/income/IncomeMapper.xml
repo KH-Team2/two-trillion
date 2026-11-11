@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- INCOME 테이블 SQL · namespace = 짝이 되는 Mapper 인터페이스의 전체 이름 -->
+<!-- 위치: application.yml의 mapper-locations(classpath:mapper/**/*.xml)에 맞춰 mapper/income/ 아래에 둠 -->
+<mapper namespace="com.hoperefund.income.mapper.IncomeMapper">
+
+    <!-- 회원 · 연도로 소득 1행 조회 (없으면 null) -->
+    <!-- resultType: 결과를 담을 DTO. 칸 이름은 자동으로 camelCase로 맞춰짐 (TOTAL_SALARY → totalSalary) -->
+    <!-- MEMBER_ID 조건: 로그인한 회원 본인 데이터만 (백엔드 규칙) -->
+    <select id="findByMemberAndYear" resultType="com.hoperefund.income.dto.IncomeResponseDTO">
+        SELECT TOTAL_SALARY,
+               WITHHELD_TAX,
+               NATIONAL_PENSION,
+               HEALTH_INSURANCE,
+               DEPENDENTS,
+               CHILDREN,
+               MONTHLY_RENT,
+               HOUSING_SAVING,
+               PENSION_SAVING,
+               IRP_SAVING,
+               SME_REDUCTION_YN,
+               UPDATED_AT
+          FROM INCOME
+         WHERE MEMBER_ID = #{memberId}
+           AND TAX_YEAR = #{taxYear}
+    </select>
+
+    <!--
+        저장: 그 연도 행이 있으면 UPDATE, 없으면 INSERT
+        MERGE INTO ~ USING DUAL ON (조건)
+          - 조건에 맞는 행이 있으면 WHEN MATCHED (UPDATE)
+          - 없으면 WHEN NOT MATCHED (INSERT)
+          - DUAL: 오라클의 "빈 1행짜리 표". 비교할 원본 표가 따로 없을 때 쓴다
+        NVL(값, 0): 화면이 비워 보낸 칸(null)은 0으로 저장 (중소기업 감면은 'N')
+        INSERT에서 뺀 칸: UPDATED_AT · CREATED_AT · DATA_ORIGIN (DB 기본값으로 채워짐 · 백엔드 규칙)
+        같은 회원·연도의 첫 저장이 동시에 두 번 오면 UQ_INCOME_MEMBER_YEAR 위반 → Service 밖에서 409로 바꿈
+    -->
+    <update id="upsert">
+        MERGE INTO INCOME i
+        USING DUAL
+           ON (i.MEMBER_ID = #{memberId} AND i.TAX_YEAR = #{taxYear})
+        WHEN MATCHED THEN
+            UPDATE SET i.TOTAL_SALARY     = #{req.totalSalary},
+                       i.WITHHELD_TAX     = #{req.withheldTax},
+                       i.NATIONAL_PENSION = NVL(#{req.nationalPension}, 0),
+                       i.HEALTH_INSURANCE = NVL(#{req.healthInsurance}, 0),
+                       i.DEPENDENTS       = NVL(#{req.dependents}, 0),
+                       i.CHILDREN         = NVL(#{req.children}, 0),
+                       i.MONTHLY_RENT     = NVL(#{req.monthlyRent}, 0),
+                       i.HOUSING_SAVING   = NVL(#{req.housingSaving}, 0),
+                       i.PENSION_SAVING   = NVL(#{req.pensionSaving}, 0),
+                       i.IRP_SAVING       = NVL(#{req.irpSaving}, 0),
+                       i.SME_REDUCTION_YN = NVL(#{req.smeReductionYn}, 'N'),
+                       i.UPDATED_AT       = SYSDATE
+        WHEN NOT MATCHED THEN
+            INSERT (INCOME_ID, MEMBER_ID, TAX_YEAR,
+                    TOTAL_SALARY, WITHHELD_TAX, NATIONAL_PENSION, HEALTH_INSURANCE,
+                    DEPENDENTS, CHILDREN, MONTHLY_RENT, HOUSING_SAVING,
+                    PENSION_SAVING, IRP_SAVING, SME_REDUCTION_YN)
+            VALUES (SEQ_INCOME.NEXTVAL, #{memberId}, #{taxYear},
+                    #{req.totalSalary}, #{req.withheldTax},
+                    NVL(#{req.nationalPension}, 0), NVL(#{req.healthInsurance}, 0),
+                    NVL(#{req.dependents}, 0), NVL(#{req.children}, 0),
+                    NVL(#{req.monthlyRent}, 0), NVL(#{req.housingSaving}, 0),
+                    NVL(#{req.pensionSaving}, 0), NVL(#{req.irpSaving}, 0),
+                    NVL(#{req.smeReductionYn}, 'N'))
+    </update>
+
+</mapper>
