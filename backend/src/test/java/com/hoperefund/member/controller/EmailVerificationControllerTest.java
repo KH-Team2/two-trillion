@@ -39,9 +39,9 @@ class EmailVerificationControllerTest {
 
     @MockitoBean private EmailVerificationService emailVerificationService;
 
-    // 발송 → 201 {verificationId, expiresAt}
+    // 발송 → 200 {success, data: {verificationId, expiresAt}}
     @Test
-    void sendReturns201() throws Exception {
+    void sendReturns200() throws Exception {
 
         given(emailVerificationService.send("hope@example.com"))
                 .willReturn(
@@ -52,9 +52,9 @@ class EmailVerificationControllerTest {
                         post(URL)
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"email\": \"hope@example.com\"}"))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.verificationId").value("verify-1"))
-                .andExpect(jsonPath("$.expiresAt").exists());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.verificationId").value("verify-1"))
+                .andExpect(jsonPath("$.data.expiresAt").exists());
     }
 
     // 잘못된 이메일 형식 → 400, 발송 안 함
@@ -66,7 +66,7 @@ class EmailVerificationControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"email\": \"not-an-email\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("이메일 형식을 확인해 주세요"));
+                .andExpect(jsonPath("$.error.message").value("이메일 형식을 확인해 주세요"));
 
         verify(emailVerificationService, never()).send(any());
     }
@@ -80,7 +80,7 @@ class EmailVerificationControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"code\": \"123456\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.verified").value(true));
+                .andExpect(jsonPath("$.data.verified").value(true));
 
         verify(emailVerificationService).confirm("verify-1", "123456");
     }
@@ -94,7 +94,7 @@ class EmailVerificationControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"code\": \"12ab\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("인증 코드가 맞지 않거나 만료됐어요"));
+                .andExpect(jsonPath("$.error.message").value("인증 코드가 맞지 않거나 만료됐어요"));
     }
 
     // 틀린 코드 → 400 VERIFICATION_FAILED
@@ -114,6 +114,6 @@ class EmailVerificationControllerTest {
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"code\": \"000000\"}"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VERIFICATION_FAILED"));
+                .andExpect(jsonPath("$.error.code").value("VERIFICATION_FAILED"));
     }
 }

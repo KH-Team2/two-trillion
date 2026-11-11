@@ -59,9 +59,9 @@ class MemberControllerTest {
             }
             """;
 
-    // 정상 가입 요청 → 201, 명세 응답 필드 · 비밀번호 미포함
+    // 정상 가입 요청 → 200 + 봉투, 명세 응답 필드 · 비밀번호 미포함
     @Test
-    void signupReturns201() throws Exception {
+    void signupReturns200() throws Exception {
 
         given(memberService.signup(any()))
                 .willReturn(
@@ -74,13 +74,14 @@ class MemberControllerTest {
                                 LocalDateTime.of(2026, 11, 10, 12, 0)));
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.memberId").value(1))
-                .andExpect(jsonPath("$.loginId").value("hope_user"))
-                .andExpect(jsonPath("$.email").value("hope@example.com"))
-                .andExpect(jsonPath("$.role").value("USER"))
-                .andExpect(jsonPath("$.createdAt").exists())
-                .andExpect(jsonPath("$.password").doesNotExist());
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.memberId").value(1))
+                .andExpect(jsonPath("$.data.loginId").value("hope_user"))
+                .andExpect(jsonPath("$.data.email").value("hope@example.com"))
+                .andExpect(jsonPath("$.data.role").value("USER"))
+                .andExpect(jsonPath("$.data.createdAt").exists())
+                .andExpect(jsonPath("$.data.password").doesNotExist());
     }
 
     // 금융 정보 저장 미동의 → 400 VALIDATION + 안내 문구, 서비스 호출 안 함
@@ -91,8 +92,8 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION"))
-                .andExpect(jsonPath("$.message").value("소득·카드 내역 저장에 동의해야 가입할 수 있어요"));
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.message").value("소득·카드 내역 저장에 동의해야 가입할 수 있어요"));
 
         verify(memberService, never()).signup(any());
     }
@@ -105,7 +106,7 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("이용약관에 동의해야 가입할 수 있어요"));
+                .andExpect(jsonPath("$.error.message").value("이용약관에 동의해야 가입할 수 있어요"));
     }
 
     // 개인정보 미동의 → 400
@@ -116,7 +117,7 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("개인정보 수집·이용에 동의해야 가입할 수 있어요"));
+                .andExpect(jsonPath("$.error.message").value("개인정보 수집·이용에 동의해야 가입할 수 있어요"));
     }
 
     // 잘못된 이메일 형식 → 400 + 안내 문구
@@ -127,8 +128,8 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION"))
-                .andExpect(jsonPath("$.message").value("이메일 형식을 확인해 주세요"));
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.message").value("이메일 형식을 확인해 주세요"));
     }
 
     // 성별 미선택 → 400
@@ -139,7 +140,7 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("성별을 선택해 주세요"));
+                .andExpect(jsonPath("$.error.message").value("성별을 선택해 주세요"));
     }
 
     // 성별 값 범위 밖 → 400
@@ -150,7 +151,7 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION"));
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"));
     }
 
     // 이메일 인증 번호표 누락 → 400
@@ -162,7 +163,7 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("이메일 인증을 완료해 주세요"));
+                .andExpect(jsonPath("$.error.message").value("이메일 인증을 완료해 주세요"));
     }
 
     // 중복 아이디 → 409, GlobalExceptionHandler 형식
@@ -176,8 +177,8 @@ class MemberControllerTest {
 
         mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
                 .andExpect(status().isConflict())
-                .andExpect(jsonPath("$.error").value("DUPLICATE_LOGIN_ID"))
-                .andExpect(jsonPath("$.message").value("이미 사용 중인 아이디예요"));
+                .andExpect(jsonPath("$.error.code").value("DUPLICATE_LOGIN_ID"))
+                .andExpect(jsonPath("$.error.message").value("이미 사용 중인 아이디예요"));
     }
 
     // 아이디 중복확인 → 200 {available, message}
@@ -189,8 +190,8 @@ class MemberControllerTest {
 
         mockMvc.perform(get(URL + "/availability").param("loginId", "hope_user"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.available").value(false))
-                .andExpect(jsonPath("$.message").value("이미 사용 중인 아이디예요"));
+                .andExpect(jsonPath("$.data.available").value(false))
+                .andExpect(jsonPath("$.data.message").value("이미 사용 중인 아이디예요"));
     }
 
     // 이메일 중복확인 → 200
@@ -202,7 +203,7 @@ class MemberControllerTest {
 
         mockMvc.perform(get(URL + "/availability").param("email", "hope@example.com"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.available").value(true));
+                .andExpect(jsonPath("$.data.available").value(true));
     }
 
     // 중복확인에 값이 없거나 둘 다 보내면 → 400
@@ -211,7 +212,7 @@ class MemberControllerTest {
 
         mockMvc.perform(get(URL + "/availability"))
                 .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error").value("VALIDATION"));
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"));
 
         mockMvc.perform(get(URL + "/availability").param("loginId", "a").param("email", "b"))
                 .andExpect(status().isBadRequest());

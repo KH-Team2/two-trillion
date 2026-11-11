@@ -1,16 +1,18 @@
 // back(Spring Boot) API 공통 호출 함수입니다. 모든 API 파일이 이 함수를 사용합니다.
 // - JSON으로 보내고 JSON으로 받습니다.
-// - 오류 응답 {"error": "코드", "message": "문구"}는 ApiError로 바꿔 던집니다 (화면은 message를 표시).
+// - 응답은 공통 봉투 {success, data, meta, error}입니다 (backend/docs/api-rules.md).
+//   성공이면 data만 꺼내 돌려주고, 실패면 error {code, message}를 ApiError로 바꿔 던집니다 (화면은 message를 표시).
 // - 서버에 연결하지 못했거나 응답이 JSON이 아니면 error: 'NETWORK_ERROR'로 구분합니다.
 
 export const NETWORK_ERROR = 'NETWORK_ERROR';
 
 export class ApiError extends Error {
-  constructor(code, message, status) {
+  constructor(code, message, status, errorId) {
     super(message);
     this.name = 'ApiError';
     this.code = code; // 서버 오류 코드 (예: DUPLICATE_LOGIN_ID)
     this.status = status; // HTTP 상태 코드 (연결 실패는 0)
+    this.errorId = errorId; // 서버 오류(500 · 503) 추적 번호 (없으면 undefined)
   }
 }
 
@@ -39,12 +41,18 @@ export async function apiRequest(
     data = null; // 응답이 JSON이 아님 (프록시 오류 · 서버 꺼짐 등)
   }
 
-  if (!response.ok) {
-    if (data && typeof data.error === 'string') {
-      throw new ApiError(data.error, data.message || '요청을 처리하지 못했어요.', response.status);
-    }
+  // 봉투 모양이 아니면 (프록시 오류 · 서버 꺼짐 등) 연결 실패로 본다
+  if (data === null || typeof data !== 'object' || typeof data.success !== 'boolean') {
     throw new ApiError(NETWORK_ERROR, CONNECTION_MESSAGE, response.status);
   }
-  if (data === null) throw new ApiError(NETWORK_ERROR, CONNECTION_MESSAGE, response.status);
-  return data;
+  if (!response.ok || !data.success) {
+    const error = data.error || {};
+    throw new ApiError(
+      error.code || NETWORK_ERROR,
+      error.message || '요청을 처리하지 못했어요.',
+      response.status,
+      error.errorId,
+    );
+  }
+  return data.data;
 }

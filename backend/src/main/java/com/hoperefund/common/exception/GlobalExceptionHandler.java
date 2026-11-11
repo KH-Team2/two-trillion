@@ -43,6 +43,21 @@ public class GlobalExceptionHandler {
 
     // ---------- 업무 오류 (service에서 던지는 예외) ----------
 
+    // 상태 · 코드를 직접 정해 던지는 업무 오류 (예: 회원가입 DUPLICATE_LOGIN_ID 409 · UNDER_AGE 400)
+    // 서버 쪽 상태(5xx)면 문구는 숨기고 SERVER_ERROR + errorId (ResponseStatusException과 같은 기준)
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e) {
+        HttpStatus status = e.getStatus();
+        if (status.is5xxServerError()) {
+            String errorId = newErrorId();
+            log.error("[errorId={}] 업무 처리 서버 오류 ({})", errorId, e.getCode(), e);
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.fail("SERVER_ERROR", "잠시 후 다시 시도해 주세요.", errorId));
+        }
+        log.warn("업무 규칙 오류: {} ({})", e.getCode(), status.value());
+        return ResponseEntity.status(status).body(ApiResponse.fail(e.getCode(), e.getMessage()));
+    }
+
     // 입력값 규칙 위반 (예: 자녀 수 > 부양가족 수) — @Valid 실패와 같은 코드 VALIDATION
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadRequest(BadRequestException e) {

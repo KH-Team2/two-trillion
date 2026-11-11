@@ -4,7 +4,8 @@ import org.springframework.http.HttpStatus;
 
 /**
  * 업무 규칙 위반 예외
- * 서비스에서 발생시키면 GlobalExceptionHandler가 {"error", "message"} 형식으로 응답한다.
+ * 서비스에서 발생시키면 GlobalExceptionHandler가 공통 봉투
+ * {"success": false, "error": {"code", "message"}} 형식으로 응답한다 (5xx는 SERVER_ERROR + errorId).
  */
 public class BusinessException extends RuntimeException {
 
