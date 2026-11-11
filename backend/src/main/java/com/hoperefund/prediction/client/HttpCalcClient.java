@@ -4,15 +4,15 @@ import com.hoperefund.common.exception.CalcRejectedException;
 import com.hoperefund.common.exception.CalcUnavailableException;
 import com.hoperefund.common.exception.NoCriteriaException;
 import com.hoperefund.income.dto.IncomeResponseDTO;
+import com.hoperefund.prediction.dto.BenefitRequestDTO;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
+import com.hoperefund.prediction.dto.CalcRequestDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import java.net.http.HttpClient;
 import java.time.Duration;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -76,43 +76,46 @@ public class HttpCalcClient implements CalcClient {
             String homelessHeadYn,
             List<CardSpendDTO> cardSpends) {
         // 계산 서버가 받는 칸만 골라 보내요 (그 서버는 모르는 칸이 오면 400으로 막아요)
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("taxYear", taxYear);
-        body.put("totalSalary", income.getTotalSalary());
-        body.put("withheldTax", income.getWithheldTax());
-        body.put("nationalPension", income.getNationalPension());
-        body.put("healthInsurance", income.getHealthInsurance());
-        body.put("dependents", income.getDependents());
-        body.put("children", income.getChildren());
-        body.put("monthlyRent", income.getMonthlyRent());
-        body.put("housingSaving", income.getHousingSaving());
-        body.put("pensionSaving", income.getPensionSaving());
-        body.put("irpSaving", income.getIrpSaving());
-        body.put("smeReductionYn", income.getSmeReductionYn());
-        body.put("homelessHeadYn", homelessHeadYn);
-        body.put("cardSpends", cardSpends);
+        CalcRequestDTO body =
+                new CalcRequestDTO(
+                        taxYear,
+                        income.getTotalSalary(),
+                        income.getWithheldTax(),
+                        income.getNationalPension(),
+                        income.getHealthInsurance(),
+                        income.getDependents(),
+                        income.getChildren(),
+                        income.getMonthlyRent(),
+                        income.getHousingSaving(),
+                        income.getPensionSaving(),
+                        income.getIrpSaving(),
+                        income.getSmeReductionYn(),
+                        homelessHeadYn,
+                        cardSpends);
         return post("/calculate", body, CalculationResponseDTO.class);
     }
 
     @Override
     public BenefitResponseDTO diagnose(
             int taxYear, long totalSalary, MemberQualificationDTO member) {
-        Map<String, Object> body = new LinkedHashMap<>();
-        body.put("taxYear", taxYear);
-        body.put("totalSalary", totalSalary);
-        body.put(
-                "birthDate",
-                member.getBirthDate() == null ? null : member.getBirthDate().toString());
-        // 값이 없으면 0 (포장을 풀었다 다시 싸지 않게 Objects.requireNonNullElse · SpotBugs
-        // BX_UNBOXING_IMMEDIATELY_REBOXED)
-        body.put("militaryMonths", Objects.requireNonNullElse(member.getMilitaryMonths(), 0));
-        body.put("hireDate", member.getHireDate() == null ? null : member.getHireDate().toString());
-        body.put("companySize", member.getCompanySize());
-        body.put("homelessHeadYn", member.getHomelessHeadYn());
+        // 날짜는 "2024-03-02" 모양의 글자로 보내요 (값이 없으면 null)
+        String birthDate = member.getBirthDate() == null ? null : member.getBirthDate().toString();
+        String hireDate = member.getHireDate() == null ? null : member.getHireDate().toString();
+        // 군 복무 개월은 값이 없으면 0
+        int militaryMonths = Objects.requireNonNullElse(member.getMilitaryMonths(), 0);
+        BenefitRequestDTO body =
+                new BenefitRequestDTO(
+                        taxYear,
+                        totalSalary,
+                        birthDate,
+                        militaryMonths,
+                        hireDate,
+                        member.getCompanySize(),
+                        member.getHomelessHeadYn());
         return post("/benefit", body, BenefitResponseDTO.class);
     }
 
-    private <T> T post(String path, Map<String, Object> body, Class<T> type) {
+    private <T> T post(String path, Object body, Class<T> type) {
         T result;
         try {
             result =
