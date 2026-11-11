@@ -8,6 +8,7 @@ import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -56,7 +57,8 @@ class PredictionSaveServiceTest {
     }
 
     @Test
-    void 결과와_입력값과_항목별_내역을_모두_저장하고_번호를_돌려준다() {
+    @DisplayName("결과와 입력값과 항목별 내역을 모두 저장하고 번호를 돌려준다")
+    void savesAllAndReturnsId() {
         long predictionId =
                 new PredictionSaveService(mapper).save(81L, 2026, income(), "N", result(2026));
 
@@ -67,7 +69,8 @@ class PredictionSaveServiceTest {
     }
 
     @Test
-    void 계산_결과_연도가_요청_연도와_다르면_저장하지_않는다() {
+    @DisplayName("계산 결과 연도가 요청 연도와 다르면 저장하지 않는다")
+    void rejectsWhenResultYearDiffers() {
         PredictionSaveService service = new PredictionSaveService(mapper);
         assertThrows(
                 IllegalStateException.class,
@@ -76,7 +79,8 @@ class PredictionSaveServiceTest {
     }
 
     @Test
-    void 계산_결과에_연도가_없으면_저장하지_않는다() {
+    @DisplayName("계산 결과에 연도가 없으면 저장하지 않는다")
+    void rejectsWhenResultYearMissing() {
         PredictionSaveService service = new PredictionSaveService(mapper);
         assertThrows(
                 IllegalStateException.class,
@@ -85,7 +89,8 @@ class PredictionSaveServiceTest {
     }
 
     @Test
-    void 항목별_내역이_없으면_저장하지_않는다() {
+    @DisplayName("항목별 내역이 없으면 저장하지 않는다")
+    void rejectsWhenDetailsMissing() {
         CalculationResponseDTO noDetails = result(2026);
         noDetails.setDetails(null);
         PredictionSaveService service = new PredictionSaveService(mapper);
@@ -96,7 +101,8 @@ class PredictionSaveServiceTest {
     }
 
     @Test
-    void 기준값이_하나로_정해지지_않으면_저장을_멈춘다() {
+    @DisplayName("기준값이 하나로 정해지지 않으면 저장을 멈춘다")
+    void stopsWhenCriteriaTypeAmbiguous() {
         // 실제 DB에서는 @Transactional로 앞서 넣은 PREDICTION까지 전부 취소돼요 (반쪽 결과 방지)
         DuplicateTypeMapper duplicate = new DuplicateTypeMapper();
         PredictionSaveService service = new PredictionSaveService(duplicate);

@@ -10,6 +10,7 @@ import com.hoperefund.prediction.client.MockCalcClient;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /** DB 없이 혜택 진단 흐름만 확인해요 (가짜 매퍼 + 가짜 계산). */
@@ -36,7 +37,8 @@ class BenefitServiceTest {
     }
 
     @Test
-    void 소득과_회원_정보가_있으면_혜택_3개를_진단한다() {
+    @DisplayName("소득과 회원 정보가 있으면 혜택 3개를 진단한다")
+    void diagnosesThreeBenefitsWithIncomeAndMember() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.qualification = new MemberQualificationDTO();
@@ -47,13 +49,15 @@ class BenefitServiceTest {
     }
 
     @Test
-    void 소득이_없으면_진단하지_않는다() {
+    @DisplayName("소득이 없으면 진단하지 않는다")
+    void doesNotDiagnoseWithoutIncome() {
         // When · Then
         assertThrows(NotFoundException.class, () -> service.diagnose(1L, 2026));
     }
 
     @Test
-    void 회원_정보가_없으면_진단하지_않는다() {
+    @DisplayName("회원 정보가 없으면 진단하지 않는다")
+    void doesNotDiagnoseWithoutMember() {
         // Given
         saveIncome(1L, 2026);
         // When · Then
