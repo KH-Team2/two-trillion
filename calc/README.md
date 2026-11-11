@@ -38,7 +38,6 @@ calc/
 │   ├── services/          # 세액 계산 · 카드 소득공제 · 구간 계산 · 혜택 진단 (순수 계산 · DB 안 봄)
 │   ├── repositories/      # 기준값 읽기 (Oracle · 5분 캐시)
 │   └── db/                # Oracle 연결 (읽기 전용 계정)
-├── database/              # DB 작업 파일 (스키마 · 기준값 · 가상데이터 SQL · 읽기 계정 안내)
 └── tests/                 # pytest (기준값은 가짜 데이터로 바꿔 끼움 · DB 없이 실행)
 ```
 
@@ -82,7 +81,7 @@ python -m pip install -r requirements-dev.txt
 
 | 환경변수 | 설명 |
 |---|---|
-| `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`database/README.md`) |
+| `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`../database/README.md`) |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `DB_DSN` | Oracle 접속 주소 `주소:포트/서비스이름` (python-oracledb는 JDBC 주소를 쓰지 않음) |
 | `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **비우면 모든 계산 요청을 막음** |
@@ -178,7 +177,7 @@ pytest 60개(health 1 + 계산·진단 59) 및 Ruff lint·format 통과를 확�
 ## 8. 참고 문서
 
 - `AGENTS.md`: Calc 서버 개발 규칙 및 담당 영역
-- `database/README.md`: DB 작업 파일 실행 순서 · 계산 서버 읽기 계정
+- `../database/README.md`: DB 작업 파일 실행 순서 · 계산 서버 읽기 계정 (프로젝트 최상위 폴더)
 - 희망환급 기능명세서 v1.13
 - ERD v4.1
 - 팀 API 공통 규칙
