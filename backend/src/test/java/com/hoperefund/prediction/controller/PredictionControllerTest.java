@@ -19,6 +19,7 @@ import com.hoperefund.prediction.service.CalculationService;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.test.web.servlet.MockMvc;
@@ -83,7 +84,8 @@ class PredictionControllerTest {
     // ---------- 계산 POST /api/calculations/{taxYear} ----------
 
     @Test
-    void 계산하면_200과_결과를_돌려주고_헤더의_회원번호와_주소의_연도를_쓴다() throws Exception {
+    @DisplayName("계산하면 200과 결과를 돌려주고 헤더의 회원번호와 주소의 연도를 쓴다")
+    void calculateReturns200AndUsesHeaderMemberAndPathYear() throws Exception {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res =
@@ -100,7 +102,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 계산_회원번호_헤더가_없으면_401이고_계산하지_않는다() throws Exception {
+    @DisplayName("계산 회원번호 헤더가 없으면 401이고 계산하지 않는다")
+    void calculateReturns401WithoutMemberHeader() throws Exception {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res = call(controller, post("/api/calculations/2026"));
@@ -111,7 +114,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 계산_기준값_없는_연도는_400_NO_CRITERIA() throws Exception {
+    @DisplayName("계산 기준값 없는 연도는 400 NO CRITERIA")
+    void calculateReturns400NoCriteriaForUnknownYear() throws Exception {
         CalculationController controller =
                 new CalculationController(
                         calculationService(
@@ -126,7 +130,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 계산_서버가_입력을_거부하면_400_CALC_REJECTED() throws Exception {
+    @DisplayName("계산 서버가 입력을 거부하면 400 CALC REJECTED")
+    void calculateReturns400WhenCalcServerRejects() throws Exception {
         CalculationController controller =
                 new CalculationController(
                         calculationService(
@@ -141,7 +146,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 계산_서버에_연결할_수_없으면_503_CALC_UNAVAILABLE이고_내부_원인은_응답에_없다() throws Exception {
+    @DisplayName("계산 서버에 연결할 수 없으면 503 CALC UNAVAILABLE이고 내부 원인은 응답에 없다")
+    void calculateReturns503AndHidesCauseWhenCalcServerDown() throws Exception {
         CalculationController controller =
                 new CalculationController(
                         calculationService(
@@ -159,7 +165,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 소득이_없으면_404_NOT_FOUND() throws Exception {
+    @DisplayName("소득이 없으면 404 NOT FOUND")
+    void calculateReturns404WhenIncomeMissing() throws Exception {
         CalculationController controller =
                 new CalculationController(
                         calculationService(
@@ -175,7 +182,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 예상하지_못한_오류는_500_SERVER_ERROR이고_내부_정보가_없다() throws Exception {
+    @DisplayName("예상하지 못한 오류는 500 SERVER ERROR이고 내부 정보가 없다")
+    void unexpectedErrorReturns500AndHidesInternalDetails() throws Exception {
         CalculationController controller =
                 new CalculationController(
                         calculationService(
@@ -194,7 +202,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 계산은_POST만_받는다() throws Exception {
+    @DisplayName("계산은 POST만 받는다")
+    void calculateAcceptsOnlyPost() throws Exception {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res =
@@ -207,7 +216,8 @@ class PredictionControllerTest {
     // ---------- 혜택 진단 GET /api/benefits/{taxYear} ----------
 
     @Test
-    void 혜택_진단은_해당_비해당_정보부족을_그대로_돌려준다() throws Exception {
+    @DisplayName("혜택 진단은 해당 비해당 정보부족을 그대로 돌려준다")
+    void benefitReturnsEligibleValuesAsIs() throws Exception {
         BenefitController controller =
                 new BenefitController(
                         benefitService(
@@ -235,7 +245,8 @@ class PredictionControllerTest {
     }
 
     @Test
-    void 혜택_진단_회원번호가_숫자가_아니면_400_VALIDATION() throws Exception {
+    @DisplayName("혜택 진단 회원번호가 숫자가 아니면 400 VALIDATION")
+    void benefitReturns400WhenMemberIdIsNotNumber() throws Exception {
         BenefitController controller =
                 new BenefitController(benefitService(BenefitResponseDTO::new));
         MockHttpServletResponse res =

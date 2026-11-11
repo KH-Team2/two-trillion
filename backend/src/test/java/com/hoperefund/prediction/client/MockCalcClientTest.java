@@ -8,6 +8,7 @@ import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import java.util.List;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -28,7 +29,8 @@ class MockCalcClientTest {
     }
 
     @Test
-    void 가짜_계산의_모든_항목_근거에_가짜_계산_표시가_있다() {
+    @DisplayName("가짜 계산의 모든 항목 근거에 가짜 계산 표시가 있다")
+    void marksEveryDetailAsMockCalculation() {
         CalculationResponseDTO result =
                 new MockCalcClient().calculate(2026, income(), "N", List.of());
 
@@ -41,7 +43,8 @@ class MockCalcClientTest {
     }
 
     @Test
-    void 가짜_계산은_세액을_계산하지_않는다() {
+    @DisplayName("가짜 계산은 세액을 계산하지 않는다")
+    void doesNotCalculateTax() {
         CalculationResponseDTO result =
                 new MockCalcClient().calculate(2026, income(), "N", List.of());
 

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /** DB 없이 계산 요청 · 저장 흐름만 확인해요 (가짜 매퍼 + 가짜 계산). */
@@ -197,7 +198,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 소득이_있으면_기납부세액이_결과에_들어간다() {
+    @DisplayName("소득이 있으면 기납부세액이 결과에 들어간다")
+    void includesWithheldTaxInResult() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "N");
@@ -208,7 +210,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 카드_공제는_6개_행으로_나온다() {
+    @DisplayName("카드 공제는 6개 행으로 나온다")
+    void returnsSixCardDeductionRows() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "N");
@@ -220,7 +223,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 다른_회원의_소득으로는_계산하지_않는다() {
+    @DisplayName("다른 회원의 소득으로는 계산하지 않는다")
+    void doesNotCalculateWithOtherMembersIncome() {
         // Given: 1번 회원 소득만 있음
         saveIncome(1L, 2026);
         // When · Then: 2번 회원이 요청하면 1번 소득을 읽지 않고 없음 오류
@@ -228,13 +232,15 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 기준값이_없는_연도는_계산하지_않는다() {
+    @DisplayName("기준값이 없는 연도는 계산하지 않는다")
+    void doesNotCalculateYearWithoutCriteria() {
         // When · Then
         assertThrows(NoCriteriaException.class, () -> service(false).calculate(1L, 2024));
     }
 
     @Test
-    void 회원_정보가_없으면_계산하지_않는다() {
+    @DisplayName("회원 정보가 없으면 계산하지 않는다")
+    void doesNotCalculateWithoutMember() {
         // Given: 소득은 있는데 회원 정보(무주택 여부)가 없음
         saveIncome(1L, 2026);
         // When · Then
@@ -242,7 +248,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 저장이_꺼져_있으면_DB에_저장하지_않는다() {
+    @DisplayName("저장이 꺼져 있으면 DB에 저장하지 않는다")
+    void doesNotSaveWhenSaveDisabled() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "N");
@@ -254,7 +261,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 저장이_켜져_있으면_결과_입력값_상세를_모두_저장한다() {
+    @DisplayName("저장이 켜져 있으면 결과 입력값 상세를 모두 저장한다")
+    void savesResultInputAndDetailsWhenSaveEnabled() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "N");
@@ -268,7 +276,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 무주택_세대주_여부는_회원_정보에서_복사한다() {
+    @DisplayName("무주택 세대주 여부는 회원 정보에서 복사한다")
+    void copiesHomelessHeadFromMember() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "Y");
@@ -279,7 +288,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 기준값_항목을_찾지_못하면_저장을_멈춘다() {
+    @DisplayName("기준값 항목을 찾지 못하면 저장을 멈춘다")
+    void stopsSavingWhenCriteriaTypeNotFound() {
         // Given: 결과에 있는 코드 하나가 DB 기준값에 없음
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "N");
@@ -289,7 +299,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 가짜_계산_모드에서는_저장을_켜도_저장하지_않는다() {
+    @DisplayName("가짜 계산 모드에서는 저장을 켜도 저장하지 않는다")
+    void doesNotSaveInMockModeEvenIfEnabled() {
         // Given
         saveIncome(1L, 2026);
         predictionMapper.homeless.put(1L, "N");
@@ -301,17 +312,20 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 감면을_신청했고_진단이_해당이면_감면을_넣어_계산한다() {
+    @DisplayName("감면을 신청했고 진단이 해당이면 감면을 넣어 계산한다")
+    void appliesReductionWhenAppliedAndEligible() {
         assertEquals("Y", calculateWithSme(true).sentSmeReductionYn);
     }
 
     @Test
-    void 감면을_신청해도_진단이_비해당이면_감면_없이_계산한다() {
+    @DisplayName("감면을 신청해도 진단이 비해당이면 감면 없이 계산한다")
+    void skipsReductionWhenNotEligible() {
         assertEquals("N", calculateWithSme(false).sentSmeReductionYn);
     }
 
     @Test
-    void 진단_결과가_비어_있으면_감면_없이_계산한다() {
+    @DisplayName("진단 결과가 비어 있으면 감면 없이 계산한다")
+    void skipsReductionWhenDiagnosisEmpty() {
         // Given: 계산 서버가 진단 결과 목록 없이 응답
         saveIncome(1L, 2026);
         incomeMapper.rows.get("1-2026").setSmeReductionYn("Y");
@@ -334,7 +348,8 @@ class CalculationServiceTest {
     }
 
     @Test
-    void 감면을_신청해도_정보가_부족하면_감면_없이_계산한다() {
+    @DisplayName("감면을 신청해도 정보가 부족하면 감면 없이 계산한다")
+    void skipsReductionWhenInfoInsufficient() {
         assertEquals("N", calculateWithSme(null).sentSmeReductionYn);
     }
 }

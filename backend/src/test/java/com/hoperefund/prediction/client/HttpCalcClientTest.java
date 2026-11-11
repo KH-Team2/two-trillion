@@ -18,6 +18,7 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -93,7 +94,8 @@ class HttpCalcClientTest {
     }
 
     @Test
-    void 계산_요청에_토큰과_입력값을_보내고_결과를_받는다() throws IOException {
+    @DisplayName("계산 요청에 토큰과 입력값을 보내고 결과를 받는다")
+    void sendsTokenAndInputsAndReceivesResult() throws IOException {
         String url =
                 startServer(
                         200,
@@ -117,19 +119,22 @@ class HttpCalcClientTest {
     }
 
     @Test
-    void 기준값이_없는_연도면_NO_CRITERIA로_바꾼다() throws IOException {
+    @DisplayName("기준값이 없는 연도면 NO CRITERIA로 바꾼다")
+    void mapsNoCriteriaResponse() throws IOException {
         String url = startServer(400, "{\"error\":\"NO_CRITERIA\",\"message\":\"기준값이 없어요\"}");
         assertThrows(NoCriteriaException.class, () -> calculate(url));
     }
 
     @Test
-    void 계산_서버가_입력값을_거부하면_CALC_REJECTED() throws IOException {
+    @DisplayName("계산 서버가 입력값을 거부하면 CALC REJECTED")
+    void throwsCalcRejectedWhenServerRejectsInput() throws IOException {
         String url = startServer(400, "{\"error\":\"VALIDATION\",\"message\":\"입력값 오류\"}");
         assertThrows(CalcRejectedException.class, () -> calculate(url));
     }
 
     @Test
-    void http_모드인데_토큰이_비어_있으면_서버가_켜지지_않는다() {
+    @DisplayName("http 모드인데 토큰이 비어 있으면 서버가 켜지지 않는다")
+    void failsToStartWhenTokenBlankInHttpMode() {
         // 전에는 정상으로 켜지고, 계산할 때 처음으로 503이 나서 설정 누락을 늦게 알았음
         IllegalStateException e =
                 assertThrows(
@@ -141,13 +146,15 @@ class HttpCalcClientTest {
     }
 
     @Test
-    void 토큰이_틀리면_사용자가_고칠_수_없는_오류라_CALC_UNAVAILABLE() throws IOException {
+    @DisplayName("토큰이 틀리면 사용자가 고칠 수 없는 오류라 CALC UNAVAILABLE")
+    void throwsCalcUnavailableWhenTokenWrong() throws IOException {
         String url = startServer(401, "{\"error\":\"UNAUTHORIZED\",\"message\":\"토큰 확인\"}");
         assertThrows(CalcUnavailableException.class, () -> calculate(url));
     }
 
     @Test
-    void 계산_서버가_꺼져_있으면_CALC_UNAVAILABLE() throws IOException {
+    @DisplayName("계산 서버가 꺼져 있으면 CALC UNAVAILABLE")
+    void throwsCalcUnavailableWhenServerDown() throws IOException {
         String url = startServer(200, "{}");
         server.stop(0); // 주소는 받아 두고 서버를 꺼요 → 연결 거부
         server = null;
@@ -155,7 +162,8 @@ class HttpCalcClientTest {
     }
 
     @Test
-    void 계산_서버가_빈_응답을_주면_CALC_UNAVAILABLE() throws IOException {
+    @DisplayName("계산 서버가 빈 응답을 주면 CALC UNAVAILABLE")
+    void throwsCalcUnavailableWhenResponseEmpty() throws IOException {
         String url = startServer(200, "");
         assertThrows(CalcUnavailableException.class, () -> calculate(url));
     }
