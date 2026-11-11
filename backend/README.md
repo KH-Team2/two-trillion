@@ -11,7 +11,7 @@
 | 구분 | 기술 |
 |---|---|
 | Language | Java 17 |
-| Framework | Spring Boot 4.1.2 |
+| Framework | Spring Boot 4.1.0 |
 | Build Tool | Maven Wrapper |
 | Web | Spring Web MVC |
 | Database | Oracle Database 21c XE |

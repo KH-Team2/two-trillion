@@ -27,7 +27,7 @@
 
 ## 기술 스택
 
-Java 17 · Spring Boot 4.1.2 · Maven · MyBatis 4.0.1 · Oracle 21c XE(교육원 공용 DB 21.3) · Spotless(코드 모양) · JUnit 5(테스트) · SpotBugs(정적 분석)
+Java 17 · Spring Boot 4.1.0 · Maven · MyBatis 4.0.1 · Oracle 21c XE(교육원 공용 DB 21.3) · Spotless(코드 모양) · JUnit 5(테스트) · SpotBugs(정적 분석)
 
 ## 폴더 구조
 
