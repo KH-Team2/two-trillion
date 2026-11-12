@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 카드 업로드 저장 SQL · namespace = 짝이 되는 Mapper 인터페이스의 전체 이름 -->
+<mapper namespace="com.hoperefund.expense.mapper.CardUploadMapper">
+
+    <!-- 지출 분류 5개 (GENERAL · TRANSIT · MARKET · CULTURE · EXCLUDED) · 번호 순서대로 -->
+    <!-- 분류는 번호(CATEGORY_ID)가 아니라 코드(CATEGORY_CODE)로 찾음 · 계정마다 번호가 다를 수 있어서 (백엔드 규칙) -->
+    <select id="findCategories" resultType="com.hoperefund.expense.dto.SpendCategoryDTO">
+        SELECT CATEGORY_ID,
+               CATEGORY_CODE,
+               CATEGORY_NAME,
+               USE_YN
+          FROM SPEND_CATEGORY
+         ORDER BY CATEGORY_ID
+    </select>
+
+    <!--
+        중복 확인 (04_분류쿼리.sql 0번과 같은 쿼리)
+        새 파일의 가장 이른 날 ~ 가장 늦은 날 사이에 이미 저장된 내 거래를
+        (사용일 · 가맹점명 · 금액 · 결제수단)이 같은 것끼리 묶어서 몇 건인지 센다
+        BETWEEN A AND B: A 이상 B 이하 · 인덱스 IX_EXPENSE_MEMBER_DATE (MEMBER_ID, USED_DATE) 사용
+    -->
+    <select id="countExpenseGroups" resultType="com.hoperefund.expense.dto.ExpenseGroupCountDTO">
+        SELECT USED_DATE,
+               MERCHANT_NAME,
+               AMOUNT,
+               PAY_METHOD,
+               COUNT(*) AS CNT
+          FROM EXPENSE
+         WHERE MEMBER_ID = #{memberId}
+           AND USED_DATE BETWEEN #{minDate} AND #{maxDate}
+         GROUP BY USED_DATE, MERCHANT_NAME, AMOUNT, PAY_METHOD
+    </select>
+
+    <!--
+        업로드 1행 저장
+        selectKey: INSERT 「전에(BEFORE)」 시퀀스에서 새 번호를 받아 uploadId에 넣어 둠 → INSERT에 그 번호를 씀
+                   → 저장이 끝나면 Java 쪽 upload.getUploadId()로 새 번호를 알 수 있음
+        INSERT에서 뺀 칸: UPLOADED_AT · DATA_ORIGIN (DB 기본값 SYSDATE · 'INPUT'으로 채워짐 · 백엔드 규칙)
+        [확인 필요] 시퀀스 이름 SEQ_CARD_UPLOAD (SEQ_INCOME과 같은 규칙으로 추측 · DB에서 확인)
+    -->
+    <insert id="insertUpload" parameterType="com.hoperefund.expense.dto.CardUploadDTO">
+        <selectKey keyProperty="uploadId" resultType="long" order="BEFORE">
+            SELECT SEQ_CARD_UPLOAD.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO CARD_UPLOAD (UPLOAD_ID, MEMBER_ID, FILE_NAME, ROW_COUNT)
+        VALUES (#{uploadId}, #{memberId}, #{fileName}, #{rowCount})
+    </insert>
+
+    <!--
+        지출 1행 저장 (처음에는 분류 = 일반, LIST_ID = NULL)
+        [확인 필요] 시퀀스 이름 SEQ_EXPENSE
+    -->
+    <insert id="insertExpense" parameterType="com.hoperefund.expense.dto.ExpenseDTO">
+        <selectKey keyProperty="expenseId" resultType="long" order="BEFORE">
+            SELECT SEQ_EXPENSE.NEXTVAL FROM DUAL
+        </selectKey>
+        INSERT INTO EXPENSE (EXPENSE_ID, MEMBER_ID, UPLOAD_ID, USED_DATE, MERCHANT_NAME,
+                             PAY_METHOD, AMOUNT, CATEGORY_ID, LIST_ID)
+        VALUES (#{expenseId}, #{memberId}, #{uploadId}, #{usedDate}, #{merchantName},
+                #{payMethod}, #{amount}, #{categoryId}, #{listId})
+    </insert>
+
+    <!-- 분류 결과로 바꾸기 (기능명세서 F-02-03 ③: 일치하면 CATEGORY_ID · LIST_ID를 UPDATE) -->
+    <update id="updateCategory">
+        UPDATE EXPENSE
+           SET CATEGORY_ID = #{categoryId},
+               LIST_ID     = #{listId}
+         WHERE EXPENSE_ID  = #{expenseId}
+    </update>
+
+    <!-- 업로드 1행 조회 · MEMBER_ID 조건: 본인 데이터만 (백엔드 규칙) -->
+    <select id="findUpload" resultType="com.hoperefund.expense.dto.CardUploadDTO">
+        SELECT UPLOAD_ID,
+               MEMBER_ID,
+               FILE_NAME,
+               ROW_COUNT,
+               UPLOADED_AT,
+               DATA_ORIGIN
+          FROM CARD_UPLOAD
+         WHERE UPLOAD_ID = #{uploadId}
+           AND MEMBER_ID = #{memberId}
+    </select>
+
+</mapper>
