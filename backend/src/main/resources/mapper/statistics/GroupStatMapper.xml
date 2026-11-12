@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace: 연결할 Mapper 인터페이스의 전체 경로 · id: 인터페이스 메서드 이름과 같게 -->
+<mapper namespace="com.hoperefund.statistics.mapper.GroupStatMapper">
+
+    <!--
+        본인 성별·연령대 그룹 1행 (MEMBER를 이어 본인 성별 · 생년월일로 찾음)
+        통계 연도: 귀속 연도 이하에서 가장 최근 (국세통계는 2년쯤 늦게 나와요)
+        나이: 귀속 연도 − 태어난 해
+        AGE_MIN · AGE_MAX가 NULL이면 제한 없음 (20대 이하 · 70대 이상)
+        성별이 비어 있으면 한 줄도 안 나와요 (null)
+    -->
+    <select id="findAgeGroup" resultType="com.hoperefund.statistics.dto.GroupStatDTO">
+        SELECT g.TAX_YEAR AS STAT_YEAR, g.GROUP_LABEL, g.PEOPLE_COUNT,
+               g.AVG_SALARY, g.AVG_DECIDED_TAX, g.AVG_REFUND_TAX
+          FROM GROUP_STAT g
+          JOIN MEMBER m ON m.MEMBER_ID = #{memberId}
+         WHERE g.GROUP_TYPE = 'GENDER_AGE'
+           AND g.TAX_YEAR = (SELECT MAX(TAX_YEAR) FROM GROUP_STAT WHERE TAX_YEAR &lt;= #{taxYear})
+           AND g.GENDER = m.GENDER
+           AND (g.AGE_MIN IS NULL OR g.AGE_MIN &lt;= #{taxYear} - EXTRACT(YEAR FROM m.BIRTH_DATE))
+           AND (g.AGE_MAX IS NULL OR #{taxYear} - EXTRACT(YEAR FROM m.BIRTH_DATE) &lt;= g.AGE_MAX)
+    </select>
+
+    <!--
+        본인 총급여 구간 그룹 1행 (INCOME을 이어 본인의 그 연도 총급여로 찾음)
+        구간: SALARY_MIN 초과 ~ SALARY_MAX 이하 (SALARY_MAX가 NULL이면 상한 없음)
+        SALARY_MIN에는 「NULL이면 통과」를 붙이지 않아요
+          → SALARY_MIN · SALARY_MAX가 둘 다 NULL인 「1억 초과(결정세액 없는 자)」 행이 누구에게나 걸리는 것을 막으려고
+        그 연도 소득이 없으면 한 줄도 안 나와요 (null)
+    -->
+    <select id="findSalaryGroup" resultType="com.hoperefund.statistics.dto.GroupStatDTO">
+        SELECT g.TAX_YEAR AS STAT_YEAR, g.GROUP_LABEL, g.PEOPLE_COUNT,
+               g.AVG_SALARY, g.AVG_DECIDED_TAX, g.AVG_REFUND_TAX
+          FROM GROUP_STAT g
+          JOIN INCOME i ON i.MEMBER_ID = #{memberId} AND i.TAX_YEAR = #{taxYear}
+         WHERE g.GROUP_TYPE = 'SALARY'
+           AND g.TAX_YEAR = (SELECT MAX(TAX_YEAR) FROM GROUP_STAT WHERE TAX_YEAR &lt;= #{taxYear})
+           AND g.SALARY_MIN &lt; i.TOTAL_SALARY
+           AND (g.SALARY_MAX IS NULL OR i.TOTAL_SALARY &lt;= g.SALARY_MAX)
+    </select>
+
+</mapper>
