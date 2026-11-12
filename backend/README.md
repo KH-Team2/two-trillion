@@ -69,7 +69,7 @@ backend/
     │   │   │   ├── mapper/
     │   │   │   └── dto/
     │   │   └── prediction/                       # 예상 세액 계산 · 청년 혜택 진단
-    │   │       ├── controller/                   # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
+    │   │       ├── controller/                   # CalculationController (GET·POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
     │   │       ├── service/                      # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
     │   │       ├── client/                       # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
     │   │       ├── mapper/
@@ -260,6 +260,7 @@ mvnw -B verify
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
 - 소득 정보 입력·조회 API (`GET` · `PUT /api/incomes/{taxYear}`)
 - 예상 세액 계산 API + 결과 저장 (`POST /api/calculations/{taxYear}`)
+- 저장된 계산 결과 조회 API (`GET /api/calculations/{taxYear}` · 대시보드용 · 본인의 가장 최근 1건 · 없으면 404)
 - 청년 혜택 자격 진단 API (`GET /api/benefits/{taxYear}`)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - JUnit 자동 테스트 및 코드 품질 검사 환경

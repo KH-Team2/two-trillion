@@ -94,4 +94,5 @@
 | GET | `/api/incomes/{taxYear}` | 소득 · 공제 정보 조회 (F-02-01) |
 | PUT | `/api/incomes/{taxYear}` | 소득 · 공제 정보 저장 (F-02-01) |
 | POST | `/api/calculations/{taxYear}` | 예상 세액 계산 + 결과 저장 (F-03-01) |
+| GET | `/api/calculations/{taxYear}` | 저장된 계산 결과 조회 · 가장 최근 1건 · 없으면 404 (F-06-01) |
 | GET | `/api/benefits/{taxYear}` | 청년 혜택 자격 진단 · 저장 안 함 (F-03-02) |
