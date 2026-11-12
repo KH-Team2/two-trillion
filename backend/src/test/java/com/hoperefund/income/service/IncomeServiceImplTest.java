@@ -80,6 +80,14 @@ class IncomeServiceImplTest {
         verify(incomeMapper, never()).findByMemberAndYear(anyLong(), anyInt());
     }
 
+    // [수정 11/12] 추가: 말이 안 되는 연도는 DB(기준값)도 조회하지 않고 바로 400
+    @Test
+    void 조회_범위_밖_연도면_400이고_기준값도_조회하지_않는다() {
+        assertThatThrownBy(() -> incomeService.getIncome(1L, 99999))
+                .isInstanceOf(NoCriteriaException.class);
+        verify(incomeMapper, never()).countCriteria(anyInt());
+    }
+
     // ── 저장 ──
 
     @Test

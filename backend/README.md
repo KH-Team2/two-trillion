@@ -66,6 +66,21 @@ backend/
 
 회원, 소득, 지출, 계산 결과, AI 상담 등 기능별 패키지는 담당자가 개발 과정에서 추가합니다.
 
+<!-- [수정 11/12] 추가: 소득(income) 패키지 구성 (PR F-02-01) -->
+현재 추가된 기능별 패키지는 다음과 같습니다.
+
+```text
+backend/src/
+├── main/java/com/hoperefund/income/      # 소득·공제 정보 (F-02-01 · 담당 이고은)
+│   ├── controller/IncomeController.java   # GET · PUT /api/incomes/{taxYear}
+│   ├── service/IncomeService.java         # 서비스 인터페이스
+│   ├── service/IncomeServiceImpl.java     # 연도 검사(DB 기준값) · 자녀 수 검사 · 저장(MERGE)
+│   ├── mapper/IncomeMapper.java           # SQL 호출 목록
+│   └── dto/                               # IncomeRequestDTO (입력 검사 · 한글 문구) · IncomeResponseDTO
+├── main/resources/mapper/income/IncomeMapper.xml   # 조회 · MERGE 저장 · 기준값 연도 확인 SQL
+└── test/java/com/hoperefund/income/      # IncomeControllerTest · IncomeServiceImplTest
+```
+
 최종 패키지 구조 및 역할 구분은 `AGENTS.md`를 기준으로 합니다.
 
 ## 3. 프로젝트 가져오기
@@ -232,6 +247,10 @@ mvnw -B verify
 - 공통 오류 응답 DTO
 - 기본 공통 예외 처리
 - JUnit 자동 테스트 및 코드 품질 검사 환경
+<!-- [수정 11/12] 추가 -->
+- 소득·공제 정보 조회·저장 API (`GET · PUT /api/incomes/{taxYear}` · F-02-01)
+  - 받는 연도: DB 기준값(`DEDUCTION_TYPE`)이 있는 연도만 (없으면 400 `NO_CRITERIA`)
+  - 입력 오류는 칸별 한글 문구로 응답 (400 `VALIDATION`)
 
 ### 추후 구현 예정
 

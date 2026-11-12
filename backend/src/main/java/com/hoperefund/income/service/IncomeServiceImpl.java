@@ -37,6 +37,11 @@ public class IncomeServiceImpl implements IncomeService {
     // [수정 11/12] MIN_TAX_YEAR(2025) · MAX_TAX_YEAR(2026) 상수 삭제
     //   이유: 새 연도를 열 때마다 코드를 고쳐 다시 배포해야 해서 → DB 기준값으로 확인하도록 바꿈 (checkTaxYear)
 
+    // [수정 11/12] 말이 안 되는 연도 범위 추가 · 이유: /api/incomes/99999 같은 요청은 DB를 부르지 않고 바로 거르려고
+    //   (새 연도를 막는 값이 아님 · 실제로 받는 연도는 DB 기준값으로 정함 · 팀원 PR #7과 같은 범위)
+    static final int MIN_TAX_YEAR = 2000;
+    static final int MAX_TAX_YEAR = 2100;
+
     private final IncomeMapper incomeMapper;
 
     // @Transactional(readOnly = true): 읽기만 하는 작업이라고 알려 줌 (DB가 조금 더 가볍게 처리)
@@ -77,7 +82,10 @@ public class IncomeServiceImpl implements IncomeService {
      * (계산 서버 · 관리자 기능과 같은 방식 · 팀원 제안)
      */
     private void checkTaxYear(int taxYear) {
-        if (incomeMapper.countCriteria(taxYear) == 0) {
+        // [수정 11/12] 범위 밖이면 DB 조회 없이 바로 400 (|| : 앞 조건이 참이면 뒤 조건은 실행 안 함)
+        if (taxYear < MIN_TAX_YEAR
+                || taxYear > MAX_TAX_YEAR
+                || incomeMapper.countCriteria(taxYear) == 0) {
             throw new NoCriteriaException(); // → 400 NO_CRITERIA
         }
     }
