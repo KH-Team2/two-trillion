@@ -31,4 +31,13 @@ public interface IncomeMapper {
             @Param("memberId") long memberId,
             @Param("taxYear") int taxYear,
             @Param("req") IncomeRequestDTO req);
+
+    // [수정 11/12] 추가 · 이유: 연도 검사를 「코드에 고정한 2025~2026」 → 「DB에 기준값이 있는 연도」로 바꿈
+    //   관리자가 DEDUCTION_TYPE에 2027년 기준값을 넣으면 코드를 안 고쳐도 2027년 소득을 저장할 수 있게 (팀원 제안)
+    /**
+     * 그 연도의 공제 기준값(DEDUCTION_TYPE) 행 수
+     *
+     * @return 0이면 기준값이 없는 연도 → 소득을 받지 않음
+     */
+    int countCriteria(@Param("taxYear") int taxYear);
 }

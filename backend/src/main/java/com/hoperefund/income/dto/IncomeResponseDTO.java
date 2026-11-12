@@ -10,7 +10,7 @@ import lombok.Setter;
  *
  * <p>- GET · PUT /api/incomes/{taxYear} 의 응답(JSON)
  *
- * <p>- 칸은 API 명세서 그대로 (incomeId · memberId 같은 내부 번호는 화면에 안 보냄)
+ * <p>- 칸은 API 명세서 그대로 ([수정 11/12] incomeId · taxYear 추가 · memberId는 화면에 안 보냄)
  *
  * <p>- MyBatis가 SELECT 결과를 setter로 채운다 (application.yml의 map-underscore-to-camel-case 설정 덕분에
  * TOTAL_SALARY → totalSalary 처럼 이름이 자동으로 맞춰짐)
@@ -21,6 +21,11 @@ import lombok.Setter;
 public class IncomeResponseDTO {
 
     // DB 칸이 전부 NOT NULL이라 null이 올 일이 없어서 기본형(long · int)을 쓴다
+
+    // [수정 11/12] incomeId · taxYear 추가 · 이유: API 명세서(노션 6번) 소득 행 응답에 들어 있는 칸 (팀원 PR #7과 같게)
+    private long incomeId; // 소득번호
+    private int taxYear; // 귀속 연도
+
     private long totalSalary; // 연간 예상 총급여
     private long withheldTax; // 기납부 소득세
     private long nationalPension; // 국민연금보험료

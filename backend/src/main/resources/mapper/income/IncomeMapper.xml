@@ -9,7 +9,10 @@
     <!-- resultType: 결과를 담을 DTO. 칸 이름은 자동으로 camelCase로 맞춰짐 (TOTAL_SALARY → totalSalary) -->
     <!-- MEMBER_ID 조건: 로그인한 회원 본인 데이터만 (백엔드 규칙) -->
     <select id="findByMemberAndYear" resultType="com.hoperefund.income.dto.IncomeResponseDTO">
-        SELECT TOTAL_SALARY,
+        <!-- [수정 11/12] INCOME_ID · TAX_YEAR 추가 · 이유: 응답 DTO에 incomeId · taxYear를 넣으려고 (API 명세서) -->
+        SELECT INCOME_ID,
+               TAX_YEAR,
+               TOTAL_SALARY,
                WITHHELD_TAX,
                NATIONAL_PENSION,
                HEALTH_INSURANCE,
@@ -66,5 +69,16 @@
                     NVL(#{req.pensionSaving}, 0), NVL(#{req.irpSaving}, 0),
                     NVL(#{req.smeReductionYn}, 'N'))
     </update>
+
+    <!--
+        [수정 11/12] 추가 · 이유: 받을 수 있는 연도를 코드(2025~2026) 대신 DB 기준값으로 확인 (팀원 제안)
+        그 연도의 공제 기준값이 몇 행인지 셈 → 0이면 기준값이 없는 연도
+        팀원(계산 · 관리자 쪽)과 같은 쿼리
+    -->
+    <select id="countCriteria" resultType="int">
+        SELECT COUNT(*)
+          FROM DEDUCTION_TYPE
+         WHERE TAX_YEAR = #{taxYear}
+    </select>
 
 </mapper>

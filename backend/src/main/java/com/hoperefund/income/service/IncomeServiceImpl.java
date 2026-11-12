@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <p>검증 4가지 (API 명세서 · 기능명세서)
  *
- * <p>1. 연도는 2025 · 2026만 → checkTaxYear()
+ * <p>1. 연도는 DB에 기준값이 있는 연도만 → checkTaxYear() ([수정 11/12] 2025 · 2026 고정 → DB 확인)
  *
  * <p>2. 총급여 · 기납부세액 필수 → IncomeRequestDTO의 @NotNull
  *
@@ -34,10 +34,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor // final 칸을 받는 생성자 자동 생성 → 스프링이 IncomeMapper를 넣어 줌
 public class IncomeServiceImpl implements IncomeService {
 
-    // 받을 수 있는 귀속 연도 (API 명세서: 2025·2026만)
-    // 새 연도를 열 때는 이 두 숫자를 바꾼다
-    static final int MIN_TAX_YEAR = 2025;
-    static final int MAX_TAX_YEAR = 2026;
+    // [수정 11/12] MIN_TAX_YEAR(2025) · MAX_TAX_YEAR(2026) 상수 삭제
+    //   이유: 새 연도를 열 때마다 코드를 고쳐 다시 배포해야 해서 → DB 기준값으로 확인하도록 바꿈 (checkTaxYear)
+
+    // [수정 11/12] 말이 안 되는 연도 범위 추가 · 이유: /api/incomes/99999 같은 요청은 DB를 부르지 않고 바로 거르려고
+    //   (새 연도를 막는 값이 아님 · 실제로 받는 연도는 DB 기준값으로 정함 · 팀원 PR #7과 같은 범위)
+    static final int MIN_TAX_YEAR = 2000;
+    static final int MAX_TAX_YEAR = 2100;
 
     private final IncomeMapper incomeMapper;
 
@@ -72,9 +75,17 @@ public class IncomeServiceImpl implements IncomeService {
         return incomeMapper.findByMemberAndYear(memberId, taxYear);
     }
 
-    /** 연도 검사: 2025 · 2026이 아니면 400 */
+    /**
+     * 연도 검사: 그 연도의 공제 기준값(DEDUCTION_TYPE)이 DB에 없으면 400
+     *
+     * <p>[수정 11/12] 「2025 · 2026이 아니면」 → 「기준값이 없으면」 · 이유: 관리자가 새 연도 기준값만 넣으면 코드 수정 없이 열리게
+     * (계산 서버 · 관리자 기능과 같은 방식 · 팀원 제안)
+     */
     private void checkTaxYear(int taxYear) {
-        if (taxYear < MIN_TAX_YEAR || taxYear > MAX_TAX_YEAR) {
+        // [수정 11/12] 범위 밖이면 DB 조회 없이 바로 400 (|| : 앞 조건이 참이면 뒤 조건은 실행 안 함)
+        if (taxYear < MIN_TAX_YEAR
+                || taxYear > MAX_TAX_YEAR
+                || incomeMapper.countCriteria(taxYear) == 0) {
             throw new NoCriteriaException(); // → 400 NO_CRITERIA
         }
     }
