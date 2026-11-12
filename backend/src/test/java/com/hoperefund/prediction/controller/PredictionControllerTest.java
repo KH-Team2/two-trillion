@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 
 import com.hoperefund.common.exception.CalcRejectedException;
 import com.hoperefund.common.exception.CalcUnavailableException;
@@ -202,12 +203,12 @@ class PredictionControllerTest {
     }
 
     @Test
-    @DisplayName("계산은 POST만 받는다")
-    void calculateAcceptsOnlyPost() throws Exception {
+    @DisplayName("계산 주소는 GET과 POST만 받는다")
+    void calculationsAcceptOnlyGetAndPost() throws Exception {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res =
-                call(controller, get("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, put("/api/calculations/2026").header("X-Member-Id", "81"));
 
         assertEquals(405, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"METHOD_NOT_ALLOWED\""));

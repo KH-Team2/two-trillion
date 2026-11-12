@@ -15,6 +15,7 @@ import com.hoperefund.prediction.client.MockCalcClient;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
+import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
 import java.util.ArrayList;
@@ -109,6 +110,19 @@ class CalculationServiceTest {
                 long predictionId, long typeId, long baseAmount, long deductionAmount) {
             detailTypeIds.add(typeId);
             return 1;
+        }
+
+        CalculationResponseDTO latest; // 조회 테스트용: 저장돼 있다고 칠 결과 (null이면 없음)
+        List<DeductionDetailDTO> latestDetails = List.of(); // 조회 테스트용: 그 결과의 내역
+
+        @Override
+        public CalculationResponseDTO findLatestPrediction(long memberId, int taxYear) {
+            return latest;
+        }
+
+        @Override
+        public List<DeductionDetailDTO> findPredictionDetails(long memberId, long predictionId) {
+            return latestDetails;
         }
     }
 
@@ -351,5 +365,30 @@ class CalculationServiceTest {
     @DisplayName("감면을 신청해도 정보가 부족하면 감면 없이 계산한다")
     void skipsReductionWhenInfoInsufficient() {
         assertEquals("N", calculateWithSme(null).sentSmeReductionYn);
+    }
+
+    @Test
+    @DisplayName("저장된 계산 결과가 없으면 없음 오류를 낸다")
+    void throwsNotFoundWhenNoSavedResult() {
+        // Given: 저장된 결과가 없음 (가짜 매퍼의 latest가 null)
+        // When · Then
+        assertThrows(NotFoundException.class, () -> service(false).getLatest(81L, 2026));
+    }
+
+    @Test
+    @DisplayName("저장된 계산 결과가 있으면 내역을 붙여서 돌려준다")
+    void returnsLatestResultWithDetails() {
+        // Given: 저장된 결과 1건과 내역 2줄이 있다고 침
+        CalculationResponseDTO saved = new CalculationResponseDTO();
+        saved.setPredictionId(3L);
+        saved.setExpectedRefund(51_500L);
+        predictionMapper.latest = saved;
+        predictionMapper.latestDetails =
+                List.of(new DeductionDetailDTO(), new DeductionDetailDTO());
+        // When
+        CalculationResponseDTO result = service(false).getLatest(81L, 2026);
+        // Then
+        assertEquals(51_500L, result.getExpectedRefund().longValue());
+        assertEquals(2, result.getDetails().size());
     }
 }

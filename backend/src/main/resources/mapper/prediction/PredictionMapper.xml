@@ -64,5 +64,44 @@
         INSERT INTO PREDICTION_DETAIL (DETAIL_ID, PREDICTION_ID, TYPE_ID, BASE_AMOUNT, DEDUCTION_AMOUNT)
         VALUES (SEQ_PREDICTION_DETAIL.NEXTVAL, #{predictionId}, #{typeId}, #{baseAmount}, #{deductionAmount})
     </insert>
+    
+    <!-- 본인의 그 연도 기준결과(시뮬레이션 제외) 중 가장 최근 1건,총급여,기납부세액은 그때 쓴 입력값에서 -->
+    <select id="findLatestPrediction" resultType="com.hoperefund.prediction.dto.CalculationResponseDTO">
+    SELECT p.PREDICTION_ID,
+               p.TAX_YEAR,
+               i.TOTAL_SALARY,
+               i.WITHHELD_TAX,
+               p.TAXABLE_INCOME,
+               p.CALCULATED_TAX,
+               p.DECIDED_TAX,
+               p.EXPECTED_REFUND
+          FROM PREDICTION p
+          JOIN PREDICTION_INPUT i
+            ON i.PREDICTION_ID = p.PREDICTION_ID
+         WHERE p.MEMBER_ID = #{memberId}
+           AND p.TAX_YEAR = #{taxYear}
+           AND p.BASE_PREDICTION_ID IS NULL
+         ORDER BY p.PREDICTED_AT DESC, p.PREDICTION_ID DESC
+         FETCH FIRST 1 ROWS ONLY
+    </select>
 
+	    <!-- 그 계산 결과의 항목별 공제 내역 (저장한 순서 = 계산 흐름 순서) · 본인 결과만 (MEMBER_ID 조건) -->
+    <!-- DEDUCTION_KIND는 DTO의 kind에 담으려고 별명(AS KIND)을 붙여요 -->
+    <select id="findPredictionDetails" resultType="com.hoperefund.prediction.dto.DeductionDetailDTO">
+        SELECT t.TYPE_CODE,
+               t.TYPE_NAME,
+               t.DEDUCTION_KIND AS KIND,
+               d.BASE_AMOUNT,
+               d.DEDUCTION_AMOUNT,
+               t.SOURCE_NOTE
+          FROM PREDICTION_DETAIL d
+          JOIN PREDICTION p
+            ON p.PREDICTION_ID = d.PREDICTION_ID
+          JOIN DEDUCTION_TYPE t
+            ON t.TYPE_ID = d.TYPE_ID
+         WHERE d.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+         ORDER BY d.DETAIL_ID
+    </select>
+    
 </mapper>
