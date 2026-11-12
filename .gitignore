@@ -108,3 +108,9 @@ Thumbs.db:encryptable
 ehthumbs.db
 $RECYCLE.BIN/
 *.stackdump
+
+# Spring Initializr 기본 파일
+HELP.md
+!**/src/main/**/target/
+!**/src/test/**/target/
+.target
