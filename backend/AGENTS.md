@@ -27,7 +27,7 @@
 
 ## 기술 스택
 
-Java 17 · Spring Boot 4.1.2 · Maven · MyBatis 4.0.1 · Oracle 21c XE(교육원 공용 DB 21.3) · Spotless(코드 모양) · JUnit 5(테스트) · SpotBugs(정적 분석)
+Java 17 · Spring Boot 4.1.0 · Maven · MyBatis 4.0.1 · Oracle 21c XE(교육원 공용 DB 21.3) · Spotless(코드 모양) · JUnit 5(테스트) · SpotBugs(정적 분석)
 
 ## 폴더 구조
 
@@ -68,7 +68,8 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 
 - 주소는 `/api/복수형명사/...` · 회원번호는 주소에 넣지 않는다 (로그인 정보로 회원을 정함 · 개발 중에만 `X-Member-Id` 헤더)
 - 조회 GET · 생성·실행 POST · 한 건 전체 저장 PUT · 삭제 DELETE
-- 오류 응답은 `GlobalExceptionHandler`에서 `{"error": "코드", "message": "화면 문구"}` 하나로 보낸다. DB 오류 코드는 기능명세서 「7_오류 메시지」 시트 문구로 바꾼다.
+- 응답은 성공 · 실패 모두 공통 봉투 `{"success", "data", "meta", "error"}`로 보낸다 (`common/dto/ApiResponse` · 11/09 팀 합의). Controller는 `ApiResponse.ok(결과)`를 돌려주고, 성공 상태 코드는 모두 200이다 (201 · 204 안 씀).
+- 오류는 예외를 던지기만 한다. `GlobalExceptionHandler`가 봉투의 `error`에 `{"code": "코드", "message": "화면 문구"}`로 바꿔 보낸다 (서버 오류 500 · 503에는 추적 번호 `errorId`도). Controller에서 예외를 직접 잡아 응답을 만들지 않는다. DB 오류 코드는 기능명세서 「7_오류 메시지」 시트 문구로 바꾼다.
 - 화면 문구와 서버 로그를 나눈다: 응답에는 짧은 안내만, 원인(예외 · 상태 코드 · 회원번호 · 연도)은 `log.warn` / `log.error`로. 로그에도 금액 · 생년월일 · 비밀번호 · 토큰은 넣지 않는다.
 
 ## 계산 서버 연동
@@ -96,11 +97,21 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 - 기능명세서 · ERD · 노션 링크는 로그인이 필요해 열리지 않을 수 있다. 열 수 없으면 내용을 추측하지 말고, 사용자에게 필요한 부분(복사본 · 캡처)을 요청한다.
 - ERD와 코드가 다르면 임의로 판단하지 말고 차이를 알린다. DB 변경이 필요하면 노션 「요청·전달」에 DB 변경 요청을 남긴다.
 
-## Git
+## Git 규칙
 
-- 브랜치: `main`(최종본) · `develop`(기능이 끝나면 머지) · `feature/기능명`(기능 브랜치 → develop으로 PR). `main`·`develop`에 직접 커밋하지 않는다.
-- 브랜치는 기능별로 만든다 (예: `feature/signup` · `feature/tax-input`). 한 기능이 여러 저장소에 걸치면 각 저장소에 같은 이름으로 만든다.
-- 커밋은 의미 있는 기능 구현·수정 단위로 한다. 메시지: `종류: 무엇을 했는지` (feat · fix · chore · docs · test · refactor · ci) · 설명은 한글
+- 기능 개발은 각 담당자의 개인 브랜치에서 진행한다.
+- 개발이 완료된 기능은 해당 `feature/기능명` 브랜치에 반영한다.
+- 기능명세서 1행 완료 시 `develop` 브랜치로 PR하여 통합한다.
+- 2개 이상의 행이 연결되어 개별 검증이 불가능한 경우 하나의 PR로 통합하고, 그 이유를 PR 본문에 작성한다.
+- `feature/기능명` → `develop`: PR 작성자 외 팀원 2인 승인
+- `develop` → `main`: 형상관리자·조장 승인
+- `develop`은 기능 통합 및 최종 검증을 위한 브랜치로 사용한다.
+- `main`은 최종 안정 버전만 반영하는 브랜치로 사용한다.
+- 공통 브랜치나 다른 담당자의 개인·기능 브랜치에 직접 커밋하지 않는다.
+- 커밋은 의미 있는 기능 구현·수정 단위로 한다.
+- 커밋 메시지는 종류: `무엇을 했는지` 형식으로 작성하고 설명은 한글로 작성한다.
+- `커밋 종류`는 feat, fix, chore, docs, test, refactor, ci 등을 사용한다.
+- 사용자 확인 없이 git push, 브랜치 삭제, 강제 푸시(git push -f)를 수행하지 않는다.
 
 ## 보안
 
