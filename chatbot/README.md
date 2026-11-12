@@ -13,8 +13,9 @@
 | Language | Python 3.11.9 |
 | Framework | FastAPI |
 | ASGI Server | Uvicorn |
-| LLM | Ollama + Gemma3 (연동 예정) |
-| RAG | 문서 검색 기반 답변 생성 (구현 예정) |
+| LLM | LangChain ChatOllama + Gemma3 |
+| PDF Processing | PyMuPDF |
+| RAG | PDF 전처리·청킹 구현 / Elasticsearch 검색·답변 연동 예정 |
 | Dependency Management | pip, requirements.txt |
 | Testing | pytest |
 | Code Quality | Ruff |
@@ -43,20 +44,35 @@ chatbot/
 ├── AGENTS.md
 ├── requirements.txt
 ├── requirements-dev.txt
+chatbot/
+├── .env.example
+├── README.md
+├── AGENTS.md
+├── requirements.txt
+├── requirements-dev.txt
+├── requirements-preprocess.txt
 ├── pyproject.toml
 │
 ├── app/
-│   ├── __init__.py
 │   ├── main.py
-│   └── api/
-│       ├── __init__.py
-│       └── health.py
+│   ├── api/                 # Health·상담·추천 내부 API
+│   ├── core/                # 환경설정·인증·오류 처리
+│   ├── llm/                 # Ollama·Gemma3 연동
+│   ├── rag/                 # PDF 추출·전처리·청킹
+│   ├── schemas/             # 요청·응답 DTO
+│   └── services/            # 상담·추천·생성 서비스
 │
-└── tests/
-    └── test_health.py
+├── scripts/
+│   └── preprocess_documents.py
+│
+├── data/
+│   └── processed/           # PDF 전처리 결과
+│
+├── docs/                    # 설계·API 계약·개발 문서
+└── tests/                   # 단위·API·RAG 전처리 테스트
 ```
 
-향후 질문 처리 API, Ollama 연결, RAG 문서 검색, 요청·응답 스키마 등의 모듈을 추가할 예정입니다.
+현재 내부 상담·추천 API, 요청·응답 스키마, Ollama·Gemma3 연결, PDF 전처리·청킹 모듈까지 구현되어 있습니다. 향후 Elasticsearch 기반 문서 검색과 검색 결과를 활용한 RAG 답변 생성을 연동할 예정입니다.
 
 최종 개발 목표 구조는 `AGENTS.md`를 참고합니다.
 
@@ -68,7 +84,7 @@ chatbot/
 - Git
 - VS Code 또는 Python 개발이 가능한 IDE
 
-Ollama 및 Gemma3는 실제 AI 기능 구현 단계에서 별도로 준비합니다.
+AI 답변 생성 기능을 사용하려면 로컬 환경에 Ollama와 gemma3:4b 모델을 준비해야 합니다.
 
 ### 3.2 프로젝트 가져오기
 
@@ -108,7 +124,9 @@ python -m pip install -r requirements-dev.txt
 - `requirements.txt`: 서버 실행에 필요한 패키지
 - `requirements-dev.txt`: 개발 및 테스트 도구를 포함한 패키지
 
-Gemma3, 임베딩 및 벡터 검색 관련 의존성은 구현 방식 확정 후 추가합니다.
+Ollama·Gemma3 연동에 필요한 의존성은 requirements.txt에서 관리합니다. 
+PDF 전처리용 의존성은 requirements-preprocess.txt에서 별도로 관리합니다. 
+초기 RAG 검색은 Elasticsearch BM25를 사용할 예정이며, 임베딩 및 벡터·하이브리드 검색은 검색 품질 검증 후 별도로 결정합니다.
 
 ## 4. 환경변수 설정
 
@@ -126,9 +144,9 @@ chatbot/.env.example
 | `OLLAMA_BASE_URL` | Ollama 서버 주소 | `http://localhost:11434` |
 | `OLLAMA_MODEL` | Ollama에서 사용할 LLM | `gemma3` |
 
-현재 `.env.example`은 설정 항목 안내용입니다.
-
-환경변수 자동 로딩과 실제 인증 토큰 검증은 아직 구현되지 않았습니다.
+Ollama 연결 및 내부 API 인증 설정은 OS 환경변수를 통해 읽습니다. 
+CHATBOT_API_TOKEN이 설정되지 않은 경우 내부 상담·추천 POST 요청은 503 AUTH_NOT_CONFIGURED로 차단되며 /health는 유지됩니다. 
+.env.example은 설정 항목 안내용이며 파일을 복사하는 것만으로 자동 로딩되지는 않습니다.
 
 **주의:** 비밀번호 및 인증 토큰은 GitHub에 업로드하지 않습니다. 실제 값을 설정할 경우 `.gitignore`에서 제외되는 로컬 환경변수 파일 또는 실행 환경 설정을 사용합니다.
 
@@ -232,32 +250,35 @@ Spring Boot는 회원 인증, 대화 기록 관리 및 DB 저장을 담당합니
 
 Python Chatbot은 전달받은 질문과 필요한 문맥을 기반으로 참고 자료를 검색하고 AI 답변을 생성합니다.
 
-현재는 목표 아키텍처이며, 실제 서버 간 HTTP 연동은 아직 구현되지 않았습니다.
+Chatbot 내부 상담·추천 API와 인증은 구현되어 있으나, 
+Spring Boot와의 실제 서버 간 HTTP 연동 및 Elasticsearch 기반 RAG 검색 연동은 아직 완료되지 않았습니다.
 
 ## 8. 현재 구현 상태
 
 ### 구성 완료
 
-- Python 3.11.9 가상환경
-- FastAPI 기본 애플리케이션
+- Python 3.11.9 기반 FastAPI 애플리케이션
 - `/health` API
+- LangChain ChatOllama 기반 `gemma3:4b` 연결
+- 내부 상담 API `POST /internal/chat-responses`
+- 내부 추천 API `POST /internal/recommendations`
+- `X-Chatbot-Token` 기반 내부 인증
+- 요청·응답 DTO 및 오류 처리
+- PDF 8개 오프라인 텍스트 추출 및 전처리
+- 법령·안내서·개정세법 구조별 청킹
+- 전처리 결과 재현성·무결성 검증
 - pytest 테스트
 - Ruff 코드 검사 및 포맷 설정
-- 기본 패키지 의존성 파일
-- 환경변수 예시 파일
 
 ### 추후 구현 및 검증 예정
 
-- Ollama 설치 및 Gemma3 실행
-- 연말정산 RAG 참고 자료 정리
-- PDF 문서 텍스트 추출 및 전처리
-- 문서 청크 분할 및 임베딩
-- 벡터 검색 및 근거 문서 활용
-- AI 질문 처리 API
+- 전처리 결과 수동 검수
+- Elasticsearch BM25 색인 및 검색
+- 검색 결과와 Gemma3를 연결한 RAG 답변 생성
 - Spring Boot와 내부 HTTP 연동
-- 내부 인증 토큰 검증
-- 대화 문맥 전달 및 답변 반환
-- AI 답변 품질 및 예외 상황 테스트
+- 법령 출처 및 적용 귀속연도 검증
+- AI 답변 품질 및 예외 상황 검증
+- 필요 시 임베딩·벡터·하이브리드 검색 검토
 
 ## 9. 관련 문서
 
