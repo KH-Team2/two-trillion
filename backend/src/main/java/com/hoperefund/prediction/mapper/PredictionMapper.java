@@ -3,6 +3,7 @@ package com.hoperefund.prediction.mapper;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
+import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -56,4 +57,12 @@ public interface PredictionMapper {
             @Param("typeId") long typeId,
             @Param("baseAmount") long baseAmount,
             @Param("deductionAmount") long deductionAmount);
+
+    /** 본인의 그 연도 계산 결과 중 가장 최근 1건 (없으면 null) · 시뮬레이션 결과는 빼고 기준 결과만 */
+    CalculationResponseDTO findLatestPrediction(
+            @Param("memberId") long memberId, @Param("taxYear") int taxYear);
+
+    /** 그 계산 결과의 항목별 공제 내역 (본인 것만 · MEMBER_ID 조건) */
+    List<DeductionDetailDTO> findPredictionDetails(
+            @Param("memberId") long memberId, @Param("predictionId") long predictionId);
 }
