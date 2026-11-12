@@ -46,6 +46,13 @@ class PredictionControllerTest {
                 receivedTaxYear = taxYear;
                 return answer.get();
             }
+
+            @Override
+            public CalculationResponseDTO getLatest(long memberId, int taxYear) {
+                receivedMemberId = memberId;
+                receivedTaxYear = taxYear;
+                return answer.get();
+            }
         };
     }
 
@@ -212,6 +219,43 @@ class PredictionControllerTest {
 
         assertEquals(405, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"METHOD_NOT_ALLOWED\""));
+    }
+
+    // ---------- 저장된 결과 조회 GET /api/calculations/{taxYear} ----------
+
+    @Test
+    @DisplayName("저장된 결과를 조회하면 200과 결과를 돌려주고 헤더의 회원번호와 주소의 연도를 쓴다")
+    void getLatestReturns200AndUsesHeaderMemberAndPathYear() throws Exception {
+        CalculationController controller =
+                new CalculationController(calculationService(this::result));
+        MockHttpServletResponse res =
+                call(controller, get("/api/calculations/2026").header("X-Member-Id", "81"));
+
+        assertEquals(200, res.getStatus());
+        // 공통 봉투: 결과는 data 안에
+        assertTrue(text(res).startsWith("{\"success\":true,\"data\":{"));
+        assertTrue(text(res).contains("\"error\":null"));
+        assertTrue(text(res).contains("\"decidedTax\":1471500"));
+        assertTrue(text(res).contains("\"expectedRefund\":51500"));
+        assertEquals(81L, receivedMemberId);
+        assertEquals(2026, receivedTaxYear);
+    }
+
+    @Test
+    @DisplayName("저장된 결과가 없으면 404 NOT FOUND")
+    void getLatestReturns404WhenNoSavedResult() throws Exception {
+        CalculationController controller =
+                new CalculationController(
+                        calculationService(
+                                () -> {
+                                    throw new NotFoundException("2026년 계산 결과가 아직 없어요");
+                                }));
+        MockHttpServletResponse res =
+                call(controller, get("/api/calculations/2026").header("X-Member-Id", "81"));
+
+        assertEquals(404, res.getStatus());
+        assertTrue(text(res).contains("\"code\":\"NOT_FOUND\""));
+        assertFalse(text(res).contains("errorId")); // 사용자 쪽 오류엔 추적 번호 없음
     }
 
     // ---------- 혜택 진단 GET /api/benefits/{taxYear} ----------

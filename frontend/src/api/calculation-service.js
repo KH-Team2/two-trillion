@@ -21,3 +21,13 @@ export async function saveAndCalculate(d, options = {}) {
   await saveIncome(d, options);
   return requestCalculation(getTaxYear(d), options);
 }
+
+/** 저장된 계산 결과 조회 (가장 최근 1건) · 계산한 적이 없으면 code 'NOT_FOUND' 오류 */
+export async function fetchLatestCalculation(taxYear, options = {}) {
+  checkTaxYear(taxYear);
+  const body = await apiRequest(`/api/calculations/${taxYear}`, {
+    ...options,
+    offlineMessage: '계산 결과 서버에 연결할 수 없어요.',
+  });
+  return parseCalculationResult(body);
+}
