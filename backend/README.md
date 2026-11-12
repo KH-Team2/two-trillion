@@ -28,11 +28,11 @@
 two-trillion/
 ├── frontend/       # React + Vite
 ├── backend/        # Spring Boot + MyBatis
-├── calc/           # Python 계산 서버 (예정)
-└── chatbot/        # Python AI 챗봇 서버 (예정)
+├── calc/           # Python 계산 서버
+└── chatbot/        # Python AI 챗봇 서버
 ```
 
-현재 Backend 공통 초기 프로젝트의 주요 구성은 다음과 같습니다.
+현재 Backend 프로젝트의 주요 구성은 다음과 같습니다.
 
 ```text
 backend/
@@ -42,26 +42,49 @@ backend/
 ├── .mvn/
 ├── README.md
 ├── AGENTS.md
+├── .env.example                                  # 환경변수 이름 안내 (.env는 커밋하지 않음)
+├── docs/
+│   ├── api-rules.md                              # API 공통 규칙 (주소 모양 · 응답 봉투 · 오류 응답)
+│   ├── history.md                                # 작업 이력
+│   └── tasks.md                                  # 남은 작업 (세액 계산·진단 파트)
 │
 └── src/
     ├── main/
     │   ├── java/com/hoperefund/
     │   │   ├── HopeRefundBackendApplication.java
-    │   │   └── common/
-    │   │       ├── config/
-    │   │       │   └── CorsConfig.java
-    │   │       ├── controller/
-    │   │       │   └── HealthController.java
-    │   │       ├── dto/
-    │   │       │   └── ErrorResponseDTO.java
-    │   │       └── exception/
-    │   │           └── GlobalExceptionHandler.java
+    │   │   ├── common/
+    │   │   │   ├── config/
+    │   │   │   │   └── CorsConfig.java
+    │   │   │   ├── controller/
+    │   │   │   │   └── HealthController.java
+    │   │   │   ├── dto/
+    │   │   │   │   ├── ApiResponse.java          # 공통 응답 봉투 {success, data, meta, error}
+    │   │   │   │   └── PageMeta.java             # 목록 응답의 페이지 정보
+    │   │   │   └── exception/
+    │   │   │       ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
+    │   │   │       └── *Exception.java           # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
+    │   │   ├── income/                           # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
+    │   │   │   ├── controller/
+    │   │   │   ├── service/
+    │   │   │   ├── mapper/
+    │   │   │   └── dto/
+    │   │   └── prediction/                       # 예상 세액 계산 · 청년 혜택 진단
+    │   │       ├── controller/                   # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
+    │   │       ├── service/                      # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
+    │   │       ├── client/                       # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
+    │   │       ├── mapper/
+    │   │       └── dto/
     │   │
     │   └── resources/
-    │       └── application.yml
+    │       ├── application.yml
+    │       └── mapper/                           # MyBatis SQL (기능별 폴더)
+    │           ├── income/IncomeMapper.xml
+    │           └── prediction/PredictionMapper.xml
     │
     └── test/java/com/hoperefund/
-        └── common/
+        ├── common/
+        ├── income/
+        └── prediction/
 ```
 
 회원, 소득, 지출, 계산 결과, AI 상담 등 기능별 패키지는 담당자가 개발 과정에서 추가합니다.
@@ -117,14 +140,18 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | 환경변수 | 설명 | 기본값 |
 |---|---|---|
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
+| `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
-| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 | 없음 |
+| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) | 없음 |
+| `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
 | `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
 
-Python Calc 및 Chatbot 서버와의 실제 통신은 아직 구현되지 않았습니다.
+환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
 
-챗봇 서버의 포트 및 인증 방식은 추후 확정이 필요합니다.
+Python Chatbot 서버와의 실제 통신은 아직 구현되지 않았습니다.
+
+챗봇 서버의 내부 인증 세부 방식은 실제 연동 구현 시 확정합니다.
 
 ### 4.3 STS 환경변수 등록 방법
 
@@ -230,15 +257,18 @@ mvnw -B verify
 - React 개발 서버 CORS 설정
 - Health API
 - 공통 오류 응답 DTO
-- 기본 공통 예외 처리
+- 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
+- 소득 정보 입력·조회 API (`GET` · `PUT /api/incomes/{taxYear}`)
+- 예상 세액 계산 API + 결과 저장 (`POST /api/calculations/{taxYear}`)
+- 청년 혜택 자격 진단 API (`GET /api/benefits/{taxYear}`)
+- Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - JUnit 자동 테스트 및 코드 품질 검사 환경
 
 ### 추후 구현 예정
 
 - Spring Security 인증·권한 처리
 - 기능별 Controller·Service·Mapper·DTO
-- 회원·소득·지출·계산 결과·관리자 API
-- Python 계산 서버 HTTP 통신
+- 회원·지출·관리자 API
 - Python AI 챗봇 서버 HTTP 통신
 - 공통 오류 처리 확장
 - API 및 DB 통합 테스트
