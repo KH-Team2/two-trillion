@@ -2,6 +2,17 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-12] 저장된 계산 결과 조회 API (F-06-01 결과 대시보드)
+- **작업 내용**:
+  - `GET /api/calculations/{taxYear}`: 본인의 그 연도 계산 결과 중 가장 최근 1건 + 항목별 공제 내역 · 없으면 404 `NOT_FOUND`
+  - 응답은 계산(POST)과 같은 `CalculationResponseDTO` · 시뮬레이션 결과(`BASE_PREDICTION_ID`가 있는 행)는 빼고 기준 결과만
+  - `prediction` 패키지에 둠 (PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL의 주인 · 시뮬레이션 · 챗봇도 같은 조회를 쓸 수 있게)
+- **변경 사유**:
+  - 전에는 계산 직후 응답과 브라우저 저장에만 결과가 있어서, 다른 브라우저로 들어오거나 브라우저 저장이 지워지면 대시보드가 저장된 결과를 못 보여 줌
+- **검증 결과**:
+  - 테스트 4개 추가 (Service 2 · Controller 2) · 「계산은 POST만 받는다」 → 「GET과 POST만 받는다」(PUT → 405)
+  - curl: 회원 81 → 200 · 82 → 404
+
 ### [2026-11-12] 소득 API 보완 (PR #7과 비교 반영)
 - **작업 내용**:
   - `IncomeRequestDTO`: 모든 입력 검사에 한글 문구(message) 추가
