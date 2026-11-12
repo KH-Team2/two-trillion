@@ -13,7 +13,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class AdminInquiryServiceImpl implements AdminInquiryService {
-
+	/* F-17, F-18 비즈니스 로직 구현체 */
     private final AdminInquiryMapper adminInquiryMapper;
 
     @Override

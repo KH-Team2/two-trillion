@@ -8,8 +8,7 @@ import java.util.List;
 
 @Mapper
 public interface AdminInquiryMapper {
-    
-    /* F-17: 내 문의 목록 조회 쿼리 매핑 */
+	/* F-17, F-18: 고객센터 문의/답변 */
     List<AdminInquiryResponseDto> selectInquiryList(@Param("memberId") Long memberId);
 
     /* F-17: 문의 상세 조회 쿼리 매핑 */
