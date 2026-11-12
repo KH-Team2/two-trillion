@@ -21,7 +21,8 @@ def _criteria(clock: FakeClock) -> tuple[OracleCriteria, list[int]]:
     return source, calls
 
 
-def test_캐시_시간_안에는_DB를_다시_읽지_않는다():
+def test_does_not_reread_db_within_cache_time():
+    """캐시 시간 안에는 DB를 다시 읽지 않는다"""
     clock = FakeClock()
     source, calls = _criteria(clock)
     source.brackets(2026, "TAX_RATE")
@@ -30,7 +31,8 @@ def test_캐시_시간_안에는_DB를_다시_읽지_않는다():
     assert len(calls) == 1
 
 
-def test_캐시_시간이_지나면_DB에서_다시_읽는다():
+def test_rereads_db_after_cache_time():
+    """캐시 시간이 지나면 DB에서 다시 읽는다"""
     clock = FakeClock()
     source, calls = _criteria(clock)
     source.brackets(2026, "TAX_RATE")
@@ -39,7 +41,8 @@ def test_캐시_시간이_지나면_DB에서_다시_읽는다():
     assert len(calls) == 2
 
 
-def test_연도와_구간_종류는_따로_캐시한다():
+def test_caches_separately_by_year_and_bracket_type():
+    """연도와 구간 종류는 따로 캐시한다"""
     clock = FakeClock()
     source, calls = _criteria(clock)
     source.brackets(2026, "TAX_RATE")

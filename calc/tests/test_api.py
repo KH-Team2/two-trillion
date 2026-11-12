@@ -25,7 +25,8 @@ BODY = {
 }
 
 
-def test_계산_응답_이름은_동석님_전달_그대로(client):
+def test_calculate_response_field_names_match_agreed_contract(client):
+    """계산 응답 이름은 동석님 전달 그대로"""
     body = client.post("/calculate", json=BODY).json()
     assert set(body) == {
         "taxYear",
@@ -47,18 +48,21 @@ def test_계산_응답_이름은_동석님_전달_그대로(client):
     }
 
 
-def test_음수_입력은_막는다(client):
+def test_rejects_negative_input(client):
+    """음수 입력은 막는다"""
     response = client.post("/calculate", json={**BODY, "totalSalary": -1})
     assert response.status_code == 400
     assert response.json()["error"] == "VALIDATION"
 
 
-def test_모르는_칸은_막는다(client):
+def test_rejects_unknown_fields(client):
+    """모르는 칸은 막는다"""
     response = client.post("/calculate", json={**BODY, "memberId": 2})
     assert response.status_code == 400
 
 
-def test_기준값_없는_연도(client):
+def test_returns_error_for_year_without_criteria(client):
+    """기준값 없는 연도"""
     response = client.post("/calculate", json={**BODY, "taxYear": 2024})
     assert response.json() == {
         "error": "NO_CRITERIA",
@@ -66,7 +70,8 @@ def test_기준값_없는_연도(client):
     }
 
 
-def test_토큰이_틀리거나_없으면_막는다(client):
+def test_rejects_wrong_or_missing_token(client):
+    """토큰이 틀리거나 없으면 막는다"""
     assert (
         client.post(
             "/calculate", json=BODY, headers={"X-Calc-Token": "wrong"}
@@ -77,7 +82,8 @@ def test_토큰이_틀리거나_없으면_막는다(client):
     assert no_header.post("/calculate", json=BODY).status_code == 401
 
 
-def test_토큰에_영문이_아닌_글자가_와도_500이_아니라_401(client):
+def test_returns_401_not_500_for_non_ascii_token(client):
+    """토큰에 영문이 아닌 글자가 와도 500이 아니라 401"""
     # hmac.compare_digest는 문자열에 비ASCII 글자가 있으면 TypeError → 전에는 500이 났음
     no_header = TestClient(app, raise_server_exceptions=False)
     response = no_header.post(
@@ -87,14 +93,16 @@ def test_토큰에_영문이_아닌_글자가_와도_500이_아니라_401(client
     assert response.json()["error"] == "UNAUTHORIZED"
 
 
-def test_서버에_토큰이_설정되지_않으면_모두_막는다(client, monkeypatch):
+def test_rejects_all_requests_when_server_token_not_set(client, monkeypatch):
+    """서버에 토큰이 설정되지 않으면 모두 막는다"""
     monkeypatch.delenv("CALC_API_TOKEN")
     response = client.post("/calculate", json=BODY)
     assert response.status_code == 503
     assert response.json()["error"] == "TOKEN_NOT_SET"
 
 
-def test_혜택_진단(client):
+def test_diagnoses_benefits(client):
+    """혜택 진단"""
     body = client.post(
         "/benefit",
         json={
@@ -113,27 +121,31 @@ def test_혜택_진단(client):
     ]
 
 
-def test_없는_주소는_짧은_안내만(client):
+def test_unknown_path_returns_short_message_only(client):
+    """없는 주소는 짧은 안내만"""
     response = client.get("/admin")
     assert response.status_code == 404
     assert set(response.json()) == {"error", "message"}
 
 
-def test_토큰이_틀리면_로그를_남기고_토큰_값은_남기지_않는다(client, caplog):
+def test_logs_wrong_token_without_token_value(client, caplog):
+    """토큰이 틀리면 로그를 남기고 토큰 값은 남기지 않는다"""
     with caplog.at_level("WARNING", logger="calc"):
         client.post("/calculate", json=BODY, headers={"X-Calc-Token": "wrong-secret"})
     assert "토큰이 없거나 틀린 요청 차단" in caplog.text
     assert "wrong-secret" not in caplog.text
 
 
-def test_계산_로그에는_금액을_남기지_않는다(client, caplog):
+def test_calculation_log_does_not_contain_amounts(client, caplog):
+    """계산 로그에는 금액을 남기지 않는다"""
     with caplog.at_level("INFO", logger="calc"):
         client.post("/calculate", json=BODY)
     assert "계산 완료 year=2026" in caplog.text
     assert "30000000" not in caplog.text
 
 
-def test_입력값_검사_실패는_칸_이름만_남긴다(client, caplog):
+def test_validation_failure_logs_field_names_only(client, caplog):
+    """입력값 검사 실패는 칸 이름만 남긴다"""
     with caplog.at_level("WARNING", logger="calc"):
         client.post("/calculate", json={**BODY, "totalSalary": -123456})
     assert "totalSalary" in caplog.text
