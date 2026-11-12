@@ -66,8 +66,7 @@ class IncomeControllerTest {
 
     @Test
     void 조회_소득이_없으면_404_NOT_FOUND() throws Exception {
-        when(incomeService.getIncome(1L, 2026))
-                .thenThrow(new NotFoundException("없음"));
+        when(incomeService.getIncome(1L, 2026)).thenThrow(new NotFoundException("없음"));
 
         mockMvc.perform(get("/api/incomes/2026").header("X-Member-Id", "1"))
                 .andExpect(status().isNotFound())

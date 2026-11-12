@@ -32,35 +32,55 @@ public class IncomeRequestDTO {
     //                      월세 · 청약 · 연금저축 · IRP는 1억 (법적 연 납입 한도보다 훨씬 위)
 
     // [수정 11/11] 상한 DB 자릿수(12자리) → 10억 · 이유: 오타까지 거르려고 (팀원 DTO 참고)
-    @NotNull @PositiveOrZero @Max(1_000_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(1_000_000_000L)
     private Long totalSalary; // 연간 예상 총급여 (필수 · 기본값 없음)
 
-    @NotNull @PositiveOrZero @Max(1_000_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(1_000_000_000L)
     private Long withheldTax; // 기납부 소득세 (필수 · 기본값 없음)
 
     // [수정 11/11] @NotNull + 기본값 0 추가 · 이유: 빈 칸을 0으로 바꾸는 일을 SQL(NVL) 대신 여기서 끝내려고
-    @NotNull @PositiveOrZero @Max(1_000_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(1_000_000_000L)
     private Long nationalPension = 0L; // 국민연금보험료 (본인 부담)
 
-    @NotNull @PositiveOrZero @Max(1_000_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(1_000_000_000L)
     private Long healthInsurance = 0L; // 건강·고용·노인장기요양보험료 (본인 부담)
 
-    @NotNull @PositiveOrZero @Max(99) // NUMBER(2) → 2자리까지
+    @NotNull
+    @PositiveOrZero
+    @Max(99) // NUMBER(2) → 2자리까지
     private Integer dependents = 0; // 부양가족 수
 
-    @NotNull @PositiveOrZero @Max(99)
+    @NotNull
+    @PositiveOrZero
+    @Max(99)
     private Integer children = 0; // 20세 이하 자녀 수 (부양가족 수 이하인지는 Service에서 확인)
 
-    @NotNull @PositiveOrZero @Max(100_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(100_000_000L)
     private Long monthlyRent = 0L; // 월 월세액
 
-    @NotNull @PositiveOrZero @Max(100_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(100_000_000L)
     private Long housingSaving = 0L; // 주택청약 연 납입액
 
-    @NotNull @PositiveOrZero @Max(100_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(100_000_000L)
     private Long pensionSaving = 0L; // 연금저축 연 납입액
 
-    @NotNull @PositiveOrZero @Max(100_000_000L)
+    @NotNull
+    @PositiveOrZero
+    @Max(100_000_000L)
     private Long irpSaving = 0L; // IRP 연 납입액
 
     // @Pattern: 글자 모양 검사. "[YN]" = Y 또는 N 한 글자만
