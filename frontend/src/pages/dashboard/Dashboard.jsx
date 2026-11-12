@@ -37,8 +37,9 @@ export default function Dashboard({
   chat,
   result,
   isDemo = true,
+  groupStats = null,
 }) {
-  const m = dashboardModel(data, transactions, result),
+  const m = dashboardModel(data, transactions, result, groupStats),
     r = m.result;
   const resultLabel = settlementLabel(r.expectedRefund);
   // v10의 화면 그룹·펼침 구조를 유지하고 새 응답 필드는 이 표시 경계에서만 연결합니다.
@@ -484,7 +485,7 @@ export default function Dashboard({
               <h3>
                 <ChartNoAxesCombined size={18} /> 그룹 통계 비교
               </h3>
-              <Badge tone="gray">2024년 귀속 기준</Badge>
+              <Badge tone="gray">{m.statYear}년 귀속 기준</Badge>
             </div>
             <div className="dash-group-fields">
               <div>
@@ -504,12 +505,14 @@ export default function Dashboard({
             <p>
               통계 상세는 성별·연령 집단 평균, 나의 결과, 총급여 집단 평균의 막대 3개를
               결정세액·환급세액 그래프에 각각 표시합니다. 두 집단은 독립적이며 성별·연령·급여를
-              동시에 만족하는 평균이 아닙니다. 집단 평균은 제공된 국세청 2024년 귀속 XLSX에서 정제한
-              값이며 Oracle DB·실시간 API는 미연동입니다.
+              동시에 만족하는 평균이 아닙니다.{' '}
+              {m.groupFromServer
+                ? `집단 평균은 국세청 ${m.statYear}년 귀속 통계를 정제해 서버(DB)에 저장한 값이며, 내가 속한 집단은 서버가 회원 정보와 저장된 총급여로 찾습니다.`
+                : `집단 평균은 제공된 국세청 ${m.statYear}년 귀속 XLSX에서 정제한 값이며, 서버에 연결되지 않아 화면에 보관한 통계로 표시합니다.`}
             </p>
             <p className="dash-description">
-              나의 결과는 {m.taxYear}년 귀속 {isDemo ? '체험용 계산' : '계산 결과'}, 비교 통계는
-              2024년 귀속입니다. 귀속연도가 달라 직접 비교할 수 없습니다.
+              나의 결과는 {m.taxYear}년 귀속 {isDemo ? '체험용 계산' : '계산 결과'}, 비교 통계는{' '}
+              {m.statYear}년 귀속입니다. 귀속연도가 달라 직접 비교할 수 없습니다.
             </p>
             <Jump onClick={() => go('stats')}>그룹 통계 상세 보기</Jump>
           </section>

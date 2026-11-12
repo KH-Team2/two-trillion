@@ -6,6 +6,7 @@ import { Donut } from '@/components/common/site-primitives.jsx';
 
 // 대시보드와 상담 카드에 기존 입력값을 전달합니다.
 // result · isDemo: 서버 계산 결과가 있으면 그 결과를, 없으면 체험용 계산을 보여 줘요
+// groupStats: 서버가 찾은 내 그룹 통계 · 없으면 통계 스냅샷에서 찾아 보여 줘요
 export default function DashboardPage({
   data,
   transactions,
@@ -14,6 +15,7 @@ export default function DashboardPage({
   normalInput,
   result,
   isDemo = true,
+  groupStats = null,
 }) {
   return (
     <Dashboard
@@ -21,6 +23,7 @@ export default function DashboardPage({
       transactions={transactions}
       result={result}
       isDemo={isDemo}
+      groupStats={groupStats}
       startSim={startSim}
       normalInput={normalInput}
       go={go}

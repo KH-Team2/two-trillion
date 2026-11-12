@@ -297,6 +297,33 @@ assert.equal(s1501.salaryStat.SALARY_MIN, 15000000);
 assert.equal(groupComparison({ ...initial, birth: '1956-12-31' }).ageStat.AGE_MIN, 70);
 assert.equal(groupComparison({ ...initial, birth: '1966-12-31' }).ageStat.AGE_MAX, 69);
 assert.equal(groupComparison({ ...initial, gender: '' }).rows[0].decidedTax, null);
+// 서버 조회 결과(GET /api/group-stats)를 넘기면 화면 입력값 대신 서버가 찾은 그룹을 써요
+assert.equal(groupComparison(initial).fromServer, false);
+const serverGroups = groupComparison({ ...initial, gender: '남성', salary: 30000000 }, undefined, {
+  taxYear: 2026,
+  ageGroup: {
+    statYear: 2024,
+    groupLabel: '여성 40대',
+    peopleCount: 2037259,
+    avgSalary: 41558266,
+    avgDecidedTax: 2274940,
+    avgRefundTax: 577207,
+  },
+  salaryGroup: null,
+});
+assert.equal(serverGroups.fromServer, true);
+assert.equal(serverGroups.statYear, 2024);
+assert.equal(serverGroups.rows[0].label, '여성 40대 평균');
+assert.equal(serverGroups.rows[0].decidedTax, 2274940);
+assert.equal(serverGroups.rows[0].expectedRefund, 577207);
+assert.equal(serverGroups.ageGroup, '40대');
+// 서버가 못 찾은 그룹(null)은 화면 입력값으로 대신 찾지 않아요
+assert.equal(serverGroups.salaryGroup, '총급여 구간 없음');
+assert.equal(serverGroups.rows[2].decidedTax, null);
+assert.match(
+  groupComparison(initial, { decidedTax: 1, expectedRefund: 1 }, null, false).rows[1].kind,
+  /계산 결과/,
+);
 const official = JSON.parse(fs.readFileSync('src/data/statistics/group-stat-2024.json'));
 assert.equal(official.length, 28);
 assert.equal(official.filter((r) => r.GROUP_TYPE === 'GENDER_AGE').length, 12);

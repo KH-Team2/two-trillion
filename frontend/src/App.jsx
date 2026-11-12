@@ -6,6 +6,7 @@ import React from 'react';
 import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
+import { fetchGroupStats } from '@/api/statistics-service.js';
 import { canUseDemo } from '@/api/api-client.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
@@ -62,6 +63,8 @@ export default function App() {
   // 서버(계산 API) 계산 결과 · 없으면 대시보드는 체험용 계산을 보여 줘요
   const [calcResult, setCalcResult] = useState(null);
   const calculating = useRef(false); // 계산 버튼 연타로 같은 요청이 여러 번 가는 것 방지
+  // 서버(그룹 통계 API)가 찾은 내 그룹 · 없으면 화면은 통계 스냅샷에서 찾아 보여 줘요
+  const [groupStats, setGroupStats] = useState(null);
   useEffect(() => setDraftTaxYear(null), [page, formSeed]);
   function refreshSession() {
     setSession(accountService.current());
@@ -146,6 +149,23 @@ export default function App() {
         if (!ignore) setCalcResult(latest);
       })
       .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [page, data.taxYear, calcResult]);
+  // 대시보드 · 통계 화면에 들어오면 내가 속한 그룹의 국세통계 평균을 서버에서 불러와요 (F-06-02)
+  // 계산을 새로 하면 저장된 총급여가 바뀔 수 있어서 다시 불러와요 (calcResult)
+  // 서버에 연결할 수 없으면 비워 두고, 화면은 통계 스냅샷에서 찾아 보여 줘요
+  useEffect(() => {
+    if (page !== 'dashboard' && page !== 'stats') return;
+    let ignore = false;
+    fetchGroupStats(data.taxYear)
+      .then((found) => {
+        if (!ignore) setGroupStats(found);
+      })
+      .catch(() => {
+        if (!ignore) setGroupStats(null);
+      });
     return () => {
       ignore = true;
     };
@@ -254,6 +274,8 @@ export default function App() {
     userService.save('transactions', t);
   }
   const serverResult = calcResult && calcResult.taxYear === data.taxYear ? calcResult : null;
+  // 다른 귀속 연도로 받아 둔 그룹 통계는 쓰지 않아요
+  const serverGroups = groupStats && groupStats.taxYear === data.taxYear ? groupStats : null;
   const r = serverResult ?? taxService.calculate(data);
   const sim = simulation || data;
   const baseData = compareBase || data;
@@ -332,6 +354,7 @@ export default function App() {
                       data={data}
                       result={serverResult ?? undefined}
                       isDemo={!serverResult}
+                      groupStats={serverGroups}
                       transactions={transactions}
                       go={go}
                       startSim={startSim}
@@ -359,7 +382,14 @@ export default function App() {
                     <ChatbotPage data={data} go={go} startSim={startSim} r={r} />
                   )}
                   {page === 'benefits' && <BenefitsPage data={data} normalInput={normalInput} />}
-                  {page === 'stats' && <StatisticsPage data={data} go={go} />}
+                  {page === 'stats' && (
+                    <StatisticsPage
+                      data={data}
+                      result={serverResult ?? undefined}
+                      groupStats={serverGroups}
+                      go={go}
+                    />
+                  )}
                   {page === 'profile' && (
                     <ProfilePage
                       data={data}
