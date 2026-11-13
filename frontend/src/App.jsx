@@ -137,11 +137,11 @@ export default function App() {
     );
   }, [session?.id]);
   useHashRouting({ setPage, setMode, setFormSeed, setMobile });
-  // 대시보드에 들어왔는데 서버 계산 결과가 화면에 없으면, DB에 저장된 최근 결과를 불러와요
+  // 대시보드 · 통계 화면에 들어왔는데 서버 계산 결과가 화면에 없으면, DB에 저장된 최근 결과를 불러와요
   // (다른 브라우저에서 계산했거나 브라우저 저장이 지워졌어도 결과가 보이게)
   // 계산한 적이 없거나(NOT_FOUND) 서버에 연결할 수 없으면 지금 화면을 그대로 둬요
   useEffect(() => {
-    if (page !== 'dashboard') return;
+    if (page !== 'dashboard' && page !== 'stats') return;
     if (calcResult && calcResult.taxYear === data.taxYear) return;
     let ignore = false;
     fetchLatestCalculation(data.taxYear)
