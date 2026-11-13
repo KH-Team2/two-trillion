@@ -46,7 +46,7 @@
 
 `GROUP_STAT`의 실제 열만 `src/data/statistics/group-stat-2024.json`에 유지했습니다. `group-stat-metadata.json`의 POPULATION/원본 합계 등은 출처 재현용 보조 메타데이터로 DB 컬럼이 아닙니다. `STAT_FILE`의 FILE_ID 관계와 파일 경로는 `stat-file.json`에 있습니다.
 
-`group-model.js`는 GENDER_AGE와 SALARY 행을 독립적으로 조회합니다. `GroupStats.jsx`는 AVG_DECIDED_TAX/AVG_REFUND_TAX만 비교하며 중앙값·순위·백분위를 생성하지 않습니다. DB 연동 시 실재하는 필드와 TAX_YEAR 기준으로 조회하고 없는 항목은 생성하지 마세요. 정적 파일의 메타데이터는 DB 응답의 필수 열로 가정하지 않습니다.
+서버에 연결되면 내가 속한 그룹은 서버(`GET /api/group-stats/{taxYear}`)가 찾아 주고, 연결되지 않으면 이 스냅샷에서 찾습니다(아래 「그룹 비교 통계 (F-06-02)」). `group-model.js`는 GENDER_AGE와 SALARY 행을 독립적으로 조회합니다. `GroupStats.jsx`는 AVG_DECIDED_TAX/AVG_REFUND_TAX만 비교하며 중앙값·순위·백분위를 생성하지 않습니다. DB 연동 시 실재하는 필드와 TAX_YEAR 기준으로 조회하고 없는 항목은 생성하지 마세요. 정적 파일의 메타데이터는 DB 응답의 필수 열로 가정하지 않습니다.
 
 ## 그 밖의 연결 위치
 
@@ -64,6 +64,7 @@
 
 - 이 파트의 상세 기록: [`api_integ_logs/TT-11_소득입력_계산_혜택진단.md`](api_integ_logs/TT-11_소득입력_계산_혜택진단.md)
 - 결과 대시보드(F-06-01)의 상세 기록: [`api_integ_logs/TT-14_대시보드_저장결과조회.md`](api_integ_logs/TT-14_대시보드_저장결과조회.md)
+- 그룹 비교 통계(F-06-02)의 상세 기록: [`api_integ_logs/TT-14_그룹비교통계.md`](api_integ_logs/TT-14_그룹비교통계.md)
 
 그 밖의 세부 사항은 아래 원본을 봅니다.
 
@@ -93,11 +94,19 @@
 
 ### 결과 대시보드 — 저장된 계산 결과 조회 (F-06-01)
 
-대시보드 진입 → `src/api/calculation-service.js`의 `fetchLatestCalculation(taxYear)` → `GET /api/calculations/{taxYear}`
+대시보드 · 통계 화면 진입 → `src/api/calculation-service.js`의 `fetchLatestCalculation(taxYear)` → `GET /api/calculations/{taxYear}`
 
 - 화면에 그 귀속 연도의 서버 결과(`calcResult`)가 없을 때만 부릅니다. 방금 계산했거나 브라우저 저장에서 이어 온 결과가 있으면 부르지 않습니다.
 - 받은 결과는 계산 직후와 같은 `calcResult`에 넣으므로 대시보드가 같은 코드로 그립니다 (`result` · `isDemo={false}`).
 - 계산한 적이 없거나(404 `NOT_FOUND`) 서버에 연결할 수 없으면 알림 없이 지금 화면을 그대로 둡니다.
+
+### 그룹 비교 통계 (F-06-02)
+
+대시보드 · 통계 화면 진입 → `src/api/statistics-service.js`의 `fetchGroupStats(taxYear)` → `GET /api/group-stats/{taxYear}`
+
+- 받은 값은 `groupStats` 상태에 넣고, 화면의 귀속 연도와 같을 때만 대시보드 · 통계 화면에 넘깁니다 (`serverGroups`).
+- `utils/group-model.js`의 `groupComparison()`이 서버 값이 있으면 그것만 쓰고, 없으면(서버 연결 실패) 통계 스냅샷에서 찾습니다. 두 쪽을 섞지 않습니다 (서버가 못 찾은 그룹은 비워 둠).
+- 화면 문구가 출처를 따라 바뀝니다: 「서버 통계 조회」 / 「제공 원본 파일 반영」 · 나의 결과는 「계산 결과」 / 「데모」.
 
 ### 청년 혜택 자격 진단 (F-03-02)
 
