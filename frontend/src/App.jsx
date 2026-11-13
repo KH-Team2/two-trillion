@@ -154,7 +154,7 @@ export default function App() {
     };
   }, [page, data.taxYear, calcResult]);
   // 대시보드 · 통계 화면에 들어오면 내가 속한 그룹의 국세통계 평균을 서버에서 불러와요 (F-06-02)
-  // 계산을 새로 하면 저장된 총급여가 바뀔 수 있어서 다시 불러와요 (calcResult)
+  // 계산은 입력 화면에서 하고 끝나면 대시보드로 넘어오므로, 화면이 바뀔 때 다시 불러오면 새 총급여가 반영돼요
   // 서버에 연결할 수 없으면 비워 두고, 화면은 통계 스냅샷에서 찾아 보여 줘요
   useEffect(() => {
     if (page !== 'dashboard' && page !== 'stats') return;
@@ -169,7 +169,7 @@ export default function App() {
     return () => {
       ignore = true;
     };
-  }, [page, data.taxYear, calcResult]);
+  }, [page, data.taxYear]);
   // 일시 안내 메시지를 원본과 같은 시간 후 닫습니다.
   useEffect(() => {
     if (toast) {
