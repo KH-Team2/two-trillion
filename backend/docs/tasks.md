@@ -1,6 +1,6 @@
 # 기능별 구현 상태
 
-- 기준일: 2026-11-12 · 브랜치: `feature/member` (팀 브랜치 병합 · 커밋 완료 · **push 안 함**)
+- 기준일: 2026-11-13 · 브랜치: `feature/member` (팀 브랜치 병합 · 커밋 완료 · **push 안 함**)
 - 상태: **작성**(코드 있음) → **테스트**(자동 테스트 통과) → **연결**(React가 API 호출) → **DB**(Oracle 저장 확인)
 
 ## 전체 현황
@@ -8,7 +8,7 @@
 | 기능 | 기능 ID | 작성 | 테스트 | 연결 | DB |
 |---|---|---|---|---|---|
 | 회원가입 + 중복확인 + 이메일 인증 | F-01-01 | ✅ (메일 실제 발송만 미구현) | ✅ 백 52건 · 프론트 통과 | ✅ 병합 전 브라우저 확인 · ⏳ 병합 후 재확인 | ✅ 병합 전 저장 확인 |
-| 로그인 · 로그아웃 (다음 작업) | 확인 필요 | ❌ (방식 결정 대기) | - | ❌ (화면은 localStorage) | - |
+| 로그인 · 로그아웃 (다음 작업) | 확인 필요 | ❌ (토큰(JWT) 방식 결정 · 세부안 승인 대기) | - | ❌ (화면은 localStorage) | - |
 | 회원정보 수정 · 탈퇴 | 확인 필요 | ❌ | - | ❌ (화면은 localStorage) | - |
 | 소득 · 카드 · 예측 · 통계 · 챗봇 · 문의 · 관리자 | 확인 필요 | ❌ | - | ❌ | - |
 
@@ -90,11 +90,55 @@ React AccountForms.jsx → member-api.js → http.js (fetch, Vite 프록시 /api
 
 ## 로그인 · 로그아웃 (다음 기능)
 
-### ▶ 먼저 정할 것
+### 정한 것 (2026-11-13)
 
-- [ ] **로그인 방식: 세션 / JWT** — [api-rules](api-rules.md) 2번에 "Spring Security 담당이 정한다 (미정)". 정하면 `decisions/0004`에 기록
-  - 세션: Spring Security + `HttpSession` 쿠키 · Vite 프록시로 같은 주소라 CORS 문제 없음 · 로그아웃은 세션 삭제 · ERD 변경 불필요
-  - JWT: 서버 재시작에 강함 · 로그아웃 시 토큰 무효화 · 리프레시 토큰 저장 테이블이 ERD에 없음
+- **로그인 방식: 토큰(JWT)** — 세션 방식은 쓰지 않음. 세부안이 승인되면 `decisions/0004`에 기록하고 [api-rules](api-rules.md) 2번의 "미정"을 고침
+
+### ▶ 먼저 정할 것 (제안 · 승인 대기)
+
+- [ ] **리프레시 토큰**: 쓰지 않음 · 액세스 토큰 하나 (유효 1~2시간) — 리프레시 토큰을 저장할 테이블이 ERD에 없음 (DB 변경 금지)
+- [ ] **로그아웃**: 화면에서 토큰 삭제 + 서버 메모리에 무효 토큰 목록 (토큰 만료 시각까지 보관 · 서버 재시작 시 사라짐 · 이메일 인증과 같은 방식)
+- [ ] **화면 토큰 보관**: localStorage + 요청 헤더 `Authorization: Bearer <토큰>` (지금 화면 구조를 가장 적게 바꿈)
+- [ ] **추가 승인 필요**: `common/`에 `SecurityConfig` · JWT 필터 새로 만들기 (AGENTS.md상 `common/` 수정은 승인 필요) · `spring-boot-starter-security` + JWT 라이브러리(jjwt) 추가
+- [ ] 기능명세서(구글 시트)의 로그인 기능 ID · 요구사항 (로그인 유지 시간 · 아이디 저장 등) — 시트 접근 불가 → 복사본 · 캡처 받아서 맞춤
+
+### 처리 흐름 (예정)
+
+```
+1) 로그인    POST /api/auth/login → 아이디 · 비밀번호 확인 (LOGIN_FAIL_COUNT · LOCKED_UNTIL · STATUS 확인) → JWT 발급 → 화면이 보관
+2) 이후 요청  화면이 Authorization: Bearer <토큰> 헤더를 붙여 보냄
+              → SecurityConfig에 등록한 JWT 필터가 토큰 검사
+                 ├ 토큰 없음 · 틀림 · 만료 · 로그아웃된 토큰 → authenticationEntryPoint → 401 UNAUTHORIZED
+                 ├ 토큰은 맞는데 일반 회원(USER)이 /api/admin/** 호출 → accessDeniedHandler → 403 FORBIDDEN
+                 └ 정상 → 토큰에서 회원번호를 꺼내 Controller로 넘김 (개발용 X-Member-Id 헤더 대체 · 연결 후 헤더 제거)
+3) 로그아웃  POST /api/auth/logout → 그 토큰을 무효 처리 → 다음 요청부터 401 · 성공은 200 + data: null
+```
+
+### SecurityConfig의 401 · 403 응답 (팀 공지 · 2026-11-13)
+
+- 위치: `SecurityConfig`(`@EnableWebSecurity` · `SecurityFilterChain` 빈) — 아직 프로젝트에 없음 → 새로 만듦 (공지상 Security 담당 파트)
+- `exceptionHandling`의 두 곳에서 응답을 직접 씀
+  - `authenticationEntryPoint`: 401 · 로그인 안 함 (토큰 없음 · 틀림 · 만료)
+  - `accessDeniedHandler`: 403 · 로그인은 했는데 권한 없음
+- 따로 만드는 이유: 토큰 검사는 Controller 앞의 필터에서 일어나서 `GlobalExceptionHandler`가 잡지 못함 → 안 만들면 Spring 기본 응답이 나가 화면이 `error.code`로 분기할 수 없음
+- **주의: 공지 예시 JSON `{"code", "message"}`는 우리 봉투와 다름.** [api-rules](api-rules.md) 4 · 5번 모양으로 보냄 (`ApiResponse`를 JSON으로 바꿔 쓰면 다른 API와 어긋나지 않음)
+
+```json
+401 {"success": false, "data": null, "meta": null, "error": {"code": "UNAUTHORIZED", "message": "로그인이 필요합니다."}}
+403 {"success": false, "data": null, "meta": null, "error": {"code": "FORBIDDEN", "message": "접근 권한이 없습니다."}}
+```
+
+### 로그인 토큰과 헷갈리지 말 것: 계산 서버 토큰 (`X-Calc-Token`)
+
+- 계산 서버(`calc/`)의 `check_token`은 **로그인과 관계없음** — Spring 서버 → 계산 서버 호출만 받기 위한 서버끼리의 인증 ([api-rules](api-rules.md) 6번)
+
+| | 계산 서버 토큰 (`X-Calc-Token`) | 로그인 토큰 (JWT) |
+|---|---|---|
+| 누가 보냄 | Spring 서버 → 계산 서버 | 화면(React) → Spring 서버 |
+| 값 | `.env`의 `CALC_API_TOKEN` 하나 (고정) | 회원이 로그인할 때마다 새로 발급 |
+| 목적 | 아무나 계산 서버를 못 부르게 | 어느 회원인지 알아내기 |
+
+- JWT Secret은 `CALC_API_TOKEN`과 다른 값으로 `.env`에 따로 둠 (`.env.example`에는 이름만)
 
 ### 확인한 현재 상태 (2026-11-12)
 
