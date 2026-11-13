@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace: 연결할 Mapper 인터페이스의 전체 경로 · id: 인터페이스 메서드 이름과 같게 -->
+<mapper namespace="com.hoperefund.prediction.mapper.PredictionMapper">
+
+    <!-- 본인 회원 정보만 (MEMBER_ID 조건) -->
+    <select id="findHomelessHeadYn" resultType="string">
+        SELECT HOMELESS_HEAD_YN
+          FROM MEMBER
+         WHERE MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- 본인 회원 정보만 (MEMBER_ID 조건) · 화면으로 내보내지 않고 계산 서버에만 넘겨요 -->
+    <select id="findMemberQualification" resultType="com.hoperefund.prediction.dto.MemberQualificationDTO">
+        SELECT BIRTH_DATE, MILITARY_MONTHS, HIRE_DATE, COMPANY_SIZE, HOMELESS_HEAD_YN
+          FROM MEMBER
+         WHERE MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- 귀속 연도(1/1 ~ 12/31) 본인 카드 내역 합계 · 취소(음수)도 같이 더해져요 -->
+    <select id="findCardSpends" resultType="com.hoperefund.prediction.dto.CardSpendDTO">
+        SELECT CATEGORY_ID, PAY_METHOD, SUM(AMOUNT) AS AMOUNT
+          FROM EXPENSE
+         WHERE MEMBER_ID = #{memberId}
+           AND USED_DATE &gt;= TO_DATE(#{taxYear} || '0101', 'YYYYMMDD')
+           AND USED_DATE &lt; ADD_MONTHS(TO_DATE(#{taxYear} || '0101', 'YYYYMMDD'), 12)
+         GROUP BY CATEGORY_ID, PAY_METHOD
+         ORDER BY CATEGORY_ID, PAY_METHOD
+    </select>
+
+    <!-- 구간: SALARY_MIN 초과(0이면 처음부터) ~ SALARY_MAX 이하(NULL이면 상한 없음) -->
+    <select id="findTypeIds" resultType="long">
+        SELECT TYPE_ID
+          FROM DEDUCTION_TYPE
+         WHERE TAX_YEAR = #{taxYear}
+           AND TYPE_CODE = #{typeCode}
+           AND (SALARY_MIN = 0 OR #{totalSalary} &gt; SALARY_MIN)
+           AND (SALARY_MAX IS NULL OR #{totalSalary} &lt;= SALARY_MAX)
+    </select>
+
+    <select id="nextPredictionId" resultType="long">
+        SELECT SEQ_PREDICTION.NEXTVAL FROM DUAL
+    </select>
+
+    <!-- 기본값 있는 칸(SCENARIO_NAME · BASE_PREDICTION_ID · PREDICTED_AT)은 INSERT에서 빼요 -->
+    <insert id="insertPrediction">
+        INSERT INTO PREDICTION
+               (PREDICTION_ID, MEMBER_ID, TAX_YEAR, TAXABLE_INCOME, CALCULATED_TAX, DECIDED_TAX, EXPECTED_REFUND)
+        VALUES (#{predictionId}, #{memberId}, #{result.taxYear}, #{result.taxableIncome}, #{result.calculatedTax},
+                #{result.decidedTax}, #{result.expectedRefund})
+    </insert>
+
+    <insert id="insertPredictionInput">
+        INSERT INTO PREDICTION_INPUT
+               (PREDICTION_ID, TOTAL_SALARY, WITHHELD_TAX, NATIONAL_PENSION, DEPENDENTS, MONTHLY_RENT, HOUSING_SAVING,
+                PENSION_SAVING, SME_REDUCTION_YN, HOMELESS_HEAD_YN, CHILDREN, HEALTH_INSURANCE, IRP_SAVING)
+        VALUES (#{predictionId}, #{income.totalSalary}, #{income.withheldTax}, #{income.nationalPension},
+                #{income.dependents}, #{income.monthlyRent}, #{income.housingSaving}, #{income.pensionSaving},
+                #{income.smeReductionYn}, #{homelessHeadYn}, #{income.children}, #{income.healthInsurance},
+                #{income.irpSaving})
+    </insert>
+
+    <insert id="insertPredictionDetail">
+        INSERT INTO PREDICTION_DETAIL (DETAIL_ID, PREDICTION_ID, TYPE_ID, BASE_AMOUNT, DEDUCTION_AMOUNT)
+        VALUES (SEQ_PREDICTION_DETAIL.NEXTVAL, #{predictionId}, #{typeId}, #{baseAmount}, #{deductionAmount})
+    </insert>
+
+</mapper>
