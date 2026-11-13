@@ -2,8 +2,8 @@ fastapi
 uvicorn[standard]
 oracledb
 pydantic
+python-dotenv
 pandas
 openpyxl
-python-multipart
 python-calamine
 python-multipart

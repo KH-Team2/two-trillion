@@ -4,7 +4,7 @@
 
 연말정산 예상 세액 계산, 청년 혜택 진단, 카드·홈택스 파일 처리 및 지출 분류를 담당합니다.
 
-> **현재 상태:** 예상 세액 계산 · 청년 혜택 진단 API 구현 완료 / 지출 분류 개발 예정
+> **현재 상태:** 예상 세액 계산 · 청년 혜택 진단 API 구현 완료 / 카드·홈택스 파일 처리 · 지출 분류 개발 예정
 
 ## 1. 개발 환경
 
@@ -38,11 +38,10 @@ calc/
 │   ├── services/          # 세액 계산 · 카드 소득공제 · 구간 계산 · 혜택 진단 (순수 계산 · DB 안 봄)
 │   ├── repositories/      # 기준값 읽기 (Oracle · 5분 캐시)
 │   └── db/                # Oracle 연결 (읽기 전용 계정)
-├── database/              # DB 작업 파일 (스키마 · 기준값 · 가상데이터 SQL · 읽기 계정 안내)
 └── tests/                 # pytest (기준값은 가짜 데이터로 바꿔 끼움 · DB 없이 실행)
 ```
 
-계산 로직, 카드 처리, DB 연결 및 Repository 등은 기능 담당자가 개발하면서 추가합니다.
+카드·홈택스 파일 처리, 지출 분류는 담당자가 개발하면서 추가합니다.
 
 ## 3. 개발환경 준비
 
@@ -82,10 +81,10 @@ python -m pip install -r requirements-dev.txt
 
 | 환경변수 | 설명 |
 |---|---|
-| `DB_URL` | Oracle DB 접속 주소 |
-| `DB_USERNAME` | Oracle DB 계정 |
+| `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`../database/README.md`) |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
-| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 |
+| `DB_DSN` | Oracle 접속 주소 `주소:포트/서비스이름` (python-oracledb는 JDBC 주소를 쓰지 않음) |
+| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **비우면 모든 계산 요청을 막음** |
 | `CALC_HOST` | FastAPI 실행 주소 |
 | `CALC_PORT` | FastAPI 실행 포트 |
 
@@ -156,7 +155,7 @@ python -m ruff format --check .
 python -m ruff format .
 ```
 
-pytest 60개(health 1 + 계산·진단 59) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
+pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
 
 ## 7. 현재 구현 상태
 
@@ -167,7 +166,7 @@ pytest 60개(health 1 + 계산·진단 59) 및 Ruff lint·format 통과를 확�
 - `POST /benefit` 청년 혜택 자격 진단 (해당 · 비해당 · 정보 부족)
 - Oracle DB 기준값 읽기 전용 조회 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · 5분 캐시)
 - `X-Calc-Token` 인증 검증 (토큰 미설정 시 모든 요청 차단)
-- pytest 테스트 60개
+- pytest 테스트 63개
 - Spring Boot(`backend/`) 연동 — `HttpCalcClient`로 호출 확인
 
 **추후 개발 예정**
@@ -178,7 +177,7 @@ pytest 60개(health 1 + 계산·진단 59) 및 Ruff lint·format 통과를 확�
 ## 8. 참고 문서
 
 - `AGENTS.md`: Calc 서버 개발 규칙 및 담당 영역
-- `database/README.md`: DB 작업 파일 실행 순서 · 계산 서버 읽기 계정
+- `../database/README.md`: DB 작업 파일 실행 순서 · 계산 서버 읽기 계정 (프로젝트 최상위 폴더)
 - 희망환급 기능명세서 v1.13
 - ERD v4.1
 - 팀 API 공통 규칙
