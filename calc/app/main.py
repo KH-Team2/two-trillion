@@ -14,8 +14,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
-from app.api import benefit, calculate
+# [수정 11/13 고은] card 추가 · 이유: 카드 파일 해석 API(POST /card/parse)를 서버에 연결하려고
+from app.api import benefit, calculate, card
 from app.api.health import router as health_router
+
+# [수정 11/13 고은] CardParseError 추가 · 이유: 파일 오류를 400 응답으로 바꾸는 처리기(아래)에서 씀
+from app.card.parser import CardParseError
 from app.services.errors import NoCriteriaError
 
 load_dotenv()
@@ -45,6 +49,8 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(calculate.router)
 app.include_router(benefit.router)
+# [수정 11/13 고은] 카드 파일 해석 API 연결 (F-07 · F-08)
+app.include_router(card.router)
 
 
 def _error(status: int, error: str, message: str) -> JSONResponse:
@@ -56,6 +62,20 @@ def _error(status: int, error: str, message: str) -> JSONResponse:
 @app.exception_handler(NoCriteriaError)
 def no_criteria(_: Request, e: NoCriteriaError) -> JSONResponse:
     return _error(400, "NO_CRITERIA", e.message)
+
+
+# [수정 11/13 고은] 카드 파일 오류 처리기 추가
+# 이유: 파일 오류는 백엔드가 화면에 보여 줄 「문제 있는 행 번호(errorRows)」까지 필요해서
+#       공통 _error()({"error", "message"})에 errorRows 칸을 하나 더 붙여 보냄
+#       (백엔드 CardParseClient.CalcError가 이 모양을 읽음)
+@app.exception_handler(CardParseError)
+def card_parse_error(_: Request, e: CardParseError) -> JSONResponse:
+    # 오류 코드 · 행 수만 남기고 파일 내용은 남기지 않음
+    log.warning("카드 파일 오류 %s rows=%s", e.code, len(e.error_rows))
+    return JSONResponse(
+        status_code=400,
+        content={"error": e.code, "message": e.message, "errorRows": e.error_rows},
+    )
 
 
 @app.exception_handler(RequestValidationError)
