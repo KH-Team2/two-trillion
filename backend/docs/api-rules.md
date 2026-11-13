@@ -96,3 +96,4 @@
 | POST | `/api/calculations/{taxYear}` | 예상 세액 계산 + 결과 저장 (F-03-01) |
 | GET | `/api/calculations/{taxYear}` | 저장된 계산 결과 조회 · 가장 최근 1건 · 없으면 404 (F-06-01) |
 | GET | `/api/benefits/{taxYear}` | 청년 혜택 자격 진단 · 저장 안 함 (F-03-02) |
+| GET | `/api/group-stats/{taxYear}` | 내 성별·연령대 그룹과 총급여 구간 그룹의 통계 평균 · 못 찾은 그룹은 null (F-06-02) |
