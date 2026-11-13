@@ -155,7 +155,7 @@ python -m ruff format --check .
 python -m ruff format .
 ```
 
-pytest 60개(health 1 + 계산·진단 59) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
+pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
 
 ## 7. 현재 구현 상태
 
@@ -166,7 +166,7 @@ pytest 60개(health 1 + 계산·진단 59) 및 Ruff lint·format 통과를 확�
 - `POST /benefit` 청년 혜택 자격 진단 (해당 · 비해당 · 정보 부족)
 - Oracle DB 기준값 읽기 전용 조회 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · 5분 캐시)
 - `X-Calc-Token` 인증 검증 (토큰 미설정 시 모든 요청 차단)
-- pytest 테스트 60개
+- pytest 테스트 63개
 - Spring Boot(`backend/`) 연동 — `HttpCalcClient`로 호출 확인
 
 **추후 개발 예정**
