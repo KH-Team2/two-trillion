@@ -1,6 +1,8 @@
 package com.hoperefund.prediction.service;
 
+import com.hoperefund.common.exception.BadRequestException;
 import com.hoperefund.common.exception.NotFoundException;
+import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.service.IncomeService;
 import com.hoperefund.prediction.client.CalcClient;
@@ -8,6 +10,7 @@ import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
+import com.hoperefund.prediction.dto.SimulationRequestDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
 import java.util.List;
 import org.slf4j.Logger;
@@ -93,6 +96,79 @@ public class CalculationService {
                 result.getPredictionId(),
                 System.currentTimeMillis() - started);
         return result;
+    }
+
+    /**
+     * 조건 변경 시뮬레이션 (F-04-01) · 요청으로 받은 값으로 다시 계산하고 시나리오로 저장해요.
+     *
+     * <p>INCOME · EXPENSE는 읽지도 고치지도 않아요. 기준 결과는 본인의 같은 연도 결과여야 해요 (남의 결과 번호로 연결하는 것 방지).
+     */
+    public CalculationResponseDTO simulate(
+            long memberId, int taxYear, SimulationRequestDTO request) {
+        long started = System.currentTimeMillis();
+        log.info("시뮬레이션 요청 member={} year={}", memberId, taxYear); // 금액은 남기지 않아요
+
+        // 0. 기준 결과가 본인의 그 연도 결과인지 (아니면 없는 것처럼 404 · 남의 결과가 있는지도 알려 주지 않음)
+        long basePredictionId = request.getBasePredictionId();
+        if (predictionMapper.countOwnPrediction(basePredictionId, memberId, taxYear) != 1) {
+            throw new NotFoundException("기준 결과를 찾을 수 없어요");
+        }
+
+        // 1. 요청 값을 계산용 소득으로 옮겨요 (자녀 수 ≤ 부양가족 수는 소득 입력과 같은 규칙)
+        IncomeResponseDTO income = toIncome(taxYear, request.getIncome());
+        if (income.getChildren() > income.getDependents()) {
+            throw new BadRequestException("20세 이하 자녀 수는 부양가족 수보다 많을 수 없어요");
+        }
+
+        // 2. 감면 신청(Y)이어도 진단이 「해당」이 아니면 감면 없이 (계산과 같은 규칙)
+        if ("Y".equals(income.getSmeReductionYn())
+                && !isSmeEligible(memberId, taxYear, income.getTotalSalary())) {
+            income.setSmeReductionYn("N");
+        }
+
+        // 3. 계산 (트랜잭션 밖)
+        CalculationResponseDTO result =
+                calcClient.calculate(
+                        taxYear, income, request.getHomelessHeadYn(), request.getCardSpends());
+
+        // 4. 시나리오로 저장 (설정이 켜져 있고 실제 계산일 때만)
+        if (saveEnabled) {
+            long predictionId =
+                    predictionSaveService.saveScenario(
+                            memberId,
+                            taxYear,
+                            income,
+                            request.getHomelessHeadYn(),
+                            result,
+                            request.getScenarioName(),
+                            basePredictionId);
+            result.setPredictionId(predictionId);
+        }
+        log.info(
+                "시뮬레이션 완료 member={} year={} predictionId={} {}ms",
+                memberId,
+                taxYear,
+                result.getPredictionId(),
+                System.currentTimeMillis() - started);
+        return result;
+    }
+
+    /** 시뮬레이션 요청의 소득 칸을 계산 · 저장에 쓰는 모양(IncomeResponseDTO)으로 옮겨요 */
+    private IncomeResponseDTO toIncome(int taxYear, IncomeRequestDTO req) {
+        IncomeResponseDTO income = new IncomeResponseDTO();
+        income.setTaxYear(taxYear);
+        income.setTotalSalary(req.getTotalSalary());
+        income.setWithheldTax(req.getWithheldTax());
+        income.setNationalPension(req.getNationalPension());
+        income.setHealthInsurance(req.getHealthInsurance());
+        income.setDependents(req.getDependents());
+        income.setChildren(req.getChildren());
+        income.setMonthlyRent(req.getMonthlyRent());
+        income.setHousingSaving(req.getHousingSaving());
+        income.setPensionSaving(req.getPensionSaving());
+        income.setIrpSaving(req.getIrpSaving());
+        income.setSmeReductionYn(req.getSmeReductionYn());
+        return income;
     }
 
     /** 저장된 계산 결과 중 가장 최근 1건 조회 (대시보드 · F-06-01) · 본인 결과만 · 없으면 404 */

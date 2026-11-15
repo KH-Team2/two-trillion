@@ -49,6 +49,15 @@
         VALUES (#{predictionId}, #{memberId}, #{result.taxYear}, #{result.taxableIncome}, #{result.calculatedTax},
                 #{result.decidedTax}, #{result.expectedRefund})
     </insert>
+    
+        <!-- 시뮬레이션 결과 저장: 시나리오 이름 · 기준 결과 번호를 채워요 (기준 결과는 insertPrediction) -->
+    <insert id="insertScenarioPrediction">
+        INSERT INTO PREDICTION
+               (PREDICTION_ID, MEMBER_ID, TAX_YEAR, SCENARIO_NAME, BASE_PREDICTION_ID,
+                TAXABLE_INCOME, CALCULATED_TAX, DECIDED_TAX, EXPECTED_REFUND)
+        VALUES (#{predictionId}, #{memberId}, #{result.taxYear}, #{scenarioName}, #{basePredictionId},
+                #{result.taxableIncome}, #{result.calculatedTax}, #{result.decidedTax}, #{result.expectedRefund})
+    </insert>
 
     <insert id="insertPredictionInput">
         INSERT INTO PREDICTION_INPUT
@@ -102,6 +111,15 @@
          WHERE d.PREDICTION_ID = #{predictionId}
            AND p.MEMBER_ID = #{memberId}
          ORDER BY d.DETAIL_ID
+    </select>
+    
+        <!-- 시뮬레이션 기준 결과 확인: 본인(MEMBER_ID)의 그 연도 결과면 1, 아니면 0 -->
+    <select id="countOwnPrediction" resultType="int">
+        SELECT COUNT(*)
+          FROM PREDICTION
+         WHERE PREDICTION_ID = #{predictionId}
+           AND MEMBER_ID = #{memberId}
+           AND TAX_YEAR = #{taxYear}
     </select>
     
 </mapper>
