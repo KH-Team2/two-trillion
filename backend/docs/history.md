@@ -2,6 +2,18 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-15] 조건 변경 시뮬레이션 API (F-04-01)
+- **작업 내용**:
+  - `POST /api/simulations/{taxYear}`: 바꾼 입력값(소득 칸 전부 · 무주택 여부 · 카드 분류별 금액)으로 세액 계산(F-03-01)을 다시 하고 `PREDICTION`에 시나리오 이름(`SCENARIO_NAME`) · 기준 결과 번호(`BASE_PREDICTION_ID`)를 채워 저장
+  - 기준 결과는 본인의 같은 연도 결과만 (`countOwnPrediction`) · 아니면 404 (403이 아니라 존재 여부를 숨김) · 자녀 수 > 부양가족 수는 400
+  - `PredictionSaveService.saveScenario()` 추가 (결과 1행 INSERT만 다르고 입력값 · 상세 저장은 기존과 같은 함수 · 같은 트랜잭션)
+  - 요청 검사: `SimulationRequestDTO`(`income` · `cardSpends`에 `@Valid`) · `CardSpendDTO`에 분류 1 ~ 5 · 결제수단 · 금액 검사 (DB 합계는 `@Valid`를 거치지 않아 기존 계산에 영향 없음)
+- **변경 사유**:
+  - 기능명세서 F-04-01 · 원래 소득(`INCOME`)과 카드 내역(`EXPENSE`)은 읽지도 고치지도 않음 (입력값은 결과마다 `PREDICTION_INPUT`에만)
+- **검증 결과**:
+  - 테스트 4개 추가 · curl mock 모드 200 · 404 · 400
+  - 학원 PC에서 계산 서버(http) + 저장: 회원 81 기준 결과 3번 → 시나리오 6번 · `PREDICTION_INPUT` 월세 60만 · `INCOME` 월세는 그대로
+
 ### [2026-11-13] 그룹 비교 통계 조회 API (F-06-02)
 - **작업 내용**:
   - `GET /api/group-stats/{taxYear}`: 본인의 성별·연령대 그룹과 총급여 구간 그룹의 국세통계 평균(인원 · 1인당 총급여 · 결정세액 · 환급세액) · 못 찾은 그룹은 그 칸만 null(200)
