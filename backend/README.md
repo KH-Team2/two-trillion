@@ -69,7 +69,7 @@ backend/
     │   │   │   ├── mapper/
     │   │   │   └── dto/
     │   │   ├── prediction/                       # 예상 세액 계산 · 청년 혜택 진단
-    │   │   │   ├── controller/                   # CalculationController (GET·POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
+    │   │   │   ├── controller/                   # CalculationController (GET·POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear}) · SimulationController (POST /api/simulations/{taxYear}) · PredictionController (GET /api/predictions)
     │   │   │   ├── service/                      # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
     │   │   │   ├── client/                       # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
     │   │   │   ├── mapper/
@@ -269,6 +269,8 @@ mvnw -B verify
 - 예상 세액 계산 API + 결과 저장 (`POST /api/calculations/{taxYear}`)
 - 저장된 계산 결과 조회 API (`GET /api/calculations/{taxYear}` · 대시보드용 · 본인의 가장 최근 1건 · 없으면 404)
 - 청년 혜택 자격 진단 API (`GET /api/benefits/{taxYear}`)
+- 조건 변경 시뮬레이션 API (`POST /api/simulations/{taxYear}` · 바꾼 입력값으로 다시 계산해 시나리오로 저장 · 기준 결과는 본인의 같은 연도 결과만 · 원래 소득(INCOME)은 덮어쓰지 않음)
+- 결과 이력 조회 API (`GET /api/predictions?year=` 목록 · 최신순 · 현재와 시나리오 함께 / `GET /api/predictions/{predictionId}` 하나 다시 열기 · 항목별 내역 포함 · 남의 것이면 404)
 - 그룹 비교 통계 조회 API (`GET /api/group-stats/{taxYear}` · 대시보드 · 통계 화면용 · 본인의 성별·연령대 그룹과 총급여 구간 그룹 평균 · 못 찾은 그룹은 null)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - JUnit 자동 테스트 및 코드 품질 검사 환경

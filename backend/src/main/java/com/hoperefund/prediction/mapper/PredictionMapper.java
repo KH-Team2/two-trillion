@@ -5,6 +5,7 @@ import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
+import com.hoperefund.prediction.dto.PredictionSummaryDTO;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -45,6 +46,14 @@ public interface PredictionMapper {
             @Param("memberId") long memberId,
             @Param("result") CalculationResponseDTO result);
 
+    /** PREDICTION 1행 · 시뮬레이션 결과 (SCENARIO_NAME · BASE_PREDICTION_ID를 채움) */
+    int insertScenarioPrediction(
+            @Param("predictionId") long predictionId,
+            @Param("memberId") long memberId,
+            @Param("result") CalculationResponseDTO result,
+            @Param("scenarioName") String scenarioName,
+            @Param("basePredictionId") long basePredictionId);
+
     /** PREDICTION_INPUT 1행 (계산에 쓴 입력값 그대로 복사) */
     int insertPredictionInput(
             @Param("predictionId") long predictionId,
@@ -64,5 +73,19 @@ public interface PredictionMapper {
 
     /** 그 계산 결과의 항목별 공제 내역 (본인 것만 · MEMBER_ID 조건) */
     List<DeductionDetailDTO> findPredictionDetails(
+            @Param("memberId") long memberId, @Param("predictionId") long predictionId);
+
+    /** 시뮬레이션 기준 결과가 본인의 그 연도 결과인지 (본인 것이면 1 · 아니면 0) */
+    int countOwnPrediction(
+            @Param("predictionId") long predictionId,
+            @Param("memberId") long memberId,
+            @Param("taxYear") int taxYear);
+
+    /** 결과 이력 목록 (F-04-02) · 본인의 그 연도 결과 전부 (현재 · 시나리오) · 최신순 */
+    List<PredictionSummaryDTO> findPredictions(
+            @Param("memberId") long memberId, @Param("taxYear") int taxYear);
+
+    /** 결과 하나 다시 열기 (F-04-02) · 본인 것만 · 없거나 남의 것이면 null */
+    CalculationResponseDTO findPrediction(
             @Param("memberId") long memberId, @Param("predictionId") long predictionId);
 }

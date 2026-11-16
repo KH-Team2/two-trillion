@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import com.hoperefund.common.exception.BadRequestException;
 import com.hoperefund.common.exception.NoCriteriaException;
 import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeRequestDTO;
@@ -17,6 +18,8 @@ import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
+import com.hoperefund.prediction.dto.PredictionSummaryDTO;
+import com.hoperefund.prediction.dto.SimulationRequestDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -123,6 +126,42 @@ class CalculationServiceTest {
         @Override
         public List<DeductionDetailDTO> findPredictionDetails(long memberId, long predictionId) {
             return latestDetails;
+        }
+
+        final Set<Long> ownPredictionIds = new HashSet<>(); // 시뮬레이션 테스트용: 본인 결과라고 칠 번호
+
+        @Override
+        public int countOwnPrediction(long predictionId, long memberId, int taxYear) {
+            return ownPredictionIds.contains(predictionId) ? 1 : 0;
+        }
+
+        String savedScenarioName; // 시뮬레이션 테스트용: 저장한 시나리오 이름
+        Long savedBasePredictionId; // 시뮬레이션 테스트용: 저장한 기준 결과 번호
+
+        @Override
+        public int insertScenarioPrediction(
+                long predictionId,
+                long memberId,
+                CalculationResponseDTO result,
+                String scenarioName,
+                long basePredictionId) {
+            predictionCount++;
+            savedScenarioName = scenarioName;
+            savedBasePredictionId = basePredictionId;
+            return 1;
+        }
+
+        List<PredictionSummaryDTO> history = List.of(); // 이력 테스트용: 목록
+        CalculationResponseDTO one; // 이력 테스트용: 열 결과 (null이면 없음 · 남의 것도 null)
+
+        @Override
+        public List<PredictionSummaryDTO> findPredictions(long memberId, int taxYear) {
+            return history;
+        }
+
+        @Override
+        public CalculationResponseDTO findPrediction(long memberId, long predictionId) {
+            return one;
         }
     }
 
@@ -389,6 +428,113 @@ class CalculationServiceTest {
         CalculationResponseDTO result = service(false).getLatest(81L, 2026);
         // Then
         assertEquals(51_500L, result.getExpectedRefund().longValue());
+        assertEquals(2, result.getDetails().size());
+    }
+
+    // ───────── 조건 변경 시뮬레이션 (F-04-01) ─────────
+
+    /** 시뮬레이션 요청: 기준 결과 3번 · 총급여 4,000만 · 월세 50만 · 카드 신용 1,000만 */
+    private SimulationRequestDTO simulationRequest() {
+        IncomeRequestDTO income = new IncomeRequestDTO();
+        income.setTotalSalary(40_000_000L);
+        income.setWithheldTax(2_000_000L);
+        income.setMonthlyRent(500_000L);
+        SimulationRequestDTO request = new SimulationRequestDTO();
+        request.setBasePredictionId(3L);
+        request.setScenarioName("월세 늘리면");
+        request.setIncome(income);
+        request.setHomelessHeadYn("Y");
+        request.setCardSpends(List.of(new CardSpendDTO(1L, "CREDIT", 10_000_000L)));
+        return request;
+    }
+
+    @Test
+    @DisplayName("시뮬레이션: 기준 결과가 본인 것이 아니면 없음 오류를 낸다")
+    void simulateRejectsOtherMembersBase() {
+        // Given: 3번 결과를 본인 결과로 등록하지 않음 (남의 결과이거나 다른 연도)
+        // When · Then
+        assertThrows(
+                NotFoundException.class,
+                () -> service(true).simulate(81L, 2026, simulationRequest()));
+        assertEquals(0, predictionMapper.predictionCount);
+    }
+
+    @Test
+    @DisplayName("시뮬레이션: 저장이 켜져 있으면 시나리오 이름과 기준 결과 번호로 저장한다")
+    void simulateSavesAsScenario() {
+        // Given
+        predictionMapper.ownPredictionIds.add(3L);
+        // When
+        CalculationResponseDTO result = service(true).simulate(81L, 2026, simulationRequest());
+        // Then: 시나리오용 INSERT로 저장 · 입력값 · 상세도 함께
+        assertEquals(101L, result.getPredictionId().longValue());
+        assertEquals("월세 늘리면", predictionMapper.savedScenarioName);
+        assertEquals(3L, predictionMapper.savedBasePredictionId.longValue());
+        assertEquals(1, predictionMapper.inputCount);
+        assertEquals("Y", predictionMapper.savedHomelessYn);
+        assertEquals(result.getDetails().size(), predictionMapper.detailTypeIds.size());
+    }
+
+    @Test
+    @DisplayName("시뮬레이션: 저장된 소득(INCOME)이 아니라 요청 값으로 계산한다")
+    void simulateUsesRequestValuesNotIncome() {
+        // Given: INCOME에는 총급여 3,600만이 있음
+        saveIncome(81L, 2026);
+        predictionMapper.ownPredictionIds.add(3L);
+        // When: 요청은 총급여 4,000만
+        CalculationResponseDTO result = service(false).simulate(81L, 2026, simulationRequest());
+        // Then: 요청 값으로 계산 · INCOME은 그대로
+        assertEquals(40_000_000L, result.getTotalSalary().longValue());
+        assertEquals(36_000_000L, incomeMapper.rows.get("81-2026").getTotalSalary());
+        assertNull(result.getPredictionId());
+    }
+
+    @Test
+    @DisplayName("시뮬레이션: 자녀 수가 부양가족 수보다 많으면 계산하지 않는다")
+    void simulateRejectsMoreChildrenThanDependents() {
+        // Given
+        predictionMapper.ownPredictionIds.add(3L);
+        SimulationRequestDTO request = simulationRequest();
+        request.getIncome().setDependents(1);
+        request.getIncome().setChildren(2);
+        // When · Then
+        assertThrows(BadRequestException.class, () -> service(true).simulate(81L, 2026, request));
+        assertEquals(0, predictionMapper.predictionCount);
+    }
+
+    // ───────── 결과 이력 조회 (F-04-02) ─────────
+
+    @Test
+    @DisplayName("이력: 계산 결과가 없으면 빈 목록을 돌려준다 (오류 아님)")
+    void historyReturnsEmptyListWhenNone() {
+        // When
+        List<PredictionSummaryDTO> result = service(false).getHistory(81L, 2026);
+        // Then
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    @DisplayName("이력: 없거나 남의 결과를 열면 없음 오류를 낸다")
+    void getOneThrowsNotFoundWhenNotOwn() {
+        // Given: 가짜 매퍼의 one이 null (본인 것이 아님)
+        // When · Then
+        assertThrows(NotFoundException.class, () -> service(false).getOne(82L, 6L));
+    }
+
+    @Test
+    @DisplayName("이력: 본인 결과를 열면 항목별 내역을 붙여서 돌려준다")
+    void getOneReturnsResultWithDetails() {
+        // Given: 6번 결과와 내역 2줄이 있다고 침
+        CalculationResponseDTO saved = new CalculationResponseDTO();
+        saved.setPredictionId(6L);
+        saved.setExpectedRefund(1_523_000L);
+        predictionMapper.one = saved;
+        predictionMapper.latestDetails =
+                List.of(new DeductionDetailDTO(), new DeductionDetailDTO());
+        // When
+        CalculationResponseDTO result = service(false).getOne(81L, 6L);
+        // Then
+        assertEquals(1_523_000L, result.getExpectedRefund().longValue());
         assertEquals(2, result.getDetails().size());
     }
 }
