@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 거래 내역 조회 · 삭제 SQL (F-09) · namespace = 짝이 되는 Mapper 인터페이스의 전체 이름 -->
+<!-- 모든 SQL에 MEMBER_ID 조건: 본인 데이터만 (백엔드 규칙) -->
+<mapper namespace="com.hoperefund.expense.mapper.ExpenseMapper">
+
+    <!-- 업로드 이력 · 최근 업로드부터 (같은 시각이면 번호 큰 것부터) -->
+    <select id="findUploads" resultType="com.hoperefund.expense.dto.UploadHistoryDTO">
+        SELECT UPLOAD_ID,
+               FILE_NAME,
+               ROW_COUNT,
+               UPLOADED_AT
+          FROM CARD_UPLOAD
+         WHERE MEMBER_ID = #{memberId}
+         ORDER BY UPLOADED_AT DESC, UPLOAD_ID DESC
+    </select>
+
+    <!-- 내 업로드인지 확인 · 남의 업로드 번호를 넣으면 0 → Service가 404로 바꿈 -->
+    <select id="countMyUpload" resultType="int">
+        SELECT COUNT(*)
+          FROM CARD_UPLOAD
+         WHERE UPLOAD_ID = #{uploadId}
+           AND MEMBER_ID = #{memberId}
+    </select>
+
+    <!--
+        거래 목록 + 분류 근거
+        - JOIN SPEND_CATEGORY: 분류 번호 → 분류 코드 · 이름
+        - LEFT JOIN MERCHANT_LIST: 일치한 목록 행 (일반이면 LIST_ID가 NULL이라 목록 칸도 전부 NULL로 나옴)
+          (그냥 JOIN을 쓰면 일반 거래가 결과에서 빠져 버려서 LEFT JOIN)
+        - <if>: 값이 넘어왔을 때만 그 조건을 붙임 (MyBatis 동적 SQL)
+        - &lt; = 「<」 (XML 안에서는 < 를 그대로 못 써서 바꿔 적음)
+    -->
+    <select id="findExpenses" resultType="com.hoperefund.expense.dto.ExpenseItemDTO">
+        SELECT e.EXPENSE_ID,
+               e.UPLOAD_ID,
+               e.USED_DATE,
+               e.MERCHANT_NAME,
+               e.PAY_METHOD,
+               e.AMOUNT,
+               c.CATEGORY_CODE,
+               c.CATEGORY_NAME,
+               e.LIST_ID,
+               m.MATCH_TYPE,
+               m.MERCHANT_NAME AS MATCHED_NAME,
+               m.SOURCE_NAME
+          FROM EXPENSE e
+          JOIN SPEND_CATEGORY c ON c.CATEGORY_ID = e.CATEGORY_ID
+          LEFT JOIN MERCHANT_LIST m ON m.LIST_ID = e.LIST_ID
+         WHERE e.MEMBER_ID = #{memberId}
+        <if test="uploadId != null">
+           AND e.UPLOAD_ID = #{uploadId}
+        </if>
+        <if test="fromDate != null">
+           AND e.USED_DATE &gt;= #{fromDate}
+        </if>
+        <if test="toDate != null">
+           AND e.USED_DATE &lt; #{toDate}
+        </if>
+         ORDER BY e.USED_DATE DESC, e.EXPENSE_ID DESC
+    </select>
+
+    <!--
+        분류 · 결제수단별 합계 (계산 서버 cardSpends와 같은 단위)
+        - SUM: 취소 건(음수)도 같이 더해져서 실제 사용액이 됨
+        - 사용일(USED_DATE) 기준 기간 · 인덱스 IX_EXPENSE_MEMBER_DATE (MEMBER_ID, USED_DATE) 사용
+    -->
+    <select id="findTotals" resultType="com.hoperefund.expense.dto.ExpenseTotalDTO">
+        SELECT c.CATEGORY_ID,
+               c.CATEGORY_CODE,
+               c.CATEGORY_NAME,
+               e.PAY_METHOD,
+               SUM(e.AMOUNT) AS TOTAL_AMOUNT,
+               COUNT(*)      AS COUNT
+          FROM EXPENSE e
+          JOIN SPEND_CATEGORY c ON c.CATEGORY_ID = e.CATEGORY_ID
+         WHERE e.MEMBER_ID = #{memberId}
+           AND e.USED_DATE &gt;= #{fromDate}
+           AND e.USED_DATE &lt; #{toDate}
+         GROUP BY c.CATEGORY_ID, c.CATEGORY_CODE, c.CATEGORY_NAME, e.PAY_METHOD
+         ORDER BY c.CATEGORY_ID, e.PAY_METHOD
+    </select>
+
+    <!--
+        업로드 1건 삭제
+        - EXPENSE는 FK_EXPENSE_UPLOAD ... ON DELETE CASCADE 라서 업로드만 지우면 거래도 DB가 같이 지움
+        - MEMBER_ID 조건이 있어서 남의 업로드면 0행 삭제 → Service가 404로 바꿈
+    -->
+    <delete id="deleteMyUpload">
+        DELETE FROM CARD_UPLOAD
+         WHERE UPLOAD_ID = #{uploadId}
+           AND MEMBER_ID = #{memberId}
+    </delete>
+
+</mapper>
