@@ -5,16 +5,44 @@ import { dashboardReply } from '@/utils/dashboard-model.js';
 import { Donut } from '@/components/common/site-primitives.jsx';
 
 // 대시보드와 상담 카드에 기존 입력값을 전달합니다.
-export default function DashboardPage({ data, transactions, go, startSim, normalInput }) {
+// result · isDemo: 서버 계산 결과가 있으면 그 결과를, 없으면 체험용 계산을 보여 줘요
+export default function DashboardPage({
+  data,
+  transactions,
+  go,
+  startSim,
+  normalInput,
+  result,
+  isDemo = true,
+}) {
   return (
     <Dashboard
       data={data}
       transactions={transactions}
+      result={result}
+      isDemo={isDemo}
       startSim={startSim}
       normalInput={normalInput}
       go={go}
       chart={(rows) => <Donut transactions={rows} />}
-      chat={<ChatPanel data={data} reply={dashboardReply} />}
+      chat={
+        <ChatPanel
+          // 상담 방은 입력값별로 저장돼요 → 서버 계산 결과마다 새 방을 열어 예전 체험 숫자가 남지 않게 해요
+          // 결과 번호(predictionId)로 구분하고, 번호가 없는 예전 이력은 결과 숫자로 구분해요
+          data={
+            isDemo
+              ? data
+              : {
+                  ...data,
+                  calcResultKey:
+                    result.predictionId != null
+                      ? `API-${result.predictionId}`
+                      : `API-${result.taxYear}-${result.decidedTax}-${result.expectedRefund}`,
+                }
+          }
+          reply={(q, d) => dashboardReply(q, d, isDemo ? undefined : result)}
+        />
+      }
     />
   );
 }

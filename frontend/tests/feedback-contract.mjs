@@ -83,6 +83,7 @@ try {
     /결제수단/,
   );
   const raw = {
+    predictionId: 11, // 저장된 결과 번호 · 파싱 결과에 그대로 남아야 해요
     taxYear: 2026,
     totalSalary: 36000000,
     withheldTax: 1523000,
