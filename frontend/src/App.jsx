@@ -234,10 +234,13 @@ export default function App() {
     if (mode === 'simulation') {
       if (calculating.current) return;
       let server = null;
+      let demoReason = '서버 기준 결과가 없어'; // 체험용 비교로 넘어갈 때 알림 문구
       // 기준 결과가 없으면(서버 계산 전 · 저장 꺼짐) 서버 시뮬레이션을 할 수 없어요
       // 개발 서버에서만 체험용 비교로 넘어가고, 배포본은 안내만 띄워요
       const baseId = baseResult?.predictionId;
       if (!Number.isInteger(baseId) || baseResult.taxYear !== d.taxYear) {
+        if (baseResult && baseResult.taxYear !== d.taxYear)
+          demoReason = '귀속 연도가 기존 결과와 달라';
         if (!demoFallbackAllowed) {
           notify(
             baseResult && baseResult.taxYear !== d.taxYear
@@ -256,6 +259,7 @@ export default function App() {
             notify(error.message);
             return;
           }
+          demoReason = '시뮬레이션 서버에 연결할 수 없어';
         } finally {
           calculating.current = false;
         }
@@ -270,7 +274,7 @@ export default function App() {
           ? server.predictionId
             ? '바꾼 조건으로 계산하고 시나리오로 저장했어요. 원본 정보는 그대로예요.'
             : '바꾼 조건으로 계산했어요. (서버 저장 설정이 꺼져 있어 시나리오는 저장되지 않았어요)'
-          : '서버 기준 결과가 없어 예시 계산으로 비교해 보여 줘요.',
+          : `${demoReason} 예시 계산으로 비교해 보여 줘요.`,
       );
     } else {
       if (calculating.current) return;
