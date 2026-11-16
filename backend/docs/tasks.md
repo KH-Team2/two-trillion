@@ -8,7 +8,7 @@
 | 기능 | 기능 ID | 작성 | 테스트 | 연결 | DB |
 |---|---|---|---|---|---|
 | 회원가입 + 중복확인 + 이메일 인증 | F-01-01 | ✅ (메일 실제 발송만 미구현) | ✅ 백 52건 · 프론트 통과 | ✅ 병합 전 브라우저 확인 · ⏳ 병합 후 재확인 | ✅ 병합 전 저장 확인 |
-| 로그인 · 로그아웃 (다음 작업) | 확인 필요 | ❌ (토큰(JWT) 방식 결정 · 세부안 승인 대기) | - | ❌ (화면은 localStorage) | - |
+| 로그인 · 로그아웃 (다음 작업) | F-01-02 | ❌ (토큰(JWT) 방식 결정 · 세부안 승인 대기) | - | ❌ (화면은 localStorage) | - |
 | 회원정보 수정 · 탈퇴 | 확인 필요 | ❌ | - | ❌ (화면은 localStorage) | - |
 | 소득 · 카드 · 예측 · 통계 · 챗봇 · 문의 · 관리자 | 확인 필요 | ❌ | - | ❌ | - |
 
@@ -96,16 +96,69 @@ React AccountForms.jsx → member-api.js → http.js (fetch, Vite 프록시 /api
 
 ### ▶ 먼저 정할 것 (제안 · 승인 대기)
 
-- [ ] **리프레시 토큰**: 쓰지 않음 · 액세스 토큰 하나 (유효 1~2시간) — 리프레시 토큰을 저장할 테이블이 ERD에 없음 (DB 변경 금지)
+- [ ] **리프레시 토큰**: 쓰지 않음 · 액세스 토큰 하나 (유효 1~2시간)
+  - 화면이 localStorage에 둘 거라면 리프레시 토큰도 같은 곳에 놓이게 됨 → 하나를 훔치면 둘 다 훔치는 셈이라 나눈 의미가 없음 (제대로 하려면 httpOnly 쿠키 + CSRF 대비가 따로 필요)
+  - 만들 것이 크게 늘어남: 재발급 API · 화면이 401을 받으면 재발급 후 원래 요청 다시 보내기 · 쓴 리프레시 토큰 폐기 (서버 기록 필요)
+  - 쓰는 방식상 필요가 적음: 소득 입력 → 계산 → 결과 확인을 한 번에 끝내는 서비스라 1~2시간이면 충분함
+  - 단점: 오래 켜 두면 만료돼서 다시 로그인해야 함 (입력하던 중이면 다시 넣어야 함) → 불편이 크면 그때 추가 · ERD에도 저장 테이블이 없음
 - [ ] **로그아웃**: 화면에서 토큰 삭제 + 서버 메모리에 무효 토큰 목록 (토큰 만료 시각까지 보관 · 서버 재시작 시 사라짐 · 이메일 인증과 같은 방식)
+  - 서버를 다시 켜면 목록이 사라져서, 로그아웃한 토큰이 남은 유효 시간(최대 1~2시간) 동안 다시 통함 → 화면에서는 이미 지웠으니 실제로 문제 되는 경우는 토큰을 따로 복사해 둔 경우뿐
+  - 반대로 로그인한 회원은 서버를 다시 켜도 그대로 로그인 상태 (JWT는 서버에 저장하지 않으므로) — 이메일 인증 기록과 다름
 - [ ] **화면 토큰 보관**: localStorage + 요청 헤더 `Authorization: Bearer <토큰>` (지금 화면 구조를 가장 적게 바꿈)
-- [ ] **추가 승인 필요**: `common/`에 `SecurityConfig` · JWT 필터 새로 만들기 (AGENTS.md상 `common/` 수정은 승인 필요) · `spring-boot-starter-security` + JWT 라이브러리(jjwt) 추가
-- [ ] 기능명세서(구글 시트)의 로그인 기능 ID · 요구사항 (로그인 유지 시간 · 아이디 저장 등) — 시트 접근 불가 → 복사본 · 캡처 받아서 맞춤
+  - 헤더는 `frontend/src/api/http.js` 한 곳에만 넣으면 모든 API에 붙음
+  - 화면의 "누가 로그인했나" 정보는 지금 `account-service.js`(localStorage 가짜 로그인)에서 나옴 · App · Sidebar · 관리자 · 프로필 등 여러 화면이 씀 → 로그인 응답에 `loginId` · `role`을 같이 돌려줘서 그 자리를 채움 (관리자 메뉴 보여 주기 등)
+  - localStorage는 화면 스크립트가 읽을 수 있음 → 남의 스크립트가 끼어들면(XSS) 토큰을 가져갈 수 있음. React는 기본으로 막아 주고, 지금 `dangerouslySetInnerHTML`은 차트 색상 CSS(`components/ui/chart.jsx`) 한 곳뿐이라 큰 문제 없음
+- [x] **승인됨 (2026-11-14)**: `common/`에 `SecurityConfig` · JWT 필터 새로 만들기 · `spring-boot-starter-security` + JWT 라이브러리(jjwt) 추가
+- [x] **승인됨 (2026-11-14)**: `common/`에 ACCESS_LOG 기록 코드 (AGENTS.md상 ACCESS_LOG는 `common/` 담당)
+- 만들 파일 목록은 위 3가지(리프레시 · 로그아웃 · 토큰 보관)가 정해지면 따로 승인받음 (AGENTS.md: 새 파일은 역할 설명 후 승인)
+
+### 기능명세서 F-01-02 (2026-11-14 받은 내용)
+
+- 사용자 스토리: 회원은 아이디 · 비밀번호로 로그인 · 로그아웃할 수 있다. 로그인 성공 · 실패는 접속 IP와 함께 기록한다
+- 사전조건: 가입 완료. 명세서의 D-02(인증 전 로그인 허용 여부)는 **고려하지 않음** — 지금은 이메일 인증을 해야만 가입되므로 가입한 회원은 모두 인증한 상태 (2026-11-14 결정)
+- 입력: 아이디 / 비밀번호 · 출력: 성공 → 대시보드로 이동 · 실패 → 이유 안내
+- 테이블: `MEMBER` (`LOGIN_ID` · `PASSWORD` · `STATUS` · `ROLE` · `LOGIN_FAIL_COUNT` · `LOCKED_UNTIL`) · `ACCESS_LOG` (`IP_ADDRESS` · `RESULT`)
+- 로그인 잠금: 5번 틀리면 10분 잠금. 명세서에 "켰을 때"라고 되어 있어서 설정값으로 켜고 끔 (이메일 `dev-code-enabled`와 같은 방식)
+
+### 주소 · 오류 코드 (2026-11-14 결정)
+
+- 주소: `POST /api/auth/login` · `POST /api/auth/logout` — login · logout은 동사지만 알아보기 쉬워서 그대로 씀 (api-rules 1번 "주소에 동사 금지"의 예외 → 팀 공유 시 함께 알림)
+- 오류는 새 상태 코드를 만들지 않고, 이미 있는 **401 안에서 코드만 나눔** (계산의 400 `NO_CRITERIA` · `CALC_REJECTED`와 같은 방식)
+
+| 상태 | error.code | 언제 | 문구 (명세서 그대로) |
+|---|---|---|---|
+| 400 | `VALIDATION` | 아이디 · 비밀번호 빈 칸 | (기존 입력 오류 문구) |
+| 401 | `LOGIN_FAILED` | 없는 아이디 · 틀린 비밀번호 (둘 다 같은 응답) | 아이디 또는 비밀번호가 맞지 않아요 |
+| 401 | `WITHDRAWN_MEMBER` | 탈퇴 회원 (비밀번호가 맞을 때만) | 탈퇴한 계정이에요 |
+| 401 | `LOGIN_LOCKED` | 잠금 중 (잠금 켰을 때) | 10분 뒤 다시 시도해 주세요 |
+
+- 화면 주의: 나중에 "401이면 로그인 화면으로 보내기"를 화면 공통 처리에 넣으면 로그인 실패에도 걸림 → 로그인 요청은 그 처리에서 뺌
+
+### ACCESS_LOG 기록 (LOG_ID = MAX + 1)
+
+- `Schema.sql`에 `LOG_ID` 시퀀스가 없어서 `MEMBER_ID`와 같은 방식을 씀 ([decisions/0003](decisions/0003-member-id-numbering.md)): `selectKey`(BEFORE)로 `SELECT NVL(MAX(LOG_ID), 0) + 1 FROM ACCESS_LOG` → 그 번호로 INSERT
+- 넣는 값: `MEMBER_ID`(없는 아이디로 실패하면 null) · `SCREEN` = `/api/auth/login` (NOT NULL) · `IP_ADDRESS` · `RESULT` = `SUCCESS` / `FAIL` · `ACCESSED_AT`은 기본값(SYSDATE)이라 INSERT에서 뺌
+- 탈퇴 · 잠금으로 거부한 것도 `FAIL`
+- 동시에 두 명이 로그인하면 같은 번호가 나올 수 있음 → 한 번 다시 시도하고, 그래도 실패하면 서버 로그만 남김 (기록이 실패했다고 로그인을 막지 않음)
+- 실패 기록(`ACCESS_LOG` · `LOGIN_FAIL_COUNT` 증가)은 오류를 던져도 되돌려지지 않게 저장함 — 같은 `@Transactional` 안에서 예외를 던지면 기록까지 같이 취소됨
+- IP: 개발 중에는 Vite 프록시를 거쳐서 `127.0.0.1`(또는 `0:0:0:0:0:0:0:1`)로 찍힘 — 정상
+- 시퀀스가 생기면 MEMBER_ID와 함께 교체
 
 ### 처리 흐름 (예정)
 
 ```
-1) 로그인    POST /api/auth/login → 아이디 · 비밀번호 확인 (LOGIN_FAIL_COUNT · LOCKED_UNTIL · STATUS 확인) → JWT 발급 → 화면이 보관
+1) 로그인    POST /api/auth/login {loginId, password}
+   ① 아이디로 회원 조회 (소문자로 바꿔서) ── 없음 → 401 LOGIN_FAILED + FAIL 기록
+   ② 잠금 확인 (잠금 켰을 때 · LOCKED_UNTIL이 지금보다 뒤) → 401 LOGIN_LOCKED + FAIL 기록
+      (비밀번호 비교 전에 확인 — 잠금 중에도 비밀번호를 계속 맞혀 보지 못하게)
+   ③ BCrypt 비밀번호 비교 ── 틀림 → LOGIN_FAIL_COUNT + 1 (5번째면 LOCKED_UNTIL = 지금 + 10분 · 횟수 0) → 401 LOGIN_FAILED + FAIL 기록
+   ④ 탈퇴 확인 (STATUS = WITHDRAWN) → 401 WITHDRAWN_MEMBER + FAIL 기록
+      (명세서 순서는 ②가 탈퇴 확인이지만, 비밀번호 비교 뒤로 옮김 — 아래 「탈퇴 확인 순서」)
+   ⑤ 성공 → LOGIN_FAIL_COUNT 0 · JWT 발급 + SUCCESS 기록 → 화면이 토큰 보관 → 대시보드로 이동
+
+   탈퇴 확인 순서: 탈퇴 확인을 먼저 하면 비밀번호를 몰라도 아이디만 넣어서 「탈퇴한 계정이에요」가 나오는지 볼 수 있음
+   → 그 아이디로 가입했던 사람이 있었다는 것을 알게 됨 (= 아이디는 맞았다는 뜻). 비밀번호가 맞은 사람에게만 보여 줌
+   확인 필요: 탈퇴 시 LOGIN_ID를 withdrawn_…으로 바꾸기로 하면 원래 아이디로는 회원이 조회되지 않아 ①에서 LOGIN_FAILED가 됨 → 탈퇴 기능 설계 때 같이 정함
 2) 이후 요청  화면이 Authorization: Bearer <토큰> 헤더를 붙여 보냄
               → SecurityConfig에 등록한 JWT 필터가 토큰 검사
                  ├ 토큰 없음 · 틀림 · 만료 · 로그아웃된 토큰 → authenticationEntryPoint → 401 UNAUTHORIZED
@@ -113,6 +166,9 @@ React AccountForms.jsx → member-api.js → http.js (fetch, Vite 프록시 /api
                  └ 정상 → 토큰에서 회원번호를 꺼내 Controller로 넘김 (개발용 X-Member-Id 헤더 대체 · 연결 후 헤더 제거)
 3) 로그아웃  POST /api/auth/logout → 그 토큰을 무효 처리 → 다음 요청부터 401 · 성공은 200 + data: null
 ```
+
+- SecurityConfig 주의: `/api/auth/**`는 "토큰 없이 들어오는 곳"으로 열어 두는데, 로그아웃은 "어떤 토큰을 끊을지" 알아야 해서 토큰이 필요함
+  → 규칙에 `/api/auth/logout`만 "로그인 필요"로 **`/api/auth/**`보다 먼저** 적음 (Spring Security는 위에서부터 처음 맞는 규칙을 씀)
 
 ### SecurityConfig의 401 · 403 응답 (팀 공지 · 2026-11-13)
 
