@@ -18,6 +18,7 @@ import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.DeductionDetailDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
+import com.hoperefund.prediction.dto.PredictionSummaryDTO;
 import com.hoperefund.prediction.dto.SimulationRequestDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
 import java.util.ArrayList;
@@ -148,6 +149,19 @@ class CalculationServiceTest {
             savedScenarioName = scenarioName;
             savedBasePredictionId = basePredictionId;
             return 1;
+        }
+
+        List<PredictionSummaryDTO> history = List.of(); // 이력 테스트용: 목록
+        CalculationResponseDTO one; // 이력 테스트용: 열 결과 (null이면 없음 · 남의 것도 null)
+
+        @Override
+        public List<PredictionSummaryDTO> findPredictions(long memberId, int taxYear) {
+            return history;
+        }
+
+        @Override
+        public CalculationResponseDTO findPrediction(long memberId, long predictionId) {
+            return one;
         }
     }
 
@@ -486,5 +500,41 @@ class CalculationServiceTest {
         // When · Then
         assertThrows(BadRequestException.class, () -> service(true).simulate(81L, 2026, request));
         assertEquals(0, predictionMapper.predictionCount);
+    }
+
+    // ───────── 결과 이력 조회 (F-04-02) ─────────
+
+    @Test
+    @DisplayName("이력: 계산 결과가 없으면 빈 목록을 돌려준다 (오류 아님)")
+    void historyReturnsEmptyListWhenNone() {
+        // When
+        List<PredictionSummaryDTO> result = service(false).getHistory(81L, 2026);
+        // Then
+        assertEquals(0, result.size());
+    }
+
+    @Test
+    @DisplayName("이력: 없거나 남의 결과를 열면 없음 오류를 낸다")
+    void getOneThrowsNotFoundWhenNotOwn() {
+        // Given: 가짜 매퍼의 one이 null (본인 것이 아님)
+        // When · Then
+        assertThrows(NotFoundException.class, () -> service(false).getOne(82L, 6L));
+    }
+
+    @Test
+    @DisplayName("이력: 본인 결과를 열면 항목별 내역을 붙여서 돌려준다")
+    void getOneReturnsResultWithDetails() {
+        // Given: 6번 결과와 내역 2줄이 있다고 침
+        CalculationResponseDTO saved = new CalculationResponseDTO();
+        saved.setPredictionId(6L);
+        saved.setExpectedRefund(1_523_000L);
+        predictionMapper.one = saved;
+        predictionMapper.latestDetails =
+                List.of(new DeductionDetailDTO(), new DeductionDetailDTO());
+        // When
+        CalculationResponseDTO result = service(false).getOne(81L, 6L);
+        // Then
+        assertEquals(1_523_000L, result.getExpectedRefund().longValue());
+        assertEquals(2, result.getDetails().size());
     }
 }

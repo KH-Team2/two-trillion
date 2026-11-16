@@ -122,4 +122,35 @@
            AND TAX_YEAR = #{taxYear}
     </select>
     
+    <!-- 결과 이력 목록 (F-04-02): 본인의 그 연도 결과 전부 (현재 · 시나리오 함께) · 최신순 -->
+    <select id="findPredictions" resultType="com.hoperefund.prediction.dto.PredictionSummaryDTO">
+        SELECT PREDICTION_ID,
+               TAX_YEAR,
+               SCENARIO_NAME,
+               BASE_PREDICTION_ID,
+               EXPECTED_REFUND,
+               PREDICTED_AT
+          FROM PREDICTION
+         WHERE MEMBER_ID = #{memberId}
+           AND TAX_YEAR = #{taxYear}
+         ORDER BY PREDICTED_AT DESC, PREDICTION_ID DESC
+    </select>
+    
+    <!-- 결과 하나 다시 열기 (F-04-02): 번호로 찾되 본인 것만 · 총급여 · 기납부세액은 그때 쓴 입력값에서 -->
+    <select id="findPrediction" resultType="com.hoperefund.prediction.dto.CalculationResponseDTO">
+        SELECT p.PREDICTION_ID,
+               p.TAX_YEAR,
+               i.TOTAL_SALARY,
+               i.WITHHELD_TAX,
+               p.TAXABLE_INCOME,
+               p.CALCULATED_TAX,
+               p.DECIDED_TAX,
+               p.EXPECTED_REFUND
+          FROM PREDICTION p
+          JOIN PREDICTION_INPUT i
+            ON i.PREDICTION_ID = p.PREDICTION_ID
+         WHERE p.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+    </select>
+	    
 </mapper>
