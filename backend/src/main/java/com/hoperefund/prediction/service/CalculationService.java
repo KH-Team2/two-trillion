@@ -10,6 +10,7 @@ import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
 import com.hoperefund.prediction.dto.CardSpendDTO;
 import com.hoperefund.prediction.dto.MemberQualificationDTO;
+import com.hoperefund.prediction.dto.PredictionSummaryDTO;
 import com.hoperefund.prediction.dto.SimulationRequestDTO;
 import com.hoperefund.prediction.mapper.PredictionMapper;
 import java.util.List;
@@ -180,6 +181,23 @@ public class CalculationService {
         }
         result.setDetails(
                 predictionMapper.findPredictionDetails(memberId, result.getPredictionId()));
+        return result;
+    }
+
+    /** 결과 이력 목록 (F-04-02) · 본인의 그 연도 결과 전부 · 없으면 빈 목록 (오류 아님) */
+    @Transactional(readOnly = true)
+    public List<PredictionSummaryDTO> getHistory(long memberId, int taxYear) {
+        return predictionMapper.findPredictions(memberId, taxYear);
+    }
+
+    /** 결과 하나 다시 열기 (F-04-02) · 본인 것만 · 없거나 남의 것이면 404 · 항목별 내역을 붙여서 돌려줘요 */
+    @Transactional(readOnly = true)
+    public CalculationResponseDTO getOne(long memberId, long predictionId) {
+        CalculationResponseDTO result = predictionMapper.findPrediction(memberId, predictionId);
+        if (result == null) {
+            throw new NotFoundException("계산 결과를 찾을 수 없어요");
+        }
+        result.setDetails(predictionMapper.findPredictionDetails(memberId, predictionId));
         return result;
     }
 
