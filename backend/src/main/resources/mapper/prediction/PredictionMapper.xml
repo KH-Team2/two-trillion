@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- namespace: 연결할 Mapper 인터페이스의 전체 경로 · id: 인터페이스 메서드 이름과 같게 -->
+<mapper namespace="com.hoperefund.prediction.mapper.PredictionMapper">
+
+    <!-- 본인 회원 정보만 (MEMBER_ID 조건) -->
+    <select id="findHomelessHeadYn" resultType="string">
+        SELECT HOMELESS_HEAD_YN
+          FROM MEMBER
+         WHERE MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- 본인 회원 정보만 (MEMBER_ID 조건) · 화면으로 내보내지 않고 계산 서버에만 넘겨요 -->
+    <select id="findMemberQualification" resultType="com.hoperefund.prediction.dto.MemberQualificationDTO">
+        SELECT BIRTH_DATE, MILITARY_MONTHS, HIRE_DATE, COMPANY_SIZE, HOMELESS_HEAD_YN
+          FROM MEMBER
+         WHERE MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- 귀속 연도(1/1 ~ 12/31) 본인 카드 내역 합계 · 취소(음수)도 같이 더해져요 -->
+    <select id="findCardSpends" resultType="com.hoperefund.prediction.dto.CardSpendDTO">
+        SELECT CATEGORY_ID, PAY_METHOD, SUM(AMOUNT) AS AMOUNT
+          FROM EXPENSE
+         WHERE MEMBER_ID = #{memberId}
+           AND USED_DATE &gt;= TO_DATE(#{taxYear} || '0101', 'YYYYMMDD')
+           AND USED_DATE &lt; ADD_MONTHS(TO_DATE(#{taxYear} || '0101', 'YYYYMMDD'), 12)
+         GROUP BY CATEGORY_ID, PAY_METHOD
+         ORDER BY CATEGORY_ID, PAY_METHOD
+    </select>
+
+    <!-- 구간: SALARY_MIN 초과(0이면 처음부터) ~ SALARY_MAX 이하(NULL이면 상한 없음) -->
+    <select id="findTypeIds" resultType="long">
+        SELECT TYPE_ID
+          FROM DEDUCTION_TYPE
+         WHERE TAX_YEAR = #{taxYear}
+           AND TYPE_CODE = #{typeCode}
+           AND (SALARY_MIN = 0 OR #{totalSalary} &gt; SALARY_MIN)
+           AND (SALARY_MAX IS NULL OR #{totalSalary} &lt;= SALARY_MAX)
+    </select>
+
+    <select id="nextPredictionId" resultType="long">
+        SELECT SEQ_PREDICTION.NEXTVAL FROM DUAL
+    </select>
+
+    <!-- 기본값 있는 칸(SCENARIO_NAME · BASE_PREDICTION_ID · PREDICTED_AT)은 INSERT에서 빼요 -->
+    <insert id="insertPrediction">
+        INSERT INTO PREDICTION
+               (PREDICTION_ID, MEMBER_ID, TAX_YEAR, TAXABLE_INCOME, CALCULATED_TAX, DECIDED_TAX, EXPECTED_REFUND)
+        VALUES (#{predictionId}, #{memberId}, #{result.taxYear}, #{result.taxableIncome}, #{result.calculatedTax},
+                #{result.decidedTax}, #{result.expectedRefund})
+    </insert>
+    
+        <!-- 시뮬레이션 결과 저장: 시나리오 이름 · 기준 결과 번호를 채워요 (기준 결과는 insertPrediction) -->
+    <insert id="insertScenarioPrediction">
+        INSERT INTO PREDICTION
+               (PREDICTION_ID, MEMBER_ID, TAX_YEAR, SCENARIO_NAME, BASE_PREDICTION_ID,
+                TAXABLE_INCOME, CALCULATED_TAX, DECIDED_TAX, EXPECTED_REFUND)
+        VALUES (#{predictionId}, #{memberId}, #{result.taxYear}, #{scenarioName}, #{basePredictionId},
+                #{result.taxableIncome}, #{result.calculatedTax}, #{result.decidedTax}, #{result.expectedRefund})
+    </insert>
+
+    <insert id="insertPredictionInput">
+        INSERT INTO PREDICTION_INPUT
+               (PREDICTION_ID, TOTAL_SALARY, WITHHELD_TAX, NATIONAL_PENSION, DEPENDENTS, MONTHLY_RENT, HOUSING_SAVING,
+                PENSION_SAVING, SME_REDUCTION_YN, HOMELESS_HEAD_YN, CHILDREN, HEALTH_INSURANCE, IRP_SAVING)
+        VALUES (#{predictionId}, #{income.totalSalary}, #{income.withheldTax}, #{income.nationalPension},
+                #{income.dependents}, #{income.monthlyRent}, #{income.housingSaving}, #{income.pensionSaving},
+                #{income.smeReductionYn}, #{homelessHeadYn}, #{income.children}, #{income.healthInsurance},
+                #{income.irpSaving})
+    </insert>
+
+    <insert id="insertPredictionDetail">
+        INSERT INTO PREDICTION_DETAIL (DETAIL_ID, PREDICTION_ID, TYPE_ID, BASE_AMOUNT, DEDUCTION_AMOUNT)
+        VALUES (SEQ_PREDICTION_DETAIL.NEXTVAL, #{predictionId}, #{typeId}, #{baseAmount}, #{deductionAmount})
+    </insert>
+    
+    <!-- 본인의 그 연도 기준결과(시뮬레이션 제외) 중 가장 최근 1건,총급여,기납부세액은 그때 쓴 입력값에서 -->
+    <select id="findLatestPrediction" resultType="com.hoperefund.prediction.dto.CalculationResponseDTO">
+    SELECT p.PREDICTION_ID,
+               p.TAX_YEAR,
+               i.TOTAL_SALARY,
+               i.WITHHELD_TAX,
+               p.TAXABLE_INCOME,
+               p.CALCULATED_TAX,
+               p.DECIDED_TAX,
+               p.EXPECTED_REFUND
+          FROM PREDICTION p
+          JOIN PREDICTION_INPUT i
+            ON i.PREDICTION_ID = p.PREDICTION_ID
+         WHERE p.MEMBER_ID = #{memberId}
+           AND p.TAX_YEAR = #{taxYear}
+           AND p.BASE_PREDICTION_ID IS NULL
+         ORDER BY p.PREDICTED_AT DESC, p.PREDICTION_ID DESC
+         FETCH FIRST 1 ROWS ONLY
+    </select>
+
+	    <!-- 그 계산 결과의 항목별 공제 내역 (저장한 순서 = 계산 흐름 순서) · 본인 결과만 (MEMBER_ID 조건) -->
+    <!-- DEDUCTION_KIND는 DTO의 kind에 담으려고 별명(AS KIND)을 붙여요 -->
+    <select id="findPredictionDetails" resultType="com.hoperefund.prediction.dto.DeductionDetailDTO">
+        SELECT t.TYPE_CODE,
+               t.TYPE_NAME,
+               t.DEDUCTION_KIND AS KIND,
+               d.BASE_AMOUNT,
+               d.DEDUCTION_AMOUNT,
+               t.SOURCE_NOTE
+          FROM PREDICTION_DETAIL d
+          JOIN PREDICTION p
+            ON p.PREDICTION_ID = d.PREDICTION_ID
+          JOIN DEDUCTION_TYPE t
+            ON t.TYPE_ID = d.TYPE_ID
+         WHERE d.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+         ORDER BY d.DETAIL_ID
+    </select>
+    
+        <!-- 시뮬레이션 기준 결과 확인: 본인(MEMBER_ID)의 그 연도 결과면 1, 아니면 0 -->
+    <select id="countOwnPrediction" resultType="int">
+        SELECT COUNT(*)
+          FROM PREDICTION
+         WHERE PREDICTION_ID = #{predictionId}
+           AND MEMBER_ID = #{memberId}
+           AND TAX_YEAR = #{taxYear}
+    </select>
+    
+    <!-- 결과 이력 목록 (F-04-02): 본인의 그 연도 결과 전부 (현재 · 시나리오 함께) · 최신순 -->
+    <select id="findPredictions" resultType="com.hoperefund.prediction.dto.PredictionSummaryDTO">
+        SELECT PREDICTION_ID,
+               TAX_YEAR,
+               SCENARIO_NAME,
+               BASE_PREDICTION_ID,
+               EXPECTED_REFUND,
+               PREDICTED_AT
+          FROM PREDICTION
+         WHERE MEMBER_ID = #{memberId}
+           AND TAX_YEAR = #{taxYear}
+         ORDER BY PREDICTED_AT DESC, PREDICTION_ID DESC
+    </select>
+    
+    <!-- 결과 하나 다시 열기 (F-04-02): 번호로 찾되 본인 것만 · 총급여 · 기납부세액은 그때 쓴 입력값에서 -->
+    <select id="findPrediction" resultType="com.hoperefund.prediction.dto.CalculationResponseDTO">
+        SELECT p.PREDICTION_ID,
+               p.TAX_YEAR,
+               i.TOTAL_SALARY,
+               i.WITHHELD_TAX,
+               p.TAXABLE_INCOME,
+               p.CALCULATED_TAX,
+               p.DECIDED_TAX,
+               p.EXPECTED_REFUND
+          FROM PREDICTION p
+          JOIN PREDICTION_INPUT i
+            ON i.PREDICTION_ID = p.PREDICTION_ID
+         WHERE p.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+    </select>
+	    
+</mapper>

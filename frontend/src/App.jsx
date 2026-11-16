@@ -3,8 +3,11 @@ import { uploadTotals } from '@/api/expense-service.js';
 import { migrateCalculationHistory } from '@/api/calculation-contract.js';
 import { useHashRouting } from '@/routes/useHashRouting.js';
 import React from 'react';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
+import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
+import { fetchGroupStats } from '@/api/statistics-service.js';
+import { canUseDemo } from '@/api/api-client.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -57,6 +60,11 @@ export default function App() {
   );
   const [authError, setAuthError] = useState('');
   const [formSeed, setFormSeed] = useState(0);
+  // 서버(계산 API) 계산 결과 · 없으면 대시보드는 체험용 계산을 보여 줘요
+  const [calcResult, setCalcResult] = useState(null);
+  const calculating = useRef(false); // 계산 버튼 연타로 같은 요청이 여러 번 가는 것 방지
+  // 서버(그룹 통계 API)가 찾은 내 그룹 · 없으면 화면은 통계 스냅샷에서 찾아 보여 줘요
+  const [groupStats, setGroupStats] = useState(null);
   useEffect(() => setDraftTaxYear(null), [page, formSeed]);
   function refreshSession() {
     setSession(accountService.current());
@@ -107,7 +115,11 @@ export default function App() {
         })),
     );
     setUpload(userService.load('upload', null));
-    setHistories(userService.load('histories', []).map(migrateCalculationHistory));
+    const loadedHistories = userService.load('histories', []).map(migrateCalculationHistory);
+    setHistories(loadedHistories);
+    // 마지막 계산이 서버 계산이고 같은 귀속 연도면 그 결과를 이어서 보여 줘요
+    const latest = loadedHistories[0];
+    setCalcResult(latest?.source === 'API' && latest.taxYear === loaded.taxYear ? latest : null);
     setSaved(userService.load('saved', []).map(migrateCalculationHistory));
     inquiryService.migrate(userService.load('inquiries', []));
     setInquiries(session ? inquiryService.list() : []);
@@ -125,6 +137,39 @@ export default function App() {
     );
   }, [session?.id]);
   useHashRouting({ setPage, setMode, setFormSeed, setMobile });
+  // 대시보드 · 통계 화면에 들어왔는데 서버 계산 결과가 화면에 없으면, DB에 저장된 최근 결과를 불러와요
+  // (다른 브라우저에서 계산했거나 브라우저 저장이 지워졌어도 결과가 보이게)
+  // 계산한 적이 없거나(NOT_FOUND) 서버에 연결할 수 없으면 지금 화면을 그대로 둬요
+  useEffect(() => {
+    if (page !== 'dashboard' && page !== 'stats') return;
+    if (calcResult && calcResult.taxYear === data.taxYear) return;
+    let ignore = false;
+    fetchLatestCalculation(data.taxYear)
+      .then((latest) => {
+        if (!ignore) setCalcResult(latest);
+      })
+      .catch(() => {});
+    return () => {
+      ignore = true;
+    };
+  }, [page, data.taxYear, calcResult]);
+  // 대시보드 · 통계 화면에 들어오면 내가 속한 그룹의 국세통계 평균을 서버에서 불러와요 (F-06-02)
+  // 계산은 입력 화면에서 하고 끝나면 대시보드로 넘어오므로, 화면이 바뀔 때 다시 불러오면 새 총급여가 반영돼요
+  // 서버에 연결할 수 없으면 비워 두고, 화면은 통계 스냅샷에서 찾아 보여 줘요
+  useEffect(() => {
+    if (page !== 'dashboard' && page !== 'stats') return;
+    let ignore = false;
+    fetchGroupStats(data.taxYear)
+      .then((found) => {
+        if (!ignore) setGroupStats(found);
+      })
+      .catch(() => {
+        if (!ignore) setGroupStats(null);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [page, data.taxYear]);
   // 일시 안내 메시지를 원본과 같은 시간 후 닫습니다.
   useEffect(() => {
     if (toast) {
@@ -170,8 +215,10 @@ export default function App() {
     setFormSeed((s) => s + 1);
     go('input');
   }
-  // TODO: 실제 세액 계산·결과 저장은 Spring Boot API로 교체합니다. 지금은 기존 데모 엔진을 호출합니다.
-  function calculate(input, tx, meta) {
+  // 일반 계산: 소득을 서버에 저장(PUT)하고 계산 API(POST)로 계산해요.
+  // 서버에 연결할 수 없을 때 개발 서버에서만 기존 체험용 계산으로 보여 줘요 (배포본은 연결 실패 안내만).
+  // 시뮬레이션은 아직 체험용 계산이에요.
+  async function calculate(input, tx, meta) {
     const d = { ...input, ...uploadTotals(tx, input.taxYear) };
     recordAccess(mode === 'simulation' ? 'SIMULATION_CALCULATE' : 'CALCULATE');
     if (mode === 'simulation') {
@@ -180,6 +227,22 @@ export default function App() {
       setSimUpload(meta);
       go('compare');
     } else {
+      if (calculating.current) return;
+      calculating.current = true;
+      let server = null;
+      try {
+        server = await saveAndCalculate(d);
+      } catch (error) {
+        // 입력 오류 · 기준값 없음 등은 입력 화면에 그대로 머물러요 (입력값 유지)
+        // 연결 실패도 배포본에서는 체험용 계산으로 넘어가지 않고 안내만 띄워요
+        if (!canUseDemo(error)) {
+          notify(error.message);
+          return;
+        }
+      } finally {
+        calculating.current = false;
+      }
+      setCalcResult(server);
       setTransactions(tx);
       setUpload(meta);
       userService.save('transactions', tx);
@@ -191,21 +254,29 @@ export default function App() {
           id: newPrototypeId(),
           date: new Date().toLocaleDateString('ko-KR'),
           data: d,
-          ...taxService.calculate(d),
+          ...(server ?? taxService.calculate(d)),
+          source: server ? 'API' : 'DEMO',
         },
         ...histories,
       ];
       setHistories(next);
       userService.save('histories', next);
       go('dashboard');
-      notify('입력 정보를 저장하고 예시 계산을 완료했어요.');
+      notify(
+        server
+          ? '입력 정보를 서버에 저장하고 계산을 완료했어요.'
+          : '계산 서버에 연결할 수 없어 예시 계산으로 보여 줘요.',
+      );
     }
   }
   function saveTx(t) {
     setTransactions(t);
     userService.save('transactions', t);
   }
-  const r = taxService.calculate(data);
+  const serverResult = calcResult && calcResult.taxYear === data.taxYear ? calcResult : null;
+  // 다른 귀속 연도로 받아 둔 그룹 통계는 쓰지 않아요
+  const serverGroups = groupStats && groupStats.taxYear === data.taxYear ? groupStats : null;
+  const r = serverResult ?? taxService.calculate(data);
   const sim = simulation || data;
   const baseData = compareBase || data;
   const br = taxService.calculate(baseData);
@@ -281,6 +352,9 @@ export default function App() {
                   {page === 'dashboard' && (
                     <DashboardPage
                       data={data}
+                      result={serverResult ?? undefined}
+                      isDemo={!serverResult}
+                      groupStats={serverGroups}
                       transactions={transactions}
                       go={go}
                       startSim={startSim}
@@ -305,10 +379,22 @@ export default function App() {
                     />
                   )}
                   {page === 'guide' && (
-                    <ChatbotPage data={data} go={go} startSim={startSim} r={r} />
+                    <ChatbotPage
+                      data={data}
+                      go={go}
+                      startSim={startSim}
+                      r={taxService.calculate(data)}
+                    />
                   )}
                   {page === 'benefits' && <BenefitsPage data={data} normalInput={normalInput} />}
-                  {page === 'stats' && <StatisticsPage data={data} go={go} />}
+                  {page === 'stats' && (
+                    <StatisticsPage
+                      data={data}
+                      result={serverResult ?? undefined}
+                      groupStats={serverGroups}
+                      go={go}
+                    />
+                  )}
                   {page === 'profile' && (
                     <ProfilePage
                       data={data}

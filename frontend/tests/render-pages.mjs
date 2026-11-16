@@ -60,6 +60,26 @@ const base = {
   supportTab: '자주 묻는 질문',
   setSupportTab: noop,
 };
+// GET /api/group-stats/{taxYear} 응답 모양 (서버가 찾은 내 그룹 두 개)
+const serverGroups = {
+  taxYear: 2026,
+  ageGroup: {
+    statYear: 2024,
+    groupLabel: '여성 40대',
+    peopleCount: 2037259,
+    avgSalary: 41558266,
+    avgDecidedTax: 2274940,
+    avgRefundTax: 577207,
+  },
+  salaryGroup: {
+    statYear: 2024,
+    groupLabel: '4천만 이하',
+    peopleCount: 3330978,
+    avgSalary: 34782969,
+    avgDecidedTax: 394361,
+    avgRefundTax: 395272,
+  },
+};
 const apiResult = {
   taxYear: 2026,
   totalSalary: 36000000,
@@ -164,6 +184,21 @@ const cases = [
   ['simulation-input', <Input {...base} mode="simulation" />],
   ['benefits', <Benefits {...base} />],
   ['statistics', <Statistics {...base} />],
+  // 서버가 찾은 그룹 통계 + 서버 계산 결과로 그리는 경우 (한쪽 그룹을 못 찾은 경우 포함)
+  [
+    'statistics-api',
+    <Statistics {...base} result={apiResult} groupStats={{ ...serverGroups, salaryGroup: null }} />,
+  ],
+  [
+    'dashboard-api-groups',
+    <Dashboard
+      {...base}
+      result={apiResult}
+      isDemo={false}
+      groupStats={serverGroups}
+      chart={() => null}
+    />,
+  ],
   ['chatbot', <Chatbot {...base} r={apiResult} />],
   [
     'simulation-result',
@@ -216,6 +251,17 @@ for (const [name, node] of cases) {
       !html.includes('공제·감면 상세 내역'))
   )
     throw Error('실제 0원/음수/별도 상세 표 표시 실패');
+  // 계산 API 결과일 때는 체험·데모 문구가 남지 않음 · 계산 상세 단계에 금액 표시
+  if (
+    name === 'dashboard-api' &&
+    (html.includes('데모값') ||
+      html.includes('시연 결과') ||
+      html.includes('법정 계산 미연동') ||
+      !html.includes('계산값'))
+  )
+    throw Error('계산 결과 화면에 체험 문구가 남음');
+  if (name === 'dashboard-demo' && (!html.includes('데모값') || !html.includes('시연 결과')))
+    throw Error('체험 결과 문구 누락');
   if (name === 'dashboard-demo') {
     const panel = html.split('<section class="card deductions">')[1].split('</section>')[0];
     if (
