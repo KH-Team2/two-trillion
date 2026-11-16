@@ -7,7 +7,8 @@ import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
-import { canUseDemo } from '@/api/api-client.js';
+import { canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
+import { simulate } from '@/api/prediction-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -62,6 +63,10 @@ export default function App() {
   const [formSeed, setFormSeed] = useState(0);
   // 서버(계산 API) 계산 결과 · 없으면 대시보드는 체험용 계산을 보여 줘요
   const [calcResult, setCalcResult] = useState(null);
+  // 서버(시뮬레이션 API) 계산 결과 · 없으면 비교 화면은 체험용 계산을 보여 줘요
+  const [simResult, setSimResult] = useState(null);
+  // 시뮬레이션의 기준 결과 (시뮬레이션을 시작할 때의 서버 계산 결과)
+  const [baseResult, setBaseResult] = useState(null);
   const calculating = useRef(false); // 계산 버튼 연타로 같은 요청이 여러 번 가는 것 방지
   // 서버(그룹 통계 API)가 찾은 내 그룹 · 없으면 화면은 통계 스냅샷에서 찾아 보여 줘요
   const [groupStats, setGroupStats] = useState(null);
@@ -125,6 +130,8 @@ export default function App() {
     setInquiries(session ? inquiryService.list() : []);
     setSimulation(null);
     setCompareBase(null);
+    setSimResult(null);
+    setBaseResult(null);
     setSimTx([]);
     setSimUpload(null);
     setMode('normal');
@@ -203,6 +210,9 @@ export default function App() {
   // 실제 입력을 복사해 가상 조건을 만들므로 원본 소득·지출을 덮어쓰지 않습니다.
   function startSim() {
     setCompareBase(structuredClone(data));
+    // 기준 결과 = 지금 대시보드에 보이는 서버 계산 결과 (없으면 null → 계산할 때 안내)
+    setBaseResult(calcResult && calcResult.taxYear === data.taxYear ? calcResult : null);
+    setSimResult(null);
     setSimTx(transactions.map((t) => ({ ...t })));
     setSimUpload(upload ? { ...upload } : null);
     setSimulation({ ...data });
@@ -217,15 +227,51 @@ export default function App() {
   }
   // 일반 계산: 소득을 서버에 저장(PUT)하고 계산 API(POST)로 계산해요.
   // 서버에 연결할 수 없을 때 개발 서버에서만 기존 체험용 계산으로 보여 줘요 (배포본은 연결 실패 안내만).
-  // 시뮬레이션은 아직 체험용 계산이에요.
+  // 시뮬레이션: 바꾼 조건 전부를 시뮬레이션 API(POST)로 보내 다시 계산해요. 원본 소득 · 지출은 덮어쓰지 않아요.
   async function calculate(input, tx, meta) {
     const d = { ...input, ...uploadTotals(tx, input.taxYear) };
     recordAccess(mode === 'simulation' ? 'SIMULATION_CALCULATE' : 'CALCULATE');
     if (mode === 'simulation') {
+      if (calculating.current) return;
+      let server = null;
+      // 기준 결과가 없으면(서버 계산 전 · 저장 꺼짐) 서버 시뮬레이션을 할 수 없어요
+      // 개발 서버에서만 체험용 비교로 넘어가고, 배포본은 안내만 띄워요
+      const baseId = baseResult?.predictionId;
+      if (!Number.isInteger(baseId) || baseResult.taxYear !== d.taxYear) {
+        if (!demoFallbackAllowed) {
+          notify(
+            baseResult && baseResult.taxYear !== d.taxYear
+              ? '귀속 연도는 기존 결과와 같아야 비교할 수 있어요.'
+              : '먼저 기존 정보로 계산해 주세요. 비교할 기준 결과가 없어요.',
+          );
+          return;
+        }
+      } else {
+        calculating.current = true;
+        try {
+          server = await simulate(d, tx, baseId);
+        } catch (error) {
+          // 입력 오류 · 기준 결과 없음 등은 입력 화면에 그대로 머물러요 (입력값 유지)
+          if (!canUseDemo(error)) {
+            notify(error.message);
+            return;
+          }
+        } finally {
+          calculating.current = false;
+        }
+      }
+      setSimResult(server);
       setSimulation(d);
       setSimTx(tx);
       setSimUpload(meta);
       go('compare');
+      notify(
+        server
+          ? server.predictionId
+            ? '바꾼 조건으로 계산하고 시나리오로 저장했어요. 원본 정보는 그대로예요.'
+            : '바꾼 조건으로 계산했어요. (서버 저장 설정이 꺼져 있어 시나리오는 저장되지 않았어요)'
+          : '서버 기준 결과가 없어 예시 계산으로 비교해 보여 줘요.',
+      );
     } else {
       if (calculating.current) return;
       calculating.current = true;
@@ -279,8 +325,11 @@ export default function App() {
   const r = serverResult ?? taxService.calculate(data);
   const sim = simulation || data;
   const baseData = compareBase || data;
-  const br = taxService.calculate(baseData);
-  const sr = taxService.calculate(sim);
+  // 비교 화면: 서버 시뮬레이션 결과가 있으면 기준 결과와 함께 서버 값으로, 없으면 둘 다 체험용 계산으로
+  // (서버 값과 체험용 값을 섞어 비교하지 않아요)
+  const serverCompare = Boolean(simResult && baseResult);
+  const br = serverCompare ? baseResult : taxService.calculate(baseData);
+  const sr = serverCompare ? simResult : taxService.calculate(sim);
   const publicPage = ['home', 'login', 'signup', 'reset'].includes(page);
   return (
     <>
@@ -376,6 +425,9 @@ export default function App() {
                       baseData={baseData}
                       br={br}
                       sr={sr}
+                      isDemo={!serverCompare}
+                      taxYear={sim.taxYear}
+                      basePredictionId={serverCompare ? baseResult.predictionId : null}
                     />
                   )}
                   {page === 'guide' && (
