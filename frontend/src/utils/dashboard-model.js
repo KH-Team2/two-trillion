@@ -28,7 +28,14 @@ export function youthStatus(data) {
           : '감면 자격과 증빙이 확인되지 않았습니다.',
       };
 }
-export function dashboardModel(data, transactions, result = taxService.calculate(data)) {
+// groupStats: 서버가 찾은 내 그룹(fetchGroupStats 결과) · 없으면(null) 통계 스냅샷에서 찾아요
+export function dashboardModel(
+  data,
+  transactions,
+  result = taxService.calculate(data),
+  groupStats = null,
+) {
+  const groups = groupComparison(data, result, groupStats);
   const taxYear = getTaxYear(data);
   const allRows = transactions.filter((t) => yearOf(t.date) === taxYear);
   const rows = allRows.filter(isCounted);
@@ -80,8 +87,10 @@ export function dashboardModel(data, transactions, result = taxService.calculate
     other,
     needsReview: rows.length,
     youth: youthStatus(data),
-    ageGroup: groupComparison(data).ageGroup,
-    salaryGroup: groupComparison(data).salaryGroup,
+    ageGroup: groups.ageGroup,
+    salaryGroup: groups.salaryGroup,
+    statYear: groups.statYear,
+    groupFromServer: groups.fromServer,
     cultureSalary:
       data.salary <= 70000000
         ? '급여 요건 충족 · 거래 적격은 확인 필요'
