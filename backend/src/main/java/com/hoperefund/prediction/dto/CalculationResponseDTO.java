@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 계산 결과 (F-03-01 응답) - 칸 이름은 노션 「동석님 전달」 이름 그대로예요. - expectedRefund가 음수면 추가 납부예요. - predictionId는
+ * 계산 결과 (F-03-01 응답) - 칸 이름은 계산 서버(calc) 응답과 같아요. - expectedRefund가 음수면 추가 납부예요. - predictionId는
  * 저장된 결과 번호예요 (지난 결과 다시 열기용 · 저장을 안 했으면 null).
  */
 public class CalculationResponseDTO {
