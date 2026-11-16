@@ -9,19 +9,28 @@
 
 ## 파일
 
-| 순서 | 파일 | 내용 |
-|---|---|---|
-| 0 | `00_초기화.sql` | 기존 테이블·시퀀스 전부 삭제 (처음 만들 때는 건너뛰어도 됨) |
-| 1 | `01_schema.sql` | 테이블 20개 · 제약조건 · 시퀀스 · 인덱스 |
-| 2 | `02_기준데이터.sql` | 기준값 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · `SPEND_CATEGORY` · `GROUP_STAT` 등) |
-| 3 | `03_데이터적재.sql` | **팀 노션 zip에만 있음** · 가맹점 목록(`MERCHANT_LIST` · 공공 데이터) · 가상 회원 · 소득 · 카드 내역 |
+| 순서 | 파일 | 실행 계정 | 내용 |
+|---|---|---|---|
+| 계정 1 | `계정_1_생성.sql` | DB 관리자 | 주인 계정 · 계산 서버 계정 만들기 + 최소 권한 (이름 · 비밀번호는 실행할 때 입력) |
+| 0 | `00_초기화.sql` | 주인 | 기존 테이블·시퀀스 전부 삭제 (처음 만들 때는 건너뛰어도 됨) |
+| 1 | `01_schema.sql` | 주인 | 테이블 20개 · 제약조건 · 시퀀스 · 인덱스 |
+| 2 | `02_기준데이터.sql` | 주인 | 기준값 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · `SPEND_CATEGORY` · `GROUP_STAT` 등) |
+| 3 | `03_데이터적재.sql` | 주인 | **팀 노션 zip에만 있음** · 가맹점 목록(`MERCHANT_LIST` · 공공 데이터) · 가상 회원 · 소득 · 카드 내역 |
+| 4 | `04_분류함수.sql` | 주인 | 가맹점명 정제 함수 `FN_NORMALIZE_NAME` (카드 내역 자동 분류용) |
+| 계정 2 | `계정_2_계산서버_권한.sql` | DB 관리자 | 계산 서버 계정에 기준값 3개 읽기 권한 + 동의어 (02 다음) |
 
 ## 실행 순서
 
-새 계정에 처음부터 만들 때만 실행해요. SQL Developer에서 **00 → 01 → 02 → 03(노션 zip)** 순서로 열고 F5(스크립트 실행)를 눌러요.
+새 DB에 처음부터 만들 때만 실행해요. SQL Developer에서 파일을 열고 F5(스크립트 실행)를 눌러요.
+
+1. **DB 관리자**로 접속 → `계정_1_생성.sql` (계정 이름 · 비밀번호 입력 창이 떠요)
+2. 방금 만든 **주인 계정**으로 접속 → `00` → `01` → `02` → `03`(노션 zip) → `04`
+3. 다시 **DB 관리자**로 → `계정_2_계산서버_권한.sql`
+4. 각자 `.env`에 계정 넣기: `backend/.env` = 주인 계정 · `calc/.env` = 계산 서버 계정
 
 - 파일은 UTF-8이에요. 한글 Windows의 SQL Developer 기본 설정에서는 한글이 깨져요. **도구 > 환경설정 > 환경 > 인코딩**을 `UTF-8`로 바꾸고 실행하세요.
 - 설정을 바꾸기 어려우면 노션 zip의 `cp949/` 복사본(한글 Windows용 · 내용 같음)을 쓰세요.
+- 공용 DB(CDB 루트)에서는 계정 이름이 `C##`으로 시작해야 해요 (아니면 ORA-65096)
 - `03_데이터적재.sql`은 18MB라 편집창에 열지 말고 `@"경로\03_데이터적재.sql"`로 실행하세요.
 
 ## DB 계정 (2개 · 둘 다 최소 권한)
@@ -45,12 +54,12 @@
 | `CREATE SESSION` | 접속 |
 | `CREATE TABLE` | 테이블 20개 (인덱스 · LOB은 자기 테이블에 딸린 것이라 따로 권한 필요 없음) |
 | `CREATE SEQUENCE` | 시퀀스 |
-| `CREATE PROCEDURE` | 분류 함수 `FN_NORMALIZE_NAME` |
+| `CREATE PROCEDURE` | 분류 함수 `FN_NORMALIZE_NAME` (`04_분류함수.sql`) |
 
 - 저장 공간은 `UNLIMITED TABLESPACE` 대신 USERS 테이블스페이스에 한도(2GB)를 줘요
 - 자기 테이블의 조회 · 저장 · 수정 · 삭제는 주인이라 따로 권한이 필요 없어요 (Spring은 이것만 써요)
 
-만드는 SQL (DB 관리자 계정으로 실행):
+만드는 SQL (DB 관리자 계정으로 실행 · `계정_1_생성.sql`과 같은 내용):
 
 ```sql
 CREATE USER <주인계정> IDENTIFIED BY "<비밀번호>"
@@ -63,7 +72,7 @@ GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE PROCEDURE TO <주인
 이미 `CONNECT` · `RESOURCE`로 만든 계정을 줄일 때 (DB 관리자 계정 · 만든 테이블 · 데이터는 그대로):
 
 ```sql
--- 권한을 먼저 주고 롤을 나중에 빼야 그 사이에 접속이 끊기지 않아요
+-- 권한을 먼저 주고 롤을 나중에 빼야 그 사이에 새 접속이 막히지 않아요
 GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE PROCEDURE TO <주인계정>;
 REVOKE CONNECT, RESOURCE FROM <주인계정>;
 ```
@@ -91,7 +100,7 @@ ROLE 행 없이 SESSION 4개(`CREATE PROCEDURE` · `CREATE SEQUENCE` · `CREATE 
 - 계산 서버 `calc/.env`의 `DB_USERNAME` · `DB_PASSWORD`에 이 계정을 넣어요
 - Spring 서버(`backend/`)는 소득 · 계산 결과를 저장해야 해서 테이블 주인 계정을 그대로 써요
 
-만드는 SQL (DB 관리자 계정으로 실행):
+만드는 SQL (DB 관리자 계정으로 실행 · `계정_1_생성.sql` + `계정_2_계산서버_권한.sql`과 같은 내용):
 
 ```sql
 CREATE USER <계산서버계정> IDENTIFIED BY "<비밀번호>";
