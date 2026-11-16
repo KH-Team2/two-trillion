@@ -14,6 +14,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 계산 요청 (F-03-01) 흐름: Controller → CalculationService → (소득 · 무주택 · 카드 합계 조회) → CalcClient(계산) →
@@ -91,6 +92,18 @@ public class CalculationService {
                 taxYear,
                 result.getPredictionId(),
                 System.currentTimeMillis() - started);
+        return result;
+    }
+
+    /** 저장된 계산 결과 중 가장 최근 1건 조회 (대시보드 · F-06-01) · 본인 결과만 · 없으면 404 */
+    @Transactional(readOnly = true)
+    public CalculationResponseDTO getLatest(long memberId, int taxYear) {
+        CalculationResponseDTO result = predictionMapper.findLatestPrediction(memberId, taxYear);
+        if (result == null) {
+            throw new NotFoundException(taxYear + "년 계산 결과가 아직 없어요");
+        }
+        result.setDetails(
+                predictionMapper.findPredictionDetails(memberId, result.getPredictionId()));
         return result;
     }
 
