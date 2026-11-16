@@ -1,6 +1,7 @@
 package com.hoperefund.member.controller;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -11,8 +12,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.common.exception.GlobalExceptionHandler;
+import com.hoperefund.member.dto.LoginRequestDTO;
+import com.hoperefund.member.dto.LoginResponseDTO;
 import com.hoperefund.member.dto.MemberAvailabilityResponseDTO;
 import com.hoperefund.member.dto.MemberSignupResponseDTO;
+import com.hoperefund.member.service.LoginService;
 import com.hoperefund.member.service.MemberService;
 import java.time.LocalDateTime;
 import org.junit.jupiter.api.Test;
@@ -39,6 +43,8 @@ class MemberControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private MemberService memberService;
+
+    @MockitoBean private LoginService loginService;
 
     private static final String VALID_BODY =
             """
@@ -216,5 +222,90 @@ class MemberControllerTest {
 
         mockMvc.perform(get(URL + "/availability").param("loginId", "a").param("email", "b"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // ---------- 로그인 (F-01-02) ----------
+
+    private static final String LOGIN_URL = "/api/auth/login";
+
+    // 로그인 성공 → 200 + 토큰 · 아이디 · 역할 (회원번호 · 비밀번호는 응답에 없음)
+    @Test
+    void loginReturns200WithToken() throws Exception {
+
+        given(loginService.login(any(LoginRequestDTO.class), anyString()))
+                .willReturn(
+                        new LoginResponseDTO(
+                                "token-value",
+                                "Bearer",
+                                LocalDateTime.of(2026, 11, 16, 12, 0),
+                                "hope_user",
+                                "USER"));
+
+        mockMvc.perform(
+                        post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"loginId": "hope_user", "password": "password123"}
+                                        """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.accessToken").value("token-value"))
+                .andExpect(jsonPath("$.data.tokenType").value("Bearer"))
+                .andExpect(jsonPath("$.data.expiresAt").value("2026-11-16T12:00:00"))
+                .andExpect(jsonPath("$.data.role").value("USER"))
+                .andExpect(jsonPath("$.data.memberId").doesNotExist())
+                .andExpect(jsonPath("$.data.password").doesNotExist());
+    }
+
+    // 아이디 · 비밀번호 빈 칸 → 400 VALIDATION (Service 호출 안 함)
+    @Test
+    void loginWithBlankFieldsReturns400() throws Exception {
+
+        mockMvc.perform(
+                        post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"loginId": "", "password": "password123"}
+                                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.message").value("아이디를 입력해 주세요"));
+
+        mockMvc.perform(
+                        post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"loginId": "hope_user"}
+                                        """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("비밀번호를 입력해 주세요"));
+
+        verify(loginService, never()).login(any(), any());
+    }
+
+    // 로그인 실패 업무 오류 → 401 + 코드 그대로 (화면이 코드로 분기)
+    @Test
+    void loginFailureReturns401WithCode() throws Exception {
+
+        given(loginService.login(any(LoginRequestDTO.class), anyString()))
+                .willThrow(
+                        new BusinessException(
+                                HttpStatus.UNAUTHORIZED, "LOGIN_FAILED", "아이디 또는 비밀번호가 맞지 않아요"));
+
+        mockMvc.perform(
+                        post(LOGIN_URL)
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(
+                                        """
+                                        {"loginId": "hope_user", "password": "wrong-password"}
+                                        """))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("LOGIN_FAILED"))
+                .andExpect(jsonPath("$.error.message").value("아이디 또는 비밀번호가 맞지 않아요"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
     }
 }

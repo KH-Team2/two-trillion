@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 접속 기록(ACCESS_LOG) SQL · 값은 #{}로만 넣는다 -->
+<mapper namespace="com.hoperefund.common.mapper.AccessLogMapper">
+
+    <!--
+        접속 기록 저장
+        - ACCESSED_AT은 기본값(SYSDATE)이 있어 넣지 않는다.
+        - TODO: Schema.sql에 LOG_ID 시퀀스가 없어 MAX + 1로 번호를 정한다 (decisions/0003과 같은 방식). 시퀀스가 생기면 교체한다.
+          동시에 저장하면 번호가 겹칠 수 있음 → 호출하는 쪽에서 한 번 다시 시도한다.
+    -->
+    <insert id="insertAccessLog">
+        INSERT INTO ACCESS_LOG (
+            LOG_ID,
+            MEMBER_ID,
+            SCREEN,
+            IP_ADDRESS,
+            RESULT
+        )
+        SELECT NVL(MAX(LOG_ID), 0) + 1,
+               #{memberId},
+               #{screen},
+               #{ipAddress},
+               #{result}
+          FROM ACCESS_LOG
+    </insert>
+
+</mapper>

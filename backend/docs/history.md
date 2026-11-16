@@ -2,6 +2,22 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-16] 로그인 · 로그아웃 백엔드 구현 (F-01-02 · JWT)
+- **작업 내용**
+  - `pom.xml`: `spring-boot-starter-security` · `jjwt` 0.12.6 추가 (`spring-security-crypto`는 starter에 포함되어 뺌)
+  - `common/config/SecurityConfig`(신규): 주소별 로그인 규칙 · JWT 필터(안쪽 클래스) · 401 `UNAUTHORIZED` · 403 `FORBIDDEN`을 공통 봉투로 응답
+  - `common/service/TokenService`(신규): 토큰 발급 · 검사 · 로그아웃 무효 목록(메모리) · `JWT_SECRET` 32바이트 미만이면 서버 시작 실패
+  - `common/mapper/AccessLogMapper`(신규 · XML 포함): 로그인 성공 · 실패 기록 (`LOG_ID` MAX + 1)
+  - `member/service/LoginService`(신규) · `member/dto/Login{Request,Response,Member}DTO`(신규)
+  - `MemberController`: 주소 앞부분을 `/api/auth`로 바꾸고 `POST /login` · `POST /logout` 추가 (기존 가입 · 중복확인 주소는 그대로)
+  - `MemberMapper`: `selectLoginMember` · `increaseLoginFail` · `resetLoginFail` 추가
+  - `application.yml` · `.env.example` · README: `JWT_SECRET` · `JWT_EXPIRATION` · `LOGIN_LOCK_ENABLED`
+  - `GlobalExceptionHandler` · `EmailVerificationService`: 주석만 수정 (401/403 위치 안내 · 없는 decisions/0004 참조 → tasks.md)
+  - 문서: [decisions/0004](decisions/0004-login-jwt.md) 신규 · [tasks.md](tasks.md) 로그인 절 갱신 · [api-rules](api-rules.md) 2번 "미정" → JWT · 오류 코드 표
+- **변경 사유**: F-01-02 구현. 리프레시 토큰 없음 · 로그아웃 메모리 목록 · 화면 localStorage 보관안 확정 (11/16). 새 파일은 README · AGENTS.md 폴더 구조 안에서 최소로 만듦
+- **검증 결과**: `./mvnw test` 79건 통과 (신규 `SecurityConfigTest` 6 · `TokenServiceTest` 6 · `LoginServiceTest` 12 · `MemberControllerTest` 로그인 3건 추가)
+- **미검증**: 실제 Oracle DB에서 로그인 · 잠금 · ACCESS_LOG 저장 (SQL은 Mapper 대역으로만 테스트) · 화면 연결 안 함
+
 ### [2026-11-16] 결과 이력 조회 API (F-04-02)
 - **작업 내용**:
   - `GET /api/predictions?year=2026`: 본인의 그 연도 결과 전부(현재 · 시나리오) 최신순 · 없으면 빈 목록(오류 아님)

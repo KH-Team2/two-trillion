@@ -34,7 +34,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *
  * <p>남의 데이터 요청은 403이 아니라 404(없는 것과 같은 응답)로 보낸다 — 번호를 바꿔 가며 남의 데이터가 있는지 알아낼 수 없게.
  *
- * <p>TODO: 인증·권한(Spring Security) 적용 후 401 · 403 처리 정리
+ * <p>토큰 검사(401 UNAUTHORIZED) · 권한(403 FORBIDDEN) 오류는 Controller 앞 필터에서 나서 여기로 오지 않는다 →
+ * common/config/SecurityConfig가 같은 봉투로 응답한다.
  */
 @RestControllerAdvice // 여러 Controller에서 발생한 예외를 공통 처리
 public class GlobalExceptionHandler {
