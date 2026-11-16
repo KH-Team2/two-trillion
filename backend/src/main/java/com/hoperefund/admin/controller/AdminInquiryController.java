@@ -3,17 +3,16 @@ package com.hoperefund.admin.controller;
 import com.hoperefund.admin.dto.AdminInquiryResponseDto;
 import com.hoperefund.admin.dto.InquiryAnswerRequestDto;
 import com.hoperefund.admin.service.AdminInquiryService;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-
-import java.util.List;
 
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class AdminInquiryController {
-	/* F-17, F-18: 고객센터 문의 확인 및 답변 */
+    /* F-17, F-18: 고객센터 문의 확인 및 답변 */
     private final AdminInquiryService adminInquiryService;
 
     /**
@@ -32,7 +31,8 @@ public class AdminInquiryController {
      * URI: GET /api/inquiries/{id}
      */
     @GetMapping("/inquiries/{id}")
-    public ResponseEntity<AdminInquiryResponseDto> getInquiryDetail(@PathVariable("id") Long inquiryId) {
+    public ResponseEntity<AdminInquiryResponseDto> getInquiryDetail(
+            @PathVariable("id") Long inquiryId) {
         AdminInquiryResponseDto detail = adminInquiryService.getInquiryDetail(inquiryId);
         return ResponseEntity.ok(detail);
     }
@@ -43,8 +43,7 @@ public class AdminInquiryController {
      */
     @PutMapping("/admin/inquiries/{id}/answer")
     public ResponseEntity<Void> updateInquiryAnswer(
-            @PathVariable("id") Long inquiryId,
-            @RequestBody InquiryAnswerRequestDto dto) {
+            @PathVariable("id") Long inquiryId, @RequestBody InquiryAnswerRequestDto dto) {
         adminInquiryService.updateInquiryAnswer(inquiryId, dto);
         return ResponseEntity.ok().build();
     }

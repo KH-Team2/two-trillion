@@ -1,10 +1,9 @@
 package com.hoperefund.admin.mapper;
 
 import com.hoperefund.admin.dto.AccessLogResponseDto;
+import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
-
-import java.util.List;
 
 @Mapper
 public interface AdminAccessLogMapper {
@@ -14,6 +13,5 @@ public interface AdminAccessLogMapper {
             @Param("endDate") String endDate,
             @Param("ipAddress") String ipAddress,
             @Param("offset") int offset,
-            @Param("size") int size
-    );
+            @Param("size") int size);
 }
