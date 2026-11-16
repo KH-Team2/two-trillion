@@ -26,7 +26,7 @@ import org.springframework.web.client.RestClientException;
 
 /**
  * 파이썬 계산 서버를 HTTP로 불러요 (calc.mode=http 일 때만 Bean 등록) - POST {CALC_BASE_URL}/calculate · /benefit
- * (JSON 이름은 camelCase · 「동석님 전달」과 같음) - 헤더 X-Calc-Token: 계산 서버의 CALC_API_TOKEN과 같은 값 (.env) - 계산
+ * (JSON 이름은 계산 서버와 같은 camelCase) - 헤더 X-Calc-Token: 계산 서버의 CALC_API_TOKEN과 같은 값 (.env) - 계산
  * 서버가 NO_CRITERIA를 주면 그대로 NO_CRITERIA · 입력값을 거부(400)하면 CALC_REJECTED - 토큰이 틀렸거나(401) 연결이 안 되거나 빈
  * 응답이면 503 안내 (설정 · 서버 문제라 원인은 로그에만)
  */
