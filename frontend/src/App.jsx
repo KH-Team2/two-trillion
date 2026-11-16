@@ -356,7 +356,12 @@ export default function App() {
                     />
                   )}
                   {page === 'guide' && (
-                    <ChatbotPage data={data} go={go} startSim={startSim} r={r} />
+                    <ChatbotPage
+                      data={data}
+                      go={go}
+                      startSim={startSim}
+                      r={taxService.calculate(data)}
+                    />
                   )}
                   {page === 'benefits' && <BenefitsPage data={data} normalInput={normalInput} />}
                   {page === 'stats' && <StatisticsPage data={data} go={go} />}
