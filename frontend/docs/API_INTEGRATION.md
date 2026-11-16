@@ -85,7 +85,7 @@
 
 1. `PUT /api/incomes/{taxYear}` — 소득 저장. 한 해 소득 전체를 덮어쓰므로 모든 칸을 보냅니다.
 2. 저장이 성공하면 `POST /api/calculations/{taxYear}` — 계산 + 결과 저장.
-3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘깁니다. 응답의 `predictionId`(저장된 결과 번호)는 챗봇 · 절세 가이드가 쓰도록 그대로 남깁니다.
+3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘깁니다. 응답의 `predictionId`(저장된 결과 번호)는 그대로 남깁니다.
 
 - 서버 오류면 서버 문구를 알림으로 띄우고 입력 화면에 머뭅니다 (입력값 유지).
 - 계산 버튼을 연달아 눌러도 요청은 한 번만 보냅니다.
