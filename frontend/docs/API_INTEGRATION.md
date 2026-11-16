@@ -46,7 +46,7 @@
 
 `GROUP_STAT`의 실제 열만 `src/data/statistics/group-stat-2024.json`에 유지했습니다. `group-stat-metadata.json`의 POPULATION/원본 합계 등은 출처 재현용 보조 메타데이터로 DB 컬럼이 아닙니다. `STAT_FILE`의 FILE_ID 관계와 파일 경로는 `stat-file.json`에 있습니다.
 
-`group-model.js`는 GENDER_AGE와 SALARY 행을 독립적으로 조회합니다. `GroupStats.jsx`는 AVG_DECIDED_TAX/AVG_REFUND_TAX만 비교하며 중앙값·순위·백분위를 생성하지 않습니다. DB 연동 시 실재하는 필드와 TAX_YEAR 기준으로 조회하고 없는 항목은 생성하지 마세요. 정적 파일의 메타데이터는 DB 응답의 필수 열로 가정하지 않습니다.
+서버에 연결되면 내가 속한 그룹은 서버(`GET /api/group-stats/{taxYear}`)가 찾아 주고, 연결되지 않으면 이 스냅샷에서 찾습니다(아래 「그룹 비교 통계 (F-06-02)」). `group-model.js`는 GENDER_AGE와 SALARY 행을 독립적으로 조회합니다. `GroupStats.jsx`는 AVG_DECIDED_TAX/AVG_REFUND_TAX만 비교하며 중앙값·순위·백분위를 생성하지 않습니다. DB 연동 시 실재하는 필드와 TAX_YEAR 기준으로 조회하고 없는 항목은 생성하지 마세요. 정적 파일의 메타데이터는 DB 응답의 필수 열로 가정하지 않습니다.
 
 ## 그 밖의 연결 위치
 
@@ -57,3 +57,65 @@
 ## 소비 유형 표 복구 후 표시 경계
 
 대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 향후 시뮬레이션 API 연결 시에도 해당 컴포넌트에 실제 연결 상태를 전달해야 합니다.
+
+## 백엔드 API 연결 흐름 — 세액 계산·진단 파트 (F-02-01 · F-03-01 · F-03-02)
+
+화면이 어떤 API를 어떤 순서로 부르는지 요약만 적습니다. 상세 기록은 작업 단위로 `docs/api_integ_logs/`에 따로 둡니다 (11/11 팀 결정).
+
+- 이 파트의 상세 기록: [`api_integ_logs/TT-11_소득입력_계산_혜택진단.md`](api_integ_logs/TT-11_소득입력_계산_혜택진단.md)
+- 결과 대시보드(F-06-01)의 상세 기록: [`api_integ_logs/TT-14_대시보드_저장결과조회.md`](api_integ_logs/TT-14_대시보드_저장결과조회.md)
+- 그룹 비교 통계(F-06-02)의 상세 기록: [`api_integ_logs/TT-14_그룹비교통계.md`](api_integ_logs/TT-14_그룹비교통계.md)
+
+그 밖의 세부 사항은 아래 원본을 봅니다.
+
+| 세부 사항 | 관리하는 곳 |
+| --- | --- |
+| 응답 봉투 · 오류 코드 | `backend/docs/api-rules.md` |
+| 화면 값 → 서버 이름 (소득 저장) | `src/api/income-service.js`의 `incomeRequest()` |
+| 계산 결과 응답 검사 | `src/api/calculation-contract.js`의 `parseCalculationResult()` |
+| 개발용 설정 (`VITE_API_PROXY` · `VITE_DEV_MEMBER_ID`) | `.env.example` · `vite.config.js` |
+
+### 공통
+
+- 모든 호출은 `src/api/api-client.js`의 `apiRequest()`를 거칩니다. 성공이면 응답 봉투의 `data`만 돌려주고, 실패면 서버의 `error.code` · `error.message`를 가진 오류를 던집니다.
+- 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 체험용 계산 · 판정으로 대신하는 것은 개발 서버(`npm run dev`)에서만이고(`canUseDemo`), 빌드한 파일(배포본)은 연결 실패 안내만 보여 줍니다.
+- 로그인(Spring Security) 연결 전까지 개발 서버에서만 `X-Member-Id` 헤더를 보냅니다.
+
+### 소득 저장 · 세액 계산 (F-02-01 · F-03-01)
+
+`App.calculate()` → `src/api/calculation-service.js`의 `saveAndCalculate(d)`
+
+1. `PUT /api/incomes/{taxYear}` — 소득 저장. 한 해 소득 전체를 덮어쓰므로 모든 칸을 보냅니다.
+2. 저장이 성공하면 `POST /api/calculations/{taxYear}` — 계산 + 결과 저장.
+3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘깁니다. 응답의 `predictionId`(저장된 결과 번호)는 그대로 남깁니다.
+
+- 서버 오류면 서버 문구를 알림으로 띄우고 입력 화면에 머뭅니다 (입력값 유지).
+- 계산 버튼을 연달아 눌러도 요청은 한 번만 보냅니다.
+
+### 결과 대시보드 — 저장된 계산 결과 조회 (F-06-01)
+
+대시보드 · 통계 화면 진입 → `src/api/calculation-service.js`의 `fetchLatestCalculation(taxYear)` → `GET /api/calculations/{taxYear}`
+
+- 화면에 그 귀속 연도의 서버 결과(`calcResult`)가 없을 때만 부릅니다. 방금 계산했거나 브라우저 저장에서 이어 온 결과가 있으면 부르지 않습니다.
+- 받은 결과는 계산 직후와 같은 `calcResult`에 넣으므로 대시보드가 같은 코드로 그립니다 (`result` · `isDemo={false}`).
+- 계산한 적이 없거나(404 `NOT_FOUND`) 서버에 연결할 수 없으면 알림 없이 지금 화면을 그대로 둡니다.
+
+### 그룹 비교 통계 (F-06-02)
+
+대시보드 · 통계 화면 진입 → `src/api/statistics-service.js`의 `fetchGroupStats(taxYear)` → `GET /api/group-stats/{taxYear}`
+
+- 받은 값은 `groupStats` 상태에 넣고, 화면의 귀속 연도와 같을 때만 대시보드 · 통계 화면에 넘깁니다 (`serverGroups`).
+- `utils/group-model.js`의 `groupComparison()`이 서버 값이 있으면 그것만 쓰고, 없으면(서버 연결 실패) 통계 스냅샷에서 찾습니다. 두 쪽을 섞지 않습니다 (서버가 못 찾은 그룹은 비워 둠).
+- 화면 문구가 출처를 따라 바뀝니다: 「서버 통계 조회」 / 「제공 원본 파일 반영」 · 나의 결과는 「계산 결과」 / 「데모」.
+
+### 청년 혜택 자격 진단 (F-03-02)
+
+혜택 화면 → `src/api/benefit-service.js`의 `fetchBenefits(taxYear)` → `GET /api/benefits/{taxYear}`
+
+- 응답의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 보여 주고, 화면에서 다른 값으로 바꾸지 않습니다.
+- 판정은 서버에 저장된 회원 정보로 합니다. 화면의 「나의 자격 정보」는 아직 브라우저 입력값이라, 두 값이 다를 수 있다는 안내를 함께 보여 줍니다.
+
+### 아직 연결 안 된 부분
+
+- 시뮬레이션(비교 화면): 체험 계산 그대로입니다. 계산 API가 저장된 소득으로만 계산하므로 「저장하지 않는 계산 API」가 따로 필요합니다.
+- 카드 사용액: 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다.
