@@ -37,8 +37,9 @@ export default function Dashboard({
   chat,
   result,
   isDemo = true,
+  groupStats = null,
 }) {
-  const m = dashboardModel(data, transactions, result),
+  const m = dashboardModel(data, transactions, result, groupStats),
     r = m.result;
   const resultLabel = settlementLabel(r.expectedRefund);
   // v10의 화면 그룹·펼침 구조를 유지하고 새 응답 필드는 이 표시 경계에서만 연결합니다.
@@ -119,11 +120,29 @@ export default function Dashboard({
       reason: m.youth.reason,
     },
   ];
+  // 계산 API 결과일 때만 항목별 내역(details)에서 단계 금액을 모아요 (체험 계산은 '계산 연동 필요')
+  const sumOf = (filter) =>
+    r.details.filter(filter).reduce((sum, item) => sum + item.deductionAmount, 0);
+  const earnedDeduction = sumOf((item) => item.typeCode === 'EARNED_DEDUCTION');
+  const otherIncomeDeduction = sumOf(
+    (item) =>
+      item.typeCode !== 'EARNED_DEDUCTION' &&
+      ['INCOME_DEDUCTION', 'CARD', 'CARD_RULE'].includes(item.kind),
+  );
+  const step = (amount) => (isDemo ? pending : `${money(amount)}원`);
   const taxSteps = [
     ['총급여', `${money(r.totalSalary)}원`, `${r.taxYear}년 귀속 · 사용자 입력값`],
-    ['근로소득공제', pending, '법정 산식 미연동'],
-    ['근로소득금액', pending, '총급여에서 근로소득공제를 차감하는 단계'],
-    ['그 밖의 소득공제', pending, '인적·연금·특별·카드 등 소득공제 세부 계산 필요'],
+    ['근로소득공제', step(earnedDeduction), isDemo ? '법정 산식 미연동' : '총급여 구간별 공제'],
+    [
+      '근로소득금액',
+      step(r.totalSalary - earnedDeduction),
+      '총급여에서 근로소득공제를 차감하는 단계',
+    ],
+    [
+      '그 밖의 소득공제',
+      step(otherIncomeDeduction),
+      isDemo ? '인적·연금·특별·카드 등 소득공제 세부 계산 필요' : '인적·보험료·주택·카드 등 합계',
+    ],
     [
       '과세표준',
       r.taxableIncome === null ? pending : `${money(r.taxableIncome)}원`,
@@ -134,12 +153,16 @@ export default function Dashboard({
       `${money(r.calculatedTax)}원`,
       isDemo ? '체험용 계산 결과 · 법정 계산 미연동' : '계산 API 결과',
     ],
-    ['세액감면·공제', pending, '개별 요건·한도·적용 순서 미연동'],
+    [
+      '세액감면·공제',
+      step(r.calculatedTax - r.decidedTax),
+      isDemo ? '개별 요건·한도·적용 순서 미연동' : '산출세액 − 결정세액',
+    ],
     ['결정세액', `${money(r.decidedTax)}원`, isDemo ? '체험용 계산 결과' : '계산 API 결과'],
     [
       settlementLabel(r.expectedRefund),
       `${money(Math.abs(r.expectedRefund))}원`,
-      '기납부세액과 데모 결정세액의 차이',
+      isDemo ? '기납부세액과 데모 결정세액의 차이' : '기납부세액과 결정세액의 차이',
     ],
   ];
   return (
@@ -180,7 +203,11 @@ export default function Dashboard({
                   {money(Math.abs(r.expectedRefund))}
                   <span>원</span>
                 </h2>
-                <small>실제 신고·환급 금액이 아닌 시연 결과</small>
+                <small>
+                  {isDemo
+                    ? '실제 신고·환급 금액이 아닌 시연 결과'
+                    : '입력값 기준 예상 금액 · 실제 신고 결과와 다를 수 있어요'}
+                </small>
               </div>
               <div className="dash-secondary">
                 <Wallet size={18} />
@@ -198,7 +225,7 @@ export default function Dashboard({
                   {money(r.decidedTax)}
                   <small>원</small>
                 </b>
-                <p>최종 부담할 세금 · 데모값</p>
+                <p>최종 부담할 세금 · {isDemo ? '데모값' : '계산값'}</p>
               </div>
             </div>
             <div className="dash-equation">
@@ -223,7 +250,7 @@ export default function Dashboard({
                   <p>과세표준과 공제 적용 흐름을 확인하세요.</p>
                 </div>
                 <span>
-                  <Badge tone="gray">법정 계산 미연동</Badge>
+                  <Badge tone="gray">{isDemo ? '법정 계산 미연동' : '계산 결과'}</Badge>
                   <ChevronDown size={17} />
                 </span>
               </summary>
@@ -458,7 +485,7 @@ export default function Dashboard({
               <h3>
                 <ChartNoAxesCombined size={18} /> 그룹 통계 비교
               </h3>
-              <Badge tone="gray">2024년 귀속 기준</Badge>
+              <Badge tone="gray">{m.statYear}년 귀속 기준</Badge>
             </div>
             <div className="dash-group-fields">
               <div>
@@ -478,12 +505,14 @@ export default function Dashboard({
             <p>
               통계 상세는 성별·연령 집단 평균, 나의 결과, 총급여 집단 평균의 막대 3개를
               결정세액·환급세액 그래프에 각각 표시합니다. 두 집단은 독립적이며 성별·연령·급여를
-              동시에 만족하는 평균이 아닙니다. 집단 평균은 제공된 국세청 2024년 귀속 XLSX에서 정제한
-              값이며 Oracle DB·실시간 API는 미연동입니다.
+              동시에 만족하는 평균이 아닙니다.{' '}
+              {m.groupFromServer
+                ? `집단 평균은 국세청 ${m.statYear}년 귀속 통계를 정제해 서버(DB)에 저장한 값이며, 내가 속한 집단은 서버가 회원 정보와 저장된 총급여로 찾습니다.`
+                : `집단 평균은 제공된 국세청 ${m.statYear}년 귀속 XLSX에서 정제한 값이며, 서버에 연결되지 않아 화면에 보관한 통계로 표시합니다.`}
             </p>
             <p className="dash-description">
-              나의 결과는 {m.taxYear}년 귀속 체험용 계산, 비교 통계는 2024년 귀속입니다. 귀속연도가
-              달라 직접 비교할 수 없습니다.
+              나의 결과는 {m.taxYear}년 귀속 {isDemo ? '체험용 계산' : '계산 결과'}, 비교 통계는{' '}
+              {m.statYear}년 귀속입니다. 귀속연도가 달라 직접 비교할 수 없습니다.
             </p>
             <Jump onClick={() => go('stats')}>그룹 통계 상세 보기</Jump>
           </section>
