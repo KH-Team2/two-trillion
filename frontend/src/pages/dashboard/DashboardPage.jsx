@@ -27,20 +27,9 @@ export default function DashboardPage({
       chart={(rows) => <Donut transactions={rows} />}
       chat={
         <ChatPanel
-          // 상담 방은 입력값별로 저장돼요 → 서버 계산 결과마다 새 방을 열어 예전 체험 숫자가 남지 않게 해요
-          // 결과 번호(predictionId)로 구분하고, 번호가 없는 예전 이력은 결과 숫자로 구분해요
-          data={
-            isDemo
-              ? data
-              : {
-                  ...data,
-                  calcResultKey:
-                    result.predictionId != null
-                      ? `API-${result.predictionId}`
-                      : `API-${result.taxYear}-${result.decidedTax}-${result.expectedRefund}`,
-                }
-          }
-          reply={(q, d) => dashboardReply(q, d, isDemo ? undefined : result)}
+          // 상담 카드는 계산 결과와 연결하지 않아요 (챗봇은 세법 용어 설명용 · 11/16)
+          data={data}
+          reply={(q, d) => dashboardReply(q, d)}
         />
       }
     />
