@@ -19,6 +19,9 @@ export function parseCalculationResult(raw, { allowPending = false } = {}) {
   }
   if (!raw || !Array.isArray(raw.details)) throw Error('항목별 계산 결과가 없습니다.');
   const result = {};
+  // 저장된 결과 번호 (PREDICTION.PREDICTION_ID) · 저장된 결과를 다시 찾을 때 써요
+  // 예전 브라우저 이력에는 없을 수 있어서 숫자가 아니면 null로 둬요
+  result.predictionId = Number.isInteger(raw.predictionId) ? raw.predictionId : null;
   for (const key of [
     'taxYear',
     'totalSalary',

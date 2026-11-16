@@ -88,6 +88,7 @@ export function dashboardModel(data, transactions, result = taxService.calculate
         : '급여 요건 미충족 · 문화체육 우대 공제율 미적용',
   };
 }
+// 상담 카드 예시 답변 · 계산 API 결과와 연결하지 않아요 (챗봇은 세법 용어 설명용 · 11/16)
 export function dashboardReply(q, data) {
   const r = taxService.calculate(data),
     y = youthStatus(data);

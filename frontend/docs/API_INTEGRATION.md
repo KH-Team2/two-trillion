@@ -57,3 +57,47 @@
 ## 소비 유형 표 복구 후 표시 경계
 
 대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 향후 시뮬레이션 API 연결 시에도 해당 컴포넌트에 실제 연결 상태를 전달해야 합니다.
+
+## 백엔드 API 연결 흐름 — 세액 계산·진단 파트 (F-02-01 · F-03-01 · F-03-02)
+
+화면이 어떤 API를 어떤 순서로 부르는지 요약만 적습니다. 상세 기록은 작업 단위로 `docs/api_integ_logs/`에 따로 둡니다 (11/11 팀 결정).
+
+- 이 파트의 상세 기록: [`api_integ_logs/TT-11_소득입력_계산_혜택진단.md`](api_integ_logs/TT-11_소득입력_계산_혜택진단.md)
+
+그 밖의 세부 사항은 아래 원본을 봅니다.
+
+| 세부 사항 | 관리하는 곳 |
+| --- | --- |
+| 응답 봉투 · 오류 코드 | `backend/docs/api-rules.md` |
+| 화면 값 → 서버 이름 (소득 저장) | `src/api/income-service.js`의 `incomeRequest()` |
+| 계산 결과 응답 검사 | `src/api/calculation-contract.js`의 `parseCalculationResult()` |
+| 개발용 설정 (`VITE_API_PROXY` · `VITE_DEV_MEMBER_ID`) | `.env.example` · `vite.config.js` |
+
+### 공통
+
+- 모든 호출은 `src/api/api-client.js`의 `apiRequest()`를 거칩니다. 성공이면 응답 봉투의 `data`만 돌려주고, 실패면 서버의 `error.code` · `error.message`를 가진 오류를 던집니다.
+- 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 체험용 계산 · 판정으로 대신하는 것은 개발 서버(`npm run dev`)에서만이고(`canUseDemo`), 빌드한 파일(배포본)은 연결 실패 안내만 보여 줍니다.
+- 로그인(Spring Security) 연결 전까지 개발 서버에서만 `X-Member-Id` 헤더를 보냅니다.
+
+### 소득 저장 · 세액 계산 (F-02-01 · F-03-01)
+
+`App.calculate()` → `src/api/calculation-service.js`의 `saveAndCalculate(d)`
+
+1. `PUT /api/incomes/{taxYear}` — 소득 저장. 한 해 소득 전체를 덮어쓰므로 모든 칸을 보냅니다.
+2. 저장이 성공하면 `POST /api/calculations/{taxYear}` — 계산 + 결과 저장.
+3. 결과를 `calcResult` 상태로 보관해 대시보드에 `result` · `isDemo={false}`로 넘깁니다. 응답의 `predictionId`(저장된 결과 번호)는 그대로 남깁니다.
+
+- 서버 오류면 서버 문구를 알림으로 띄우고 입력 화면에 머뭅니다 (입력값 유지).
+- 계산 버튼을 연달아 눌러도 요청은 한 번만 보냅니다.
+
+### 청년 혜택 자격 진단 (F-03-02)
+
+혜택 화면 → `src/api/benefit-service.js`의 `fetchBenefits(taxYear)` → `GET /api/benefits/{taxYear}`
+
+- 응답의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 보여 주고, 화면에서 다른 값으로 바꾸지 않습니다.
+- 판정은 서버에 저장된 회원 정보로 합니다. 화면의 「나의 자격 정보」는 아직 브라우저 입력값이라, 두 값이 다를 수 있다는 안내를 함께 보여 줍니다.
+
+### 아직 연결 안 된 부분
+
+- 시뮬레이션(비교 화면): 체험 계산 그대로입니다. 계산 API가 저장된 소득으로만 계산하므로 「저장하지 않는 계산 API」가 따로 필요합니다.
+- 카드 사용액: 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다.
