@@ -1,7 +1,7 @@
 package com.hoperefund.prediction.dto;
 
 /**
- * 항목별 공제 내역 1행 (DTO: 계층 사이에 데이터를 실어 나르는 객체) - 칸 이름은 노션 「동석님 전달」의 details[] 이름 그대로 써요. 화면(React)이 이
+ * 항목별 공제 내역 1행 (DTO: 계층 사이에 데이터를 실어 나르는 객체) - 칸 이름은 계산 서버(calc) 응답의 details[]와 같아요. 화면(React)이 이
  * 이름으로 값을 꺼내요. - 금액은 원 단위 정수(Long)예요. 카드 한도 행은 음수일 수 있어요.
  */
 public class DeductionDetailDTO {
