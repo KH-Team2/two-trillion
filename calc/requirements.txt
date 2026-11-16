@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+oracledb
+pydantic
+python-dotenv
+pandas
+openpyxl
+python-calamine
+python-multipart
