@@ -485,7 +485,7 @@ class CalculationServiceTest {
         CalculationResponseDTO result = service(false).simulate(81L, 2026, simulationRequest());
         // Then: 요청 값으로 계산 · INCOME은 그대로
         assertEquals(40_000_000L, result.getTotalSalary().longValue());
-        assertEquals(36_000_000L, incomeMapper.rows.get("81-2026").getTotalSalary().longValue());
+        assertEquals(36_000_000L, incomeMapper.rows.get("81-2026").getTotalSalary());
         assertNull(result.getPredictionId());
     }
 
