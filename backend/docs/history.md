@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-16] 결과 이력 조회 API (F-04-02)
+- **작업 내용**:
+  - `GET /api/predictions?year=2026`: 본인의 그 연도 결과 전부(현재 · 시나리오) 최신순 · 없으면 빈 목록(오류 아님)
+  - `GET /api/predictions/{predictionId}`: 하나 다시 열기 (대시보드와 같은 모양 · 항목별 내역 포함) · 없거나 남의 것이면 404
+  - 새 `PredictionSummaryDTO` · `PredictionController` · 매퍼 `findPredictions` · `findPrediction` · `CalculationService.getHistory()` · `getOne()`
+- **변경 사유**:
+  - 기능명세서 F-04-02 · 주소는 팀 규칙(목록 거르기는 `?` 뒤 · 그 한 건은 경로)
+- **검증 결과**:
+  - 테스트 3개 추가 · curl: 회원 81 목록 3건 · 6번 열기 200 · 82번이 6번 열기 404
+
 ### [2026-11-15] 조건 변경 시뮬레이션 API (F-04-01)
 - **작업 내용**:
   - `POST /api/simulations/{taxYear}`: 바꾼 입력값(소득 칸 전부 · 무주택 여부 · 카드 분류별 금액)으로 세액 계산(F-03-01)을 다시 하고 `PREDICTION`에 시나리오 이름(`SCENARIO_NAME`) · 기준 결과 번호(`BASE_PREDICTION_ID`)를 채워 저장
