@@ -13,7 +13,7 @@ import java.util.List;
 @RequestMapping("/api")
 @RequiredArgsConstructor
 public class AdminInquiryController {
-	/* F-17, F-18 */
+	/* F-17, F-18: 고객센터 문의 확인 및 답변 */
     private final AdminInquiryService adminInquiryService;
 
     /**

@@ -11,6 +11,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class AdminInquiryResponseDto {
+	/* F-17, F-18: 고객센터 문의 내역 및 답변 DTO */
     private Long inquiryId;         // 문의 고유 번호
     private String title;           // 문의 제목
     private String content;         // 문의 내용
