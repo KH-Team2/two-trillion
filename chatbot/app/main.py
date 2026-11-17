@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.faq import router as faq_router
 
 """
 희망환급 세법 용어 FAQ 챗봇 서버 시작 파일
@@ -17,3 +18,4 @@ app = FastAPI(
 )
 
 app.include_router(health_router)
+app.include_router(faq_router)
