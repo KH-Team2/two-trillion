@@ -17,8 +17,76 @@ export function ExpenseUpload({ rows, meta, onChange }) {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
     [source, setSource] = useState('card'),
-    [fallback, setFallback] = useState('');
+    [fallback, setFallback] = useState(''),
+    // [수정 11/17 고은] 결제수단 선택 창 상태 (TT-113)
+    // null이면 창 닫힘 · {fileName, answer}면 창 열림 (answer: 사용자가 고른 값을 업로드 쪽에 돌려주는 함수)
+    [payAsk, setPayAsk] = useState(null);
   const files = uploadFiles(meta, rows);
+
+  // ───────── [추가 11/17 고은] TT-113: 결제수단 선택 · 중복 경고 후 다시 보내기 ─────────
+
+  /**
+   * 결제수단 선택 창을 열고, 사용자가 버튼을 누를 때까지 기다림
+   *
+   * Promise(약속): 「나중에 값이 정해지면 알려 줄게」라는 상자.
+   * resolve를 화면 상태(payAsk.answer)에 넣어 두었다가, 버튼을 누르면 그 함수를 불러서 값을 돌려줌
+   * → 업로드 코드는 await askPayMethod(...)에서 버튼이 눌릴 때까지 멈춰 있다가 고른 값을 받음
+   *
+   * @returns 'CREDIT' | 'CHECK' | null(취소)
+   */
+  const askPayMethod = (fileName) =>
+    new Promise((resolve) => {
+      setPayAsk({
+        fileName,
+        answer: (value) => {
+          setPayAsk(null); // 창 닫기
+          resolve(value); // 기다리던 업로드 코드에 고른 값 전달
+        },
+      });
+    });
+
+  /** 사용자가 취소했다는 표시용 오류 (일반 실패와 구분해서 「처리 실패」로 남기지 않으려고) */
+  const cancelled = () => Object.assign(new Error('업로드를 취소했어요.'), { code: 'CANCELLED' });
+
+  /**
+   * 파일 1개를 올리고, 서버가 「결제수단이 필요해요(400)」나 「중복이에요(409)」라고 하면
+   * 사용자에게 물어본 뒤 같은 파일을 다시 보냄
+   *
+   * - PAY_METHOD_REQUIRED: 파일에 사용구분 칸이 없음 → 신용/체크 선택 창 → 고른 값으로 다시 보냄
+   * - DUPLICATE_WARNING: 이미 올린 결제와 같은 건이 있음 → 확인 창 → 「확인」이면 allowDuplicate=true로 다시 보냄
+   *   (같은 날 · 같은 가게 · 같은 금액 결제는 실제로 두 번 있을 수 있어서 막지 않고 묻기만 함)
+   * - 그 밖의 오류 · 같은 오류가 또 오면: 그대로 던져서 아래 catch에서 안내
+   *
+   * @returns {saved: 서버 업로드 응답, payMethod: 실제로 보낸 결제수단 코드}
+   */
+  const uploadWithChoices = async (file) => {
+    let payMethod = source === 'hometax' ? undefined : payCode(fallback);
+    let allowDuplicate = false;
+    // 최대 3번: 처음 보내기 → (결제수단 고른 뒤) → (중복 확인 뒤) · 무한 반복 방지
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const saved = await uploadCardFile(file, { payMethod, allowDuplicate });
+        return { saved, payMethod };
+      } catch (err) {
+        if (err.code === 'PAY_METHOD_REQUIRED' && !payMethod) {
+          const picked = await askPayMethod(file.name);
+          if (!picked) throw cancelled();
+          payMethod = picked;
+          continue; // 고른 결제수단으로 다시 보내기
+        }
+        if (err.code === 'DUPLICATE_WARNING' && !allowDuplicate) {
+          const ok = window.confirm(
+            `${file.name}\n${err.message}\n\n같은 날 · 같은 가게 · 같은 금액 결제가 실제로 두 번 있었다면 「확인」을 눌러 그대로 올려 주세요.\n이미 올린 파일이면 「취소」를 눌러 주세요.`,
+          );
+          if (!ok) throw cancelled();
+          allowDuplicate = true;
+          continue; // 「그래도 올리기」로 다시 보내기
+        }
+        throw err;
+      }
+    }
+    throw cancelled();
+  };
   const changeMethod = (id, value) => {
     const others = rows.filter((r) => (r.uploadId || 'legacy') !== id);
     const selected = rows
@@ -116,8 +184,9 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                   // [수정 11/17 고은] 브라우저 해석 → 서버 업로드 (TT-112)
                   // 1) 파일을 서버로 보냄 · 결제수단은 카드사 파일에서 사용자가 골랐을 때만 보냄
                   //    (홈택스 파일은 서버가 현금영수증으로 정함)
-                  const payMethod = source === 'hometax' ? undefined : payCode(fallback);
-                  const saved = await uploadCardFile(file, { payMethod });
+                  // [수정 11/17 고은] uploadCardFile 직접 호출 → uploadWithChoices (TT-113)
+                  // 이유: 결제수단이 필요하거나 중복이면 사용자에게 묻고 같은 파일을 다시 보내려고
+                  const { saved, payMethod } = await uploadWithChoices(file);
                   // 2) 저장된 거래 + 분류 근거를 다시 받아 기존 화면 모양으로 바꿈
                   //    (중복 확인은 서버가 이미 했으므로 화면에서 다시 하지 않음)
                   const incoming = (await fetchUploadExpenses(saved.uploadId)).map((item) =>
@@ -130,12 +199,25 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     count: incoming.length,
                     at: saved.uploadedAt || at,
                     source,
-                    paymentMethod: source === 'hometax' ? '현금영수증' : fallback,
+                    // [수정 11/17 고은] fallback → 실제로 보낸 결제수단 · 이유: 선택 창에서 고른 값이 반영되게
+                    paymentMethod:
+                      source === 'hometax'
+                        ? '현금영수증'
+                        : payMethod === 'CHECK'
+                          ? '체크카드'
+                          : payMethod === 'CREDIT'
+                            ? '신용카드'
+                            : fallback,
                     status: '업로드 완료',
                     serverSaved: true,
                   });
                   messages.push(`${file.name}: ${saved.rowCount}건 업로드 · 분류 완료`);
                 } catch (err) {
+                  // [추가 11/17 고은] 사용자가 직접 취소한 건 실패가 아니라서 파일 목록에 「처리 실패」로 남기지 않음
+                  if (err.code === 'CANCELLED') {
+                    messages.push(`${file.name}: ${err.message}`);
+                    continue;
+                  }
                   nextFiles.push({
                     id,
                     name: file.name,
@@ -146,11 +228,11 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     error: err.message,
                   });
                   // [수정 11/17 고은] 서버 오류 코드별 안내 · 이유: 서버가 준 문구에 「다음에 할 일」을 덧붙임
-                  // (결제수단 선택 후 다시 보내기 · 중복 「그래도 올리기」는 TT-113에서 연결)
+                  // [수정 11/17 고은 · TT-113] 결제수단 · 중복은 이제 위 uploadWithChoices가 물어보고 다시 보냄
+                  //   → 여기까지 오는 건 다시 보냈는데도 같은 오류가 난 드문 경우라 짧게 안내
                   const hint =
                     {
-                      PAY_METHOD_REQUIRED:
-                        '위의 「파일에 결제수단이 없는 경우」에서 신용/체크를 고른 뒤 다시 추가해주세요.',
+                      PAY_METHOD_REQUIRED: '결제수단을 다시 골라 주세요.',
                       DUPLICATE_WARNING: '이미 올린 파일인지 확인해주세요.',
                       OFFLINE: '백엔드 · 계산 서버가 켜져 있는지 확인해주세요.',
                     }[err.code] ||
@@ -167,6 +249,27 @@ export function ExpenseUpload({ rows, meta, onChange }) {
           />
         </label>
       </div>
+      {/* [추가 11/17 고은] 결제수단 선택 창 (TT-113) · 서버가 PAY_METHOD_REQUIRED를 주면 열림
+          버튼을 누르면 payAsk.answer(값)이 불려서 기다리던 업로드가 그 값으로 다시 보내짐 */}
+      {payAsk && (
+        <div className="duplicate-note" role="dialog" aria-label="결제수단 선택">
+          <p role="status">
+            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을
+            골라 주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
+          </p>
+          <div className="actions">
+            <button type="button" className="btn" onClick={() => payAsk.answer('CREDIT')}>
+              신용카드
+            </button>
+            <button type="button" className="btn" onClick={() => payAsk.answer('CHECK')}>
+              체크카드
+            </button>
+            <button type="button" className="btn secondary" onClick={() => payAsk.answer(null)}>
+              업로드 취소
+            </button>
+          </div>
+        </div>
+      )}
       <h4>업로드 파일 관리 · {files.length}개</h4>
       {!files.length && <p>등록된 파일이 없습니다. 새 파일을 추가해도 기존 파일은 유지됩니다.</p>}
       <div className="upload-files">
