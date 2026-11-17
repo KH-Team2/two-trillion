@@ -13,7 +13,7 @@ public class AdminAccessLogService {
 
     private final AdminAccessLogMapper adminAccessLogMapper;
 
-    // 접근 기록 목록 조회 비즈니스 로직
+    //  접근 기록 목록 조회 비즈니스 로직
     public List<AccessLogResponseDto> getAccessLogs(
             String startDate, String endDate, String ipAddress, int page, int size) {
         int offset = page * size;
