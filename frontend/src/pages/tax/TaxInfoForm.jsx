@@ -247,7 +247,7 @@ export default function TaxInfoForm({
                   <h3>소비 유형·결제수단별 가상 추가 사용액</h3>
                   <p>
                     업로드 없이 원본 지출에 가상 금액을 추가합니다. 원본 거래는 변경되지 않습니다.
-                    체험용 결과 비교이며 유형별 법정 공제율·한도는 미연동입니다.
+                    계산 서버에 연결되면 기존 계산 결과와 서버 계산으로 비교해요.
                   </p>
                   {(d.simulationSpend || []).map((row, i) => (
                     <div className="form-grid" key={i}>
