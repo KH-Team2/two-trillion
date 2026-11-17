@@ -38,7 +38,11 @@ export async function apiRequest(
   const id = memberId ?? devMemberId;
   const headers = { Accept: 'application/json' };
   if (id && /^\d+$/.test(String(id))) headers['X-Member-Id'] = String(id);
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  // [수정 11/17 고은] 파일(FormData)이면 JSON으로 바꾸지 않고 그대로 보냄
+  // 이유: 카드 파일 업로드(POST /api/card-uploads)는 multipart 요청이라 JSON으로 보낼 수 없음
+  //   · FormData일 때는 Content-Type을 직접 넣지 않음 → 브라우저가 파일 경계값(boundary)까지 넣어 줌
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   const offline = offlineMessage || '서버에 연결할 수 없어요.';
 
   let response;
@@ -47,7 +51,8 @@ export async function apiRequest(
       method,
       headers,
       credentials: 'same-origin',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // [수정 11/17 고은] FormData는 그대로 · 나머지는 지금처럼 JSON 글자로 바꿈
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw apiError('OFFLINE', offline);

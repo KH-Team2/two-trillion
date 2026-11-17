@@ -1,7 +1,9 @@
 // CSV·XLSX를 읽고 업로드 단위로 거래를 묶습니다. 중복 후보는 사용자 확인 전 집계에서 보류합니다.
 import React, { useState, useId } from 'react';
+// [수정 11/17 고은] parseUploadFile(브라우저에서 파일 읽기) 대신 서버 업로드 API를 씀
+// 이유: 브라우저에서만 읽으면 DB(EXPENSE)에 저장되지 않아 세액 계산에 카드 내역이 빠짐
+import { uploadCardFile, fetchUploadExpenses, toUploadRow } from '@/api/card-upload-service.js';
 import {
-  parseUploadFile,
   payCode,
   transactionExamples,
   uploadFiles,
@@ -54,14 +56,15 @@ export function ExpenseUpload({ rows, meta, onChange }) {
   return (
     <div className="inline-note upload-inline">
       <h3>카드·현금영수증 거래내역 업로드</h3>
+      {/* [수정 11/17 고은] 안내 문구를 서버 처리 기준으로 바꿈 · 이유: 이제 실제 목록으로 분류하고 DB에 저장함 */}
       <p>
-        현재 지원: CSV(UTF-8·한글 인코딩), 단일 시트 XLSX · 첫 행에 거래일자/승인일시/사용일자,
-        가맹점명/상호명, 이용금액/금액 등의 열이 있어야 합니다. 사용구분/결제수단은 선택 열입니다.
-        카드사별 모든 원본 양식·다중 시트·암호 파일 자동 인식은 지원하지 않습니다.
+        지원: CSV(UTF-8·한글 인코딩) · XLSX · 홈택스 현금영수증 XLS · 첫 행에 거래일자/승인일시,
+        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당 10,000건까지
+        올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
       </p>
       <p>
-        파일 처리 → 예시 공공데이터 상호명 대조 → 데모 계산 → 결과 조회. 실제 MERCHANT_LIST
-        80,665행과 공공데이터 API는 미연동이며 예시 목록만 대조합니다. 머신러닝은 사용하지 않습니다.
+        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역 저장 →
+        세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지 않습니다.
       </p>
       <div className="form-grid">
         <label className="field">
@@ -87,12 +90,13 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       </div>
       <div className="actions">
         <label className="btn">
-          {busy ? '파일 처리 중…' : 'CSV·XLSX 파일 추가 (여러 개 가능)'}
+          {/* [수정 11/17 고은] xls 추가 · 이유: 홈택스 현금영수증은 xls로만 내려받을 수 있음 (서버가 xls도 읽음) */}
+          {busy ? '파일 업로드 중…' : 'CSV·XLSX·XLS 파일 추가 (여러 개 가능)'}
           <input
-            aria-label="거래내역 CSV·XLSX 파일 추가"
+            aria-label="거래내역 CSV·XLSX·XLS 파일 추가"
             type="file"
             multiple
-            accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            accept=".csv,.xlsx,.xls,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
             disabled={busy}
             onChange={async (e) => {
               const input = e.target,
@@ -109,29 +113,28 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     .join(''),
                   at = new Date().toISOString();
                 try {
-                  const incoming = (await parseUploadFile(file, source, fallback)).map((r) => ({
-                    ...r,
-                    uploadId: id,
-                    uploadName: file.name,
-                  }));
-                  if (nextRows.length + incoming.length > 10000)
-                    throw Error('전체 등록 거래는 10,000건 이하로 유지해주세요.');
-                  const flagged = flagDuplicates(nextRows, incoming),
-                    duplicates = flagged.filter((r) => r.duplicateState === 'pending').length;
-                  nextRows.push(...flagged);
+                  // [수정 11/17 고은] 브라우저 해석 → 서버 업로드 (TT-112)
+                  // 1) 파일을 서버로 보냄 · 결제수단은 카드사 파일에서 사용자가 골랐을 때만 보냄
+                  //    (홈택스 파일은 서버가 현금영수증으로 정함)
+                  const payMethod = source === 'hometax' ? undefined : payCode(fallback);
+                  const saved = await uploadCardFile(file, { payMethod });
+                  // 2) 저장된 거래 + 분류 근거를 다시 받아 기존 화면 모양으로 바꿈
+                  //    (중복 확인은 서버가 이미 했으므로 화면에서 다시 하지 않음)
+                  const incoming = (await fetchUploadExpenses(saved.uploadId)).map((item) =>
+                    toUploadRow(item, saved),
+                  );
+                  nextRows.push(...incoming);
                   nextFiles.push({
-                    id,
+                    id: String(saved.uploadId), // 서버 업로드 번호를 파일 id로 씀
                     name: file.name,
-                    count: flagged.length,
-                    at,
+                    count: incoming.length,
+                    at: saved.uploadedAt || at,
                     source,
                     paymentMethod: source === 'hometax' ? '현금영수증' : fallback,
-                    status: flagged.some((r) => !isCounted(r)) ? '확인 필요' : '업로드 완료',
+                    status: '업로드 완료',
+                    serverSaved: true,
                   });
-                  if (duplicates)
-                    messages.push(
-                      `${file.name}: 기존에 등록된 내역과 중복될 가능성이 있는 거래가 ${duplicates}건 발견되었습니다. (같은 파일 내 중복 포함)`,
-                    );
+                  messages.push(`${file.name}: ${saved.rowCount}건 업로드 · 분류 완료`);
                 } catch (err) {
                   nextFiles.push({
                     id,
@@ -142,9 +145,17 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     status: '처리 실패',
                     error: err.message,
                   });
-                  messages.push(
-                    `${file.name}: ${err.message} 지원하는 헤더가 첫 행에 있는지 확인해주세요. 지원하지 않는 양식은 카드사·홈택스에서 다른 형식으로 내보내거나 해당 열 이름·날짜·금액을 확인한 뒤 다시 업로드해주세요.`,
-                  );
+                  // [수정 11/17 고은] 서버 오류 코드별 안내 · 이유: 서버가 준 문구에 「다음에 할 일」을 덧붙임
+                  // (결제수단 선택 후 다시 보내기 · 중복 「그래도 올리기」는 TT-113에서 연결)
+                  const hint =
+                    {
+                      PAY_METHOD_REQUIRED:
+                        '위의 「파일에 결제수단이 없는 경우」에서 신용/체크를 고른 뒤 다시 추가해주세요.',
+                      DUPLICATE_WARNING: '이미 올린 파일인지 확인해주세요.',
+                      OFFLINE: '백엔드 · 계산 서버가 켜져 있는지 확인해주세요.',
+                    }[err.code] ||
+                    '첫 행에 거래일자(승인일시) · 가맹점명 · 이용금액 칸이 있는지 확인한 뒤 다시 업로드해주세요.';
+                  messages.push(`${file.name}: ${err.message} ${hint}`);
                 }
               }
               onChange(nextRows, makeMeta(nextFiles));
