@@ -109,7 +109,7 @@ frontend/.env.example
 | `VITE_FINANCE_VERSION` | 금융정보 저장 동의 버전 |
 | `VITE_API_PROXY` | 개발용 Spring Boot API 서버 주소 |
 
-`.env.example`을 복사해 `.env` 파일을 만들면 동의서 버전 기본값(`v1.0`)이 들어갑니다.
+`.env.example`을 복사해 `.env` 파일을 만들면 동의서 버전 기본값(`1.0`)이 들어갑니다.
 
 동의서 버전값을 비우면 「동의서 버전 정보가 없어요」로 회원가입이 막힙니다.
 
