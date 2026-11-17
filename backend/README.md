@@ -4,7 +4,7 @@
 
 본 프로젝트는 **Spring Boot 기반 백엔드 API 서버**로, React 프론트엔드의 요청 처리, Oracle Database 조회·저장, Python 계산 서버 및 AI 챗봇 서버 연동을 담당합니다.
 
-> **현재 상태:** 공통 초기 프로젝트 구축 및 기본 검증 완료 / 기능별 API 개발 예정
+> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중
 
 ## 1. 개발 환경
 
@@ -265,20 +265,13 @@ mvnw -B verify
 - Health API
 - 공통 오류 응답 DTO
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
-- 소득 정보 입력·조회 API (`GET` · `PUT /api/incomes/{taxYear}`)
-- 예상 세액 계산 API + 결과 저장 (`POST /api/calculations/{taxYear}`)
-- 저장된 계산 결과 조회 API (`GET /api/calculations/{taxYear}` · 대시보드용 · 본인의 가장 최근 1건 · 없으면 404)
-- 청년 혜택 자격 진단 API (`GET /api/benefits/{taxYear}`)
-- 조건 변경 시뮬레이션 API (`POST /api/simulations/{taxYear}` · 바꾼 입력값으로 다시 계산해 시나리오로 저장 · 기준 결과는 본인의 같은 연도 결과만 · 원래 소득(INCOME)은 덮어쓰지 않음)
-- 결과 이력 조회 API (`GET /api/predictions?year=` 목록 · 최신순 · 현재와 시나리오 함께 / `GET /api/predictions/{predictionId}` 하나 다시 열기 · 항목별 내역 포함 · 남의 것이면 404)
-- 그룹 비교 통계 조회 API (`GET /api/group-stats/{taxYear}` · 대시보드 · 통계 화면용 · 본인의 성별·연령대 그룹과 총급여 구간 그룹 평균 · 못 찾은 그룹은 null)
+- 기능 API: 소득 입력·조회 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - JUnit 자동 테스트 및 코드 품질 검사 환경
 
 ### 추후 구현 예정
 
 - Spring Security 인증·권한 처리
-- 기능별 Controller·Service·Mapper·DTO
 - 회원·지출·관리자 API
 - Python AI 챗봇 서버 HTTP 통신
 - 공통 오류 처리 확장

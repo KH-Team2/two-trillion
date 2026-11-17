@@ -155,7 +155,7 @@ python -m ruff format --check .
 python -m ruff format .
 ```
 
-pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
+pytest 65개(health 1 + 계산·진단 64) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
 
 ## 7. 현재 구현 상태
 
@@ -165,8 +165,8 @@ pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확�
 - `POST /calculate` 예상 세액 계산 (근로소득공제 · 인적공제 · 연금·보험 · 카드 소득공제 · 세율 구간 · 근로소득세액공제 · 표준/특별세액공제 자동 비교 · 월세·주택청약·연금계좌 · 자녀 · 중소기업 취업자 감면)
 - `POST /benefit` 청년 혜택 자격 진단 (해당 · 비해당 · 정보 부족)
 - Oracle DB 기준값 읽기 전용 조회 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · 5분 캐시)
-- `X-Calc-Token` 인증 검증 (토큰 미설정 시 모든 요청 차단)
-- pytest 테스트 63개
+- `X-Calc-Token` 인증 검증 (토큰이 없으면 서버가 시작되지 않음 · 요청마다 토큰 확인)
+- pytest 테스트 65개
 - Spring Boot(`backend/`) 연동 — `HttpCalcClient`로 호출 확인
 
 **추후 개발 예정**
