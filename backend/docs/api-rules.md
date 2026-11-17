@@ -93,6 +93,11 @@
 | --- | --- | --- |
 | GET | `/api/incomes/{taxYear}` | 소득 · 공제 정보 조회 (F-02-01) |
 | PUT | `/api/incomes/{taxYear}` | 소득 · 공제 정보 저장 (F-02-01) |
+| POST | `/api/card-uploads` | 카드 · 홈택스 파일 업로드 · 계산 서버에서 해석 · 분류 후 저장 · 중복이면 409 · 결제수단 없으면 400 (F-02-02 · F-02-03) |
+| GET | `/api/card-uploads` | 내 업로드 이력 · 최신순 (F-02-04) |
+| DELETE | `/api/card-uploads/{uploadId}` | 업로드 삭제 · 거래도 같이 삭제 · 204 · 없거나 남의 것이면 404 (F-02-04) |
+| GET | `/api/expenses?year=` 또는 `?uploadId=` | 거래 목록 + 분류 근거 · 남의 업로드면 404 (F-02-04) |
+| GET | `/api/expense-totals?year=` | 분류 + 결제수단별 합계 · 계산 서버 cardSpends 단위 (F-02-04) |
 | POST | `/api/calculations/{taxYear}` | 예상 세액 계산 + 결과 저장 (F-03-01) |
 | GET | `/api/calculations/{taxYear}` | 저장된 계산 결과 조회 · 가장 최근 1건 · 없으면 404 (F-06-01) |
 | GET | `/api/benefits/{taxYear}` | 청년 혜택 자격 진단 · 저장 안 함 (F-03-02) |

@@ -36,20 +36,21 @@
 ### Backend
 - Java 17
 - Spring Boot 4.1.0
-- MyBatis
+- MyBatis (Spring Boot Starter 4.0.1)
 - Maven
 
 ### Frontend
-- React
+- React 19.2.6
 - JavaScript (JSX)
+- Vite 8.0.13 · Node.js 22.13 이상
 - HTML5
 - CSS3
 
 ### Database
-- Oracle Database 21c
+- Oracle Database 21c Express Edition (21.3.0.0.0)
 
 ### Calculation / AI
-- Python
+- Python 3.11.9
 - FastAPI
 - Ollama (Gemma 3 4B)
 - LangChain
@@ -253,28 +254,36 @@
  │       │   │   │   ├── exception/
  │       │   │   │   └── dto/
  │       │   │   │
- │       │   │   └── prediction/                # 예상 세액 계산·청년 혜택 진단
- │       │   │       ├── controller/            # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
- │       │   │       ├── service/               # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
- │       │   │       ├── client/                # Python 계산 서버 연동
- │       │   │       ├── mapper/                # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
- │       │   │       └── dto/                   # 예상 세액·혜택 요청·응답 DTO
+ │       │   │   ├── prediction/                # 예상 세액 계산 · 청년 혜택 진단 · 시뮬레이션 · 결과 이력
+ │       │   │   │   ├── controller/            # Calculation · Benefit · Simulation · Prediction (주소는 backend/docs/api-rules.md 7번)
+ │       │   │   │   ├── service/               # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
+ │       │   │   │   ├── client/                # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
+ │       │   │   │   ├── mapper/                # PredictionMapper (PREDICTION · 기준값 · 카드 합계 조회)
+ │       │   │   │   └── dto/                   # 계산 · 혜택 · 시뮬레이션 · 이력 요청·응답 DTO
+ │       │   │   │
+ │       │   │   └── statistics/                # 그룹 비교 통계 (GET /api/group-stats/{taxYear})
+ │       │   │       ├── controller/
+ │       │   │       ├── service/
+ │       │   │       ├── mapper/
+ │       │   │       └── dto/
  │       │   │
  │       │   └── resources/
  │       │       ├── application.yml            # Spring Boot 공통 설정
  │       │       └── mapper/                    # MyBatis SQL (기능별 폴더)
  │       │           ├── income/IncomeMapper.xml
  │       │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
- │       │           └── prediction/PredictionMapper.xml
+ │       │           ├── prediction/PredictionMapper.xml
+ │       │           └── statistics/GroupStatMapper.xml
  │       │
  │       └── test/java/com/hoperefund/
  │           ├── common/
  │           ├── income/
  │           ├── expense/
- │           └── prediction/
+ │           ├── prediction/
+ │           └── statistics/
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
- │   ├── .env.example                         # DB·내부 토큰·서버 실행 변수 예시
+ │   ├── .env.example                         # DB · 내부 토큰 변수 예시
  │   ├── AGENTS.md                            # 계산 서버 개발 규칙
  │   ├── README.md                            # 계산 서버 설치·실행 안내
  │   ├── requirements.txt                     # 서버 의존성
@@ -326,18 +335,6 @@
  │   │       ├── tax_calculator.py             # 연말정산 세액 계산
  │   │       └── tax_rules.py                  # 세액 계산 규칙
  │   │
- │   ├── database/                            # 계산용 DB 구축·기준 데이터
- │   │   ├── 00_초기화.sql
- │   │   ├── 01_schema.sql
- │   │   ├── 02_기준데이터.sql
- │   │   ├── 03_데이터적재.sql
- │   │   ├── README.md
- │   │   └── cp949/                           # CP949 인코딩 SQL
- │   │       ├── 00_초기화.sql
- │   │       ├── 01_schema.sql
- │   │       ├── 02_기준데이터.sql
- │   │       └── 03_데이터적재.sql
- │   │
  │   ├── scripts/                             # 직접 돌리는 검증 도구
  │   │   └── compare_card_classify.py         # 파이썬 분류 vs SQL 분류 비교 (10,453건)
  │   │
@@ -358,7 +355,17 @@
  │       ├── test_oracle_criteria.py           # Oracle 기준 데이터 조회 테스트
  │       ├── test_tax_calculator.py            # 세액 계산 테스트
  │       └── test_tax_rules.py                 # 세액 계산 규칙 테스트
- │ 
+ │
+ ├── database/                                # Oracle DB 작업 파일 (실행 순서 · 계정 권한은 database/README.md)
+ │   ├── README.md
+ │   ├── 계정_1_생성.sql                       # 주인 계정 · 계산 서버 계정 만들기 (DB 관리자)
+ │   ├── 00_초기화.sql
+ │   ├── 01_schema.sql                        # 테이블 20개 · 제약조건 · 시퀀스 · 인덱스
+ │   ├── 02_기준데이터.sql                     # 공제 · 세율 · 혜택 조건 등 기준값
+ │   ├── 04_분류함수.sql                       # 가맹점명 정제 함수 FN_NORMALIZE_NAME
+ │   └── 계정_2_계산서버_권한.sql               # 계산 서버 계정 읽기 권한 (DB 관리자)
+ │   # 03_데이터적재.sql · cp949/ 복사본은 크기 때문에 팀 노션 zip에만 있음
+ │
  ├── chatbot/                                 # Python FastAPI · Ollama 기반 AI 챗봇 서버
  │   ├── .env.example                         # Ollama·내부 API 인증 등 환경 변수 예시
  │   ├── AGENTS.md                            # 챗봇 서버 개발 규칙
@@ -421,7 +428,6 @@
 backend/src/main/java/com/hoperefund/
 ├── member/           # MEMBER · PASSWORD_RESET
 ├── expense/          # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY
-├── statistics/       # GROUP_STAT · STAT_FILE
 ├── chat/             # CHAT_SESSION · CHAT_MESSAGE · RECOMMENDATION
 ├── inquiry/          # INQUIRY
 ├── admin/            # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION

@@ -84,9 +84,9 @@ python -m pip install -r requirements-dev.txt
 | `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`../database/README.md` · 카드 분류 때문에 `MERCHANT_LIST` · `SPEND_CATEGORY`도 읽음) |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `DB_DSN` | Oracle 접속 주소 `주소:포트/서비스이름` (python-oracledb는 JDBC 주소를 쓰지 않음) |
-| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **비우면 모든 계산 요청을 막음** |
-| `CALC_HOST` | FastAPI 실행 주소 |
-| `CALC_PORT` | FastAPI 실행 포트 |
+| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **필수 · 비우면 서버가 시작되지 않음** (기본값 없음) |
+
+실행 주소 · 포트는 환경 변수가 아니라 실행 명령(`--host 127.0.0.1 --port 8000`)으로 정합니다. 포트를 바꾸면 `backend/.env`의 `CALC_BASE_URL`도 같이 바꿉니다.
 
 `.env.example`을 복사해 `calc/.env`로 만들면 서버 시작 시 자동으로 읽습니다 (python-dotenv).
 
@@ -158,7 +158,7 @@ python -m ruff format --check .
 python -m ruff format .
 ```
 
-pytest 130개(health 1 · 계산·진단 · 카드 파일 해석 · 정제 · 분류 · 카드 API) 및 Ruff lint 통과를 확인했습니다 (2026-11-13). 테스트는 기준값과 분류 목록을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
+pytest(health · 계산·진단 · 카드 파일 해석 · 정제 · 분류 · 카드 API) 및 Ruff lint 통과를 확인했습니다. 테스트는 기준값과 분류 목록을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
 
 ### 분류 결과 검증 (DB 필요)
 
@@ -178,10 +178,10 @@ python -m scripts.compare_card_classify
 - `POST /calculate` 예상 세액 계산 (근로소득공제 · 인적공제 · 연금·보험 · 카드 소득공제 · 세율 구간 · 근로소득세액공제 · 표준/특별세액공제 자동 비교 · 월세·주택청약·연금계좌 · 자녀 · 중소기업 취업자 감면)
 - `POST /benefit` 청년 혜택 자격 진단 (해당 · 비해당 · 정보 부족)
 - Oracle DB 기준값 읽기 전용 조회 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · 5분 캐시)
-- `X-Calc-Token` 인증 검증 (토큰 미설정 시 모든 요청 차단)
+- `X-Calc-Token` 인증 검증 (토큰이 없으면 서버가 시작되지 않음 · 요청마다 토큰 확인)
 - `POST /card/parse` 카드·홈택스 파일 해석 (csv · xlsx · xls → 사용일 · 가맹점명 · 금액 · 결제수단 · 행 수 한도 10,000 · 홈택스 양식은 현금영수증 CASH)
 - 지출 자동 분류 (가맹점명 정제 → `MERCHANT_LIST` 대조 → 공제 대상 아님 · 대중교통 · 전통시장 · 문화체육 · 일반 · SQL 분류와 10,453건 일치)
-- pytest 테스트 130개
+- pytest 자동 테스트
 - Spring Boot(`backend/`) 연동 — `HttpCalcClient`로 호출 확인
 
 **추후 확인 예정**
