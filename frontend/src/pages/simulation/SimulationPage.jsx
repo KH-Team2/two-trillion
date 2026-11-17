@@ -1,5 +1,5 @@
 import DeductionDetails from '@/components/common/DeductionDetails.jsx';
-import React, { useEffect, useState } from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { ArrowRight, SlidersHorizontal, Plus, Info } from 'lucide-react';
 import { userService, settlementLabel } from '@/api/services.js';
 import { newPrototypeId } from '@/api/account-service.js';
@@ -257,6 +257,8 @@ export default function SimulationPage({
 function PredictionHistory({ taxYear, basePredictionId, latestId }) {
   const [rows, setRows] = useState(null); // null = 불러오는 중
   const [error, setError] = useState('');
+  // 열어 본 결과 { row, result } · 누른 줄 바로 아래에 펼쳐요
+  // (표 아래 멀리 나오면 누른 뒤 변화가 안 보였음 · 11/17 사용자 흐름 테스트)
   const [opened, setOpened] = useState(null);
   const [opening, setOpening] = useState(null);
   // 새 시나리오가 저장되면(latestId가 바뀌면) 목록을 다시 불러와요
@@ -278,11 +280,16 @@ function PredictionHistory({ taxYear, basePredictionId, latestId }) {
       ignore = true;
     };
   }, [taxYear, latestId]);
-  async function open(id) {
-    setOpening(id);
+  async function open(row) {
+    // 이미 펼친 줄을 다시 누르면 접어요
+    if (opened?.row.predictionId === row.predictionId) {
+      setOpened(null);
+      return;
+    }
+    setOpening(row.predictionId);
     setError('');
     try {
-      setOpened(await fetchPrediction(id));
+      setOpened({ row, result: await fetchPrediction(row.predictionId) });
     } catch (e) {
       setError(e.message);
     } finally {
@@ -309,40 +316,50 @@ function PredictionHistory({ taxYear, basePredictionId, latestId }) {
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.predictionId}>
-                <td>
-                  {row.scenarioName || '현재'}
-                  {row.predictionId === basePredictionId && ' · 기준'}
-                  {row.predictionId === latestId && ' · 방금 계산'}
-                </td>
-                <td>{money(row.expectedRefund)}원</td>
-                <td>{row.predictedAt.slice(0, 10)}</td>
-                <td>
-                  <button
-                    type="button"
-                    className="text-btn"
-                    disabled={opening !== null}
-                    onClick={() => open(row.predictionId)}
-                  >
-                    {opening === row.predictionId ? '여는 중' : '열기'}
-                  </button>
-                </td>
-              </tr>
+              <Fragment key={row.predictionId}>
+                <tr>
+                  <td>
+                    {row.scenarioName || '현재'}
+                    {row.predictionId === basePredictionId && ' · 기준'}
+                    {row.predictionId === latestId && ' · 방금 계산'}
+                  </td>
+                  <td>{money(row.expectedRefund)}원</td>
+                  <td>{row.predictedAt.slice(0, 10)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="text-btn"
+                      disabled={opening !== null}
+                      onClick={() => open(row)}
+                    >
+                      {opening === row.predictionId
+                        ? '여는 중'
+                        : opened?.row.predictionId === row.predictionId
+                          ? '닫기'
+                          : '열기'}
+                    </button>
+                  </td>
+                </tr>
+                {opened?.row.predictionId === row.predictionId && (
+                  <tr>
+                    <td colSpan={4}>
+                      <div className="review">
+                        <div>
+                          {settlementLabel(opened.result.expectedRefund)}{' '}
+                          <b>{money(Math.abs(opened.result.expectedRefund))}원</b>
+                        </div>
+                        <div>
+                          결정세액 <b>{money(opened.result.decidedTax)}원</b>
+                        </div>
+                        <DeductionDetails details={opened.result.details} calculationConnected />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
           </tbody>
         </table>
-      )}
-      {opened && (
-        <div className="review">
-          <div>
-            {settlementLabel(opened.expectedRefund)}{' '}
-            <b>{money(Math.abs(opened.expectedRefund))}원</b>
-          </div>
-          <div>
-            결정세액 <b>{money(opened.decidedTax)}원</b>
-          </div>
-          <DeductionDetails details={opened.details} calculationConnected />
-        </div>
       )}
     </section>
   );

@@ -9,6 +9,7 @@ import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-serv
 import { fetchGroupStats } from '@/api/statistics-service.js';
 import { canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
 import { simulate } from '@/api/prediction-service.js';
+import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -208,14 +209,23 @@ export default function App() {
     setToast(t);
   }
   // 실제 입력을 복사해 가상 조건을 만들므로 원본 소득·지출을 덮어쓰지 않습니다.
-  function startSim() {
-    setCompareBase(structuredClone(data));
+  // 출발값은 서버에 저장된 소득(기준 결과를 계산한 값)으로 맞춰요. 브라우저 입력값은 다른 브라우저 ·
+  // 시크릿 창 · 저장 삭제 때 비어 있어서, 바꾸지 않은 칸까지 기준과 달라지는 것을 막아요.
+  // 소득이 없거나(NOT_FOUND) 서버에 연결할 수 없으면 브라우저 입력값 그대로 시작해요.
+  async function startSim() {
+    let start = data;
+    try {
+      start = { ...data, ...incomeToInput(await fetchIncome(data.taxYear)) };
+    } catch {
+      // 서버 소득이 없으면 브라우저 입력값으로 시작
+    }
+    setCompareBase(structuredClone(start));
     // 기준 결과 = 지금 대시보드에 보이는 서버 계산 결과 (없으면 null → 계산할 때 안내)
     setBaseResult(calcResult && calcResult.taxYear === data.taxYear ? calcResult : null);
     setSimResult(null);
     setSimTx(transactions.map((t) => ({ ...t })));
     setSimUpload(upload ? { ...upload } : null);
-    setSimulation({ ...data });
+    setSimulation({ ...start });
     setMode('simulation');
     setFormSeed((s) => s + 1);
     go('input');
