@@ -73,13 +73,15 @@
 | 응답 봉투 · 오류 코드 | `backend/docs/api-rules.md` |
 | 화면 값 → 서버 이름 (소득 저장) | `src/api/income-service.js`의 `incomeRequest()` |
 | 계산 결과 응답 검사 | `src/api/calculation-contract.js`의 `parseCalculationResult()` |
-| 개발용 설정 (`VITE_API_PROXY` · `VITE_DEV_MEMBER_ID`) | `.env.example` · `vite.config.js` |
+| 개발용 설정 (`VITE_API_PROXY`) | `.env.example` · `vite.config.js` |
+| 로그인 토큰 보관 이름 (`ACCESS_TOKEN_KEY`) | `src/api/api-client.js` |
 
 ### 공통
 
 - 모든 호출은 `src/api/api-client.js`의 `apiRequest()`를 거칩니다. 성공이면 응답 봉투의 `data`만 돌려주고, 실패면 서버의 `error.code` · `error.message`를 가진 오류를 던집니다.
 - 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 체험용 계산 · 판정으로 대신하는 것은 개발 서버(`npm run dev`)에서만이고(`canUseDemo`), 빌드한 파일(배포본)은 연결 실패 안내만 보여 줍니다.
-- 로그인(Spring Security) 연결 전까지 개발 서버에서만 `X-Member-Id` 헤더를 보냅니다.
+- 회원 구분: localStorage의 로그인 토큰(`hope-refund.accessToken`)을 `Authorization: Bearer` 헤더로 보냅니다. 서버가 토큰에서 회원번호를 꺼냅니다. 토큰이 없으면 서버가 401 `UNAUTHORIZED`를 줍니다 (2026-11-17 · `X-Member-Id` 헤더 없앰).
+- 로그인 화면이 아직 토큰을 저장하지 않아요 → 로그인 화면 연결 전에는 위 API가 모두 401입니다 (backend/docs/tasks.md F-01-02).
 
 ### 소득 저장 · 세액 계산 (F-02-01 · F-03-01)
 

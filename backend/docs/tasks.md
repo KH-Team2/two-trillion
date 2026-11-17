@@ -1,6 +1,6 @@
 # 기능별 구현 상태
 
-- 기준일: 2026-11-16 · 브랜치: `feature/member` (develop 최신 병합 `9f11f9b` · **push 안 함** · 로그인 작업은 아직 커밋 안 함)
+- 기준일: 2026-11-17 · 브랜치: `feature/member` (develop 최신 병합 `9f11f9b` · 로그인 `910cc5e` push 완료 · 회원번호 전환은 이번 커밋)
 - 상태: **작성**(코드 있음) → **테스트**(자동 테스트 통과) → **연결**(React가 API 호출) → **DB**(Oracle 저장 확인)
 
 ## 전체 현황
@@ -10,7 +10,7 @@
 | 회원가입 + 중복확인 + 이메일 인증 | F-01-01 | ✅ (메일 실제 발송만 미구현) | ✅ 백 52건 · 프론트 통과 | ✅ 병합 전 브라우저 확인 · ⏳ 병합 후 재확인 | ✅ 병합 전 저장 확인 |
 | 로그인 · 로그아웃 | F-01-02 | ✅ (JWT · [decisions/0004](decisions/0004-login-jwt.md)) | ✅ 백 79건 (develop 병합 후 전체 157건 통과) | ❌ (화면은 아직 localStorage 가짜 로그인) | ⏳ 실제 DB 미확인 |
 | 회원정보 수정 · 탈퇴 | 확인 필요 | ❌ | - | ❌ (화면은 localStorage) | - |
-| 소득 · 계산 · 혜택 · 시뮬레이션 · 이력 · 대시보드 · 그룹 통계 (팀원 작업 · develop) | F-02-01 · F-03-01 · F-03-02 · F-04-01 · F-04-02 · F-06-01 · F-06-02 | ✅ (develop에서 받음) | ✅ | ✅ (`X-Member-Id` 개발용 헤더) | ✅ (팀원 확인) |
+| 소득 · 계산 · 혜택 · 시뮬레이션 · 이력 · 대시보드 · 그룹 통계 (팀원 작업 · develop) | F-02-01 · F-03-01 · F-03-02 · F-04-01 · F-04-02 · F-06-01 · F-06-02 | ✅ (develop에서 받음 · 11/17 회원번호를 로그인 토큰에서 꺼내게 바꿈) | ✅ | ⏳ 로그인 화면 연결 전까지 401 (토큰 없음) | ✅ (팀원 확인 · 헤더 방식 때) |
 | 챗봇 · 문의 · 관리자 | 확인 필요 | ❌ | - | ❌ | - |
 
 ---
@@ -27,7 +27,7 @@
   | `frontend/vite.config.js` | develop 버전 사용 (같은 `/api` 프록시 · 주소를 `.env`의 `VITE_API_PROXY`로 바꿀 수 있음) |
   | `backend/pom.xml` | 자동 병합 (develop Spotless 설정 + 로그인용 security · jjwt) |
 - 검증: 백엔드 `./mvnw test` 157건 통과 · 프론트 `npm test` **아직 안 돌림**
-- ⚠ 주의: 로그인 작업이 올라가면 `SecurityConfig`가 `/api/**`에 토큰을 요구 → develop API를 `X-Member-Id`로만 부르면 **실행 시 모두 401** (테스트는 통과해서 못 잡음) → 아래 「회원번호 꺼내기」 전환 필요
+- ⚠ 주의: `SecurityConfig`가 `/api/**`에 토큰을 요구 → `X-Member-Id`로만 부르면 401 → 2026-11-17 아래 「회원번호 꺼내기」 전환 완료
 
 ---
 
@@ -67,13 +67,19 @@
 - 이유: 토큰 내용은 누구나 해독 가능(서명은 위조만 막음) · 회원정보를 고쳐도 이미 발급된 토큰엔 옛 값이 남음
 - 만 14세 검사는 가입 때 한 번 · DB에는 `BIRTH_DATE`만 저장
 
-### 바꿀 곳 (팀원 코드 수정 → 팀과 먼저 맞춤 · 아직 안 함)
+### 바꾼 곳 (2026-11-17 완료 · 팀원 코드라 PR에서 확인받음)
 
-- [ ] 백엔드 Controller 6개 (`IncomeController` · `CalculationController` · `BenefitController` · `SimulationController` · `PredictionController` · `GroupStatController`)
+- [x] 백엔드 Controller 6개 (`IncomeController` · `CalculationController` · `BenefitController` · `SimulationController` · `PredictionController` · `GroupStatController`)
       `@RequestHeader("X-Member-Id") long memberId` → `@AuthenticationPrincipal Long memberId` (Service · Mapper는 그대로)
-- [ ] 프론트 `frontend/src/api/api-client.js`: `X-Member-Id` 대신 `Authorization: Bearer <토큰>` · `VITE_DEV_MEMBER_ID` 제거
-- [ ] 위 Controller 테스트: 헤더 대신 로그인 정보를 넣도록 수정
-- [ ] 정리: `GlobalExceptionHandler`의 "X-Member-Id 없음" 처리 · `CorsConfig` 허용 헤더의 `X-Member-Id`
+- [x] 프론트 `frontend/src/api/api-client.js`: localStorage `hope-refund.accessToken` → `Authorization: Bearer <토큰>` · `VITE_DEV_MEMBER_ID` 제거 (`.env.example` · `benefit-service.js`)
+- [x] Controller 테스트: 헤더 대신 로그인 정보(SecurityContext)를 넣음 · 헤더 전용 테스트 4개(헤더 없음 401 × 3 · 숫자 아닌 헤더 400)는 `SecurityConfigTest`로 옮김
+- [x] `SecurityConfigTest`: 토큰 → Controller가 회원번호 3을 받는지 · 회원 API 7곳 `X-Member-Id`만 보내면 401
+- [x] 정리: `GlobalExceptionHandler` 헤더 없음 401 → 400 `VALIDATION` · `CorsConfig` 허용 헤더에서 `X-Member-Id` 삭제
+- [x] 문서: api-rules · frontend AGENTS.md · API_INTEGRATION.md
+- 검증: 백엔드 `./mvnw test` 154건 통과 · 프론트 `npm test` · `npm run build` 통과
+  - `npm run format:check`는 이 PC에서 전부터 114개 파일 실패 (줄바꿈 CRLF · `core.autocrlf=true`) · 고친 4개 파일은 통과
+- **남은 것**: 로그인 화면 연결 (아래 F-01-02 「다음에 할 일」 3번) — 그 전에는 화면에서 부르는 회원 API가 모두 401
+- 미검증: 실제 서버 실행 후 토큰으로 호출 (테스트는 MockMvc)
 
 ---
 
@@ -164,8 +170,8 @@ React AccountForms.jsx → member-api.js → http.js (fetch, Vite 프록시 /api
    - `http.js`: localStorage 토큰을 `Authorization: Bearer` 헤더로 붙임 · 401이면 토큰 지우고 로그인 화면으로 (단, **로그인 요청은 제외**: 로그인 실패도 401)
    - `member-api.js`: `login` · `logout` 추가
    - `account-service.js` 가짜 로그인 → 로그인 응답의 `loginId` · `role`로 교체 (App · Sidebar · 관리자 · 프로필이 사용)
-4. **develop API 회원번호 전환** (develop 코드는 2026-11-16 이 브랜치에 병합됨): 위 「회원번호 꺼내기」의 「바꿀 곳」 체크리스트
-   - 전환 전에 로그인 작업을 올리면 `/api/**`가 모두 로그인 필요 → `X-Member-Id`만 보내는 화면은 401
+   - 로그인 성공 시 `accessToken`을 localStorage `hope-refund.accessToken`(`api-client.js`의 `ACCESS_TOKEN_KEY`)에 저장 · 로그아웃 때 삭제 → 소득 · 계산 등 API가 이 토큰을 씀
+4. ~~develop API 회원번호 전환~~ → 2026-11-17 완료 (위 「회원번호 꺼내기」 「바꾼 곳」)
 5. 팀 공유: 주소 2개 · 오류 코드 3개(`LOGIN_FAILED` · `WITHDRAWN_MEMBER` · `LOGIN_LOCKED`) · `JWT_SECRET` 환경변수
 
 ### API

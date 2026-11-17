@@ -140,12 +140,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("VALIDATION", "요청 값 형식이 올바르지 않아요"));
     }
 
-    // 회원번호 헤더(X-Member-Id)가 없는 요청 — 로그인 적용 전까지의 처리
+    // 꼭 필요한 요청 헤더가 없는 요청 → 400
+    // [수정 11/17] 회원번호를 X-Member-Id 헤더 대신 로그인 토큰에서 꺼내게 되어 401 → 400
+    //   (로그인 안 한 요청의 401은 SecurityConfig가 Controller 전에 응답)
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingHeader(MissingRequestHeaderException e) {
-        log.warn("회원 정보 없는 요청 (헤더 {} 없음)", e.getHeaderName());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED) // 401
-                .body(ApiResponse.fail("UNAUTHORIZED", "로그인이 필요해요"));
+        log.warn("필요한 요청 헤더 없음 ({})", e.getHeaderName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST) // 400
+                .body(ApiResponse.fail("VALIDATION", "요청 값 형식이 올바르지 않아요"));
     }
 
     // 존재하지 않는 정적 리소스 또는 API 경로

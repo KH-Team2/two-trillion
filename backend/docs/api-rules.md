@@ -20,7 +20,7 @@
 - 화면은 회원번호를 주소 · 본문에 **보내지 않는다**. 서버가 로그인 정보에서 회원을 정한다.
 - 로그인 방식: **토큰(JWT)** (11/16 · [decisions/0004](decisions/0004-login-jwt.md)). `POST /api/auth/login`이 준 `accessToken`을 요청 헤더 `Authorization: Bearer <토큰>`으로 보낸다. 유효 2시간 · 리프레시 토큰 없음 (만료되면 다시 로그인).
 - Controller는 회원번호를 `@AuthenticationPrincipal Long memberId`로 받는다 (토큰에서 꺼낸 값 · `common/config/SecurityConfig`).
-- **개발용 임시**: `X-Member-Id: 회원번호` 헤더 (화면 `.env`의 `VITE_DEV_MEMBER_ID`)는 위 방식으로 바꾸고 없앤다. Security 적용 후 `/api/**`는 토큰이 없으면 401이라 헤더만으로는 통하지 않는다.
+- ~~개발용 임시 `X-Member-Id` 헤더~~ → 2026-11-17 없앰: 소득 · 계산 · 혜택 · 시뮬레이션 · 이력 · 그룹 통계 Controller 모두 `@AuthenticationPrincipal`로 바꿈 · 화면은 `Authorization: Bearer <토큰>`만 보냄 (`X-Member-Id`만 보내면 401)
 - 로그인이 필요한데 정보가 없으면 401 `UNAUTHORIZED`.
 
 ## 3. GET / POST / PUT / DELETE 쓰는 기준

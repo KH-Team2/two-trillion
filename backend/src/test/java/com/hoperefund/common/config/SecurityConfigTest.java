@@ -4,6 +4,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -15,6 +16,8 @@ import com.hoperefund.common.controller.HealthController;
 import com.hoperefund.common.exception.GlobalExceptionHandler;
 import com.hoperefund.common.service.TokenService;
 import com.hoperefund.common.service.TokenService.TokenInfo;
+import com.hoperefund.income.controller.IncomeController;
+import com.hoperefund.income.service.IncomeService;
 import com.hoperefund.member.controller.MemberController;
 import com.hoperefund.member.dto.LoginRequestDTO;
 import com.hoperefund.member.dto.LoginResponseDTO;
@@ -34,8 +37,9 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * 로그인 · 권한 검사 설정 테스트 (실제 Security 필터를 켜고 확인)
  * 열린 주소 · 401 UNAUTHORIZED · 403 FORBIDDEN 봉투 · 로그아웃 후 같은 토큰 거부 · CORS 사전 요청을 확인한다.
+ * [수정 11/17] 토큰의 회원번호가 Controller(@AuthenticationPrincipal)까지 전달되는지 · 회원 API 6곳 401 확인 추가
  */
-@WebMvcTest({MemberController.class, HealthController.class})
+@WebMvcTest({MemberController.class, HealthController.class, IncomeController.class})
 @Import({SecurityConfig.class, CorsConfig.class, TokenService.class, GlobalExceptionHandler.class})
 @TestPropertySource(properties = "jwt.secret=test-jwt-secret-must-be-at-least-32-bytes")
 class SecurityConfigTest {
@@ -45,6 +49,7 @@ class SecurityConfigTest {
 
     @MockitoBean private MemberService memberService;
     @MockitoBean private LoginService loginService;
+    @MockitoBean private IncomeService incomeService;
 
     private String bearer(String role) {
         return "Bearer " + tokenService.issue(3L, "hope_user", role).token();
@@ -92,12 +97,35 @@ class SecurityConfigTest {
                 .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
     }
 
-    // 토큰이 맞으면 통과 → 주소가 없으니 404 (Security에서 막히지 않았다는 뜻)
+    // 토큰이 맞으면 통과 → Controller가 토큰 안의 회원번호(3)를 받음 (헤더 · 주소로 받지 않음)
+    // [수정 11/17] X-Member-Id 헤더 → @AuthenticationPrincipal 전환 확인 (전에는 Controller가 없어 404만 확인)
     @Test
-    void validTokenPassesSecurity() throws Exception {
+    void validTokenPassesMemberIdToController() throws Exception {
 
         mockMvc.perform(get("/api/incomes/2026").header(HttpHeaders.AUTHORIZATION, bearer("USER")))
-                .andExpect(status().isNotFound());
+                .andExpect(status().isOk());
+        verify(incomeService).getIncome(3L, 2026);
+    }
+
+    // 회원 데이터 API는 모두 토큰이 있어야 함 (예전 X-Member-Id 헤더만 보내면 401)
+    @Test
+    void memberApisNeedToken() throws Exception {
+
+        String[] urls = {
+            "/api/incomes/2026",
+            "/api/calculations/2026",
+            "/api/benefits/2026",
+            "/api/predictions?year=2026",
+            "/api/predictions/6",
+            "/api/group-stats/2026"
+        };
+        for (String url : urls) {
+            mockMvc.perform(get(url).header("X-Member-Id", "81"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
+        }
+        mockMvc.perform(post("/api/simulations/2026").header("X-Member-Id", "81"))
+                .andExpect(status().isUnauthorized());
     }
 
     // 일반 회원이 관리자 API → 403 FORBIDDEN · 관리자는 통과

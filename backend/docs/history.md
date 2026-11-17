@@ -2,6 +2,18 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-17] 회원번호를 X-Member-Id 헤더 대신 로그인 토큰에서 꺼내기
+- **작업 내용**
+  - Controller 6개 (`IncomeController` · `CalculationController` · `BenefitController` · `SimulationController` · `PredictionController` · `GroupStatController`): `@RequestHeader("X-Member-Id") long memberId` → `@AuthenticationPrincipal Long memberId` (Service · Mapper 변경 없음)
+  - `GlobalExceptionHandler`: 필수 헤더 없음 401 `UNAUTHORIZED` → 400 `VALIDATION` (401은 SecurityConfig가 응답) · `CorsConfig`: 허용 헤더에서 `X-Member-Id` 삭제
+  - 테스트: Controller 테스트가 헤더 대신 로그인 정보(SecurityContext)를 넣음 · 헤더 전용 테스트 4개 삭제 → `SecurityConfigTest`에 「토큰 → Controller가 회원번호 받음」 · 「회원 API 7곳 헤더만 보내면 401」 추가
+  - 화면: `api-client.js`가 localStorage `hope-refund.accessToken`을 `Authorization: Bearer`로 보냄 · `VITE_DEV_MEMBER_ID` 삭제 · 테스트 2개 수정
+  - 문서: [tasks.md](tasks.md) · [api-rules.md](api-rules.md) · frontend `AGENTS.md` · `API_INTEGRATION.md`
+- **변경 사유**: 헤더 값만 바꾸면 남의 데이터를 볼 수 있음 (IDOR) · 로그인(Security) 적용으로 헤더만으로는 401이 됨
+- **검증 결과**: `./mvnw test` 154건 통과 (157 − 헤더 전용 4 + 1) · 프론트 `npm test` · `npm run build` 통과
+  - `npm run format:check`: 이 PC에서 전부터 114개 파일 실패 (CRLF 줄바꿈) · 고친 파일은 통과
+  - 미검증: 실제 서버 실행 후 호출 · 로그인 화면 연결 전이라 화면에서는 401
+
 ### [2026-11-16] 로그인 · 로그아웃 백엔드 구현 (F-01-02 · JWT)
 - **작업 내용**
   - `pom.xml`: `spring-boot-starter-security` · `jjwt` 0.12.6 추가 (`spring-security-crypto`는 starter에 포함되어 뺌)

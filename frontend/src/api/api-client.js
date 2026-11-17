@@ -3,9 +3,20 @@
 //   성공: {"success": true,  "data": {...}, "meta": null, "error": null}        → data만 돌려줘요
 //   실패: {"success": false, "data": null, "error": {"code", "message", "errorId"?}} → code · message를 가진 Error로 바꿔요
 const env = import.meta.env || {};
-// 개발용 회원번호는 개발 서버(npm run dev)에서만 써요.
-// 빌드한 파일에서는 보내지 않아요 → 배포 화면이 모두 같은 회원으로 요청하는 사고 방지
-const devMemberId = env.DEV ? env.VITE_DEV_MEMBER_ID : undefined;
+
+// 로그인 토큰(JWT) 보관 이름 (localStorage · backend/docs/decisions/0004)
+// 로그인 화면 연결 때 로그인 응답의 accessToken을 이 이름으로 저장 · 로그아웃 때 지워요
+// [수정 11/17] 개발용 X-Member-Id 헤더(VITE_DEV_MEMBER_ID) → 로그인 토큰 · 서버가 토큰에서 회원번호를 꺼내요
+export const ACCESS_TOKEN_KEY = 'hope-refund.accessToken';
+
+/** 저장된 로그인 토큰 (없거나 저장소를 못 쓰면 null) */
+export function readAccessToken() {
+  try {
+    return globalThis.localStorage?.getItem(ACCESS_TOKEN_KEY) || null;
+  } catch {
+    return null; // 사생활 보호 모드 등 저장소를 막은 브라우저
+  }
+}
 
 // 서버에 연결할 수 없을 때(OFFLINE) 체험용 계산으로 대신 보여 줘도 되는지.
 // 개발 서버(npm run dev)에서만 허용해요 → 백엔드 없이 화면만 띄워 개발할 수 있게.
@@ -30,14 +41,18 @@ export function apiError(code, message, errorId) {
  * - 서버에 연결할 수 없거나 응답이 JSON이 아니면 code 'OFFLINE' 오류를 던져요.
  * - 성공이면 봉투 안의 data만 돌려줘요.
  * - 오류 응답이면 서버가 준 error.code · error.message를 그대로 써요 (스택 트레이스 등은 화면에 띄우지 않아요).
+ * - 로그인 토큰이 있으면 Authorization: Bearer 헤더로 보내요 (없으면 서버가 401 UNAUTHORIZED).
  */
 export async function apiRequest(
   path,
-  { method = 'GET', body, fetchImpl = globalThis.fetch, memberId, offlineMessage } = {},
+  { method = 'GET', body, fetchImpl = globalThis.fetch, accessToken, offlineMessage } = {},
 ) {
-  const id = memberId ?? devMemberId;
+  const token = accessToken ?? readAccessToken();
   const headers = { Accept: 'application/json' };
-  if (id && /^\d+$/.test(String(id))) headers['X-Member-Id'] = String(id);
+  // 토큰에 공백 · 줄바꿈이 있으면 헤더에 넣지 않아요 (깨진 값 · 헤더 끼워넣기 방지) → 서버가 401
+  if (typeof token === 'string' && /^[\w.~+/=-]+$/.test(token)) {
+    headers.Authorization = `Bearer ${token}`;
+  }
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const offline = offlineMessage || '서버에 연결할 수 없어요.';
 
