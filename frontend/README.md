@@ -109,13 +109,13 @@ frontend/.env.example
 | `VITE_FINANCE_VERSION` | 금융정보 저장 동의 버전 |
 | `VITE_API_PROXY` | 개발용 Spring Boot API 서버 주소 |
 
-필요한 경우 `.env.example`을 복사해 `.env` 파일을 생성하고 팀에서 확정한 버전값을 입력합니다.
+`.env.example`을 복사해 `.env` 파일을 만들면 동의서 버전 기본값(`v1.0`)이 들어갑니다.
 
-미설정 상태에서도 기존 로컬 체험은 가능하지만, 서버 저장용 동의 정보 구성에는 확정된 버전값이 필요할 수 있습니다.
+동의서 버전값을 비우면 「동의서 버전 정보가 없어요」로 회원가입이 막힙니다.
 
 **주의:** `VITE_` 환경변수는 브라우저에 공개될 수 있으므로 비밀번호, API 토큰 등의 민감정보를 저장하지 않습니다.
 
-Spring Boot API 연결에 필요한 서버 주소 및 개발용 회원 식별 설정은 .env.example을 참고합니다.
+Spring Boot API 서버 주소는 `.env.example`의 `VITE_API_PROXY`를 참고합니다.
 
 ## 5. 개발 서버 실행
 
