@@ -3,7 +3,11 @@ import React, { useEffect, useState } from 'react';
 import { ArrowRight, SlidersHorizontal, Plus, Info } from 'lucide-react';
 import { userService, settlementLabel } from '@/api/services.js';
 import { newPrototypeId } from '@/api/account-service.js';
-import { fetchPrediction, fetchPredictions } from '@/api/prediction-service.js';
+import {
+  DEFAULT_SCENARIO_NAME,
+  fetchPrediction,
+  fetchPredictions,
+} from '@/api/prediction-service.js';
 import { money, Btn, Tag } from '@/components/common/site-primitives.jsx';
 
 // 시뮬레이션 전후 결과를 비교하고 원본과 분리해 저장합니다.
@@ -205,7 +209,7 @@ export default function SimulationPage({
                     const next = [
                       {
                         id: newPrototypeId(),
-                        scenarioName: sim.scenarioName || '조건 변경 시나리오',
+                        scenarioName: sim.scenarioName || DEFAULT_SCENARIO_NAME,
                         baselineData: structuredClone(baseData),
                         basePredictionId: histories[0]?.id || null,
                         date: new Date().toLocaleDateString('ko-KR'),

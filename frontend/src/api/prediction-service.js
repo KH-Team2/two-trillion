@@ -5,32 +5,13 @@
 import { apiError, apiRequest, checkTaxYear } from './api-client.js';
 import { parseCalculationResult } from './calculation-contract.js';
 import { incomeRequest } from './income-service.js';
+import { isCounted, payCode } from './expense-service.js';
+import { categoryCodes } from './services.js';
 import { getTaxYear } from '../utils/tax-year.js';
 
-// 화면 분류 → SPEND_CATEGORY.CATEGORY_ID (1 일반 · 2 대중교통 · 3 전통시장 · 4 문화체육 · 5 공제 대상 아님)
-// 업로드 거래는 한글 이름, 가상 추가 사용액은 영문 코드로 들어와요
-const CATEGORY_ID = {
-  일반: 1,
-  GENERAL: 1,
-  대중교통: 2,
-  TRANSIT: 2,
-  전통시장: 3,
-  MARKET: 3,
-  문화체육: 4,
-  CULTURE: 4,
-  '공제 대상 아님': 5,
-  '공제 제외': 5,
-  EXCLUDED: 5,
-};
-// 화면 결제수단 → EXPENSE.PAY_METHOD
-const PAY_METHOD = {
-  신용카드: 'CREDIT',
-  CREDIT: 'CREDIT',
-  체크카드: 'CHECK',
-  CHECK: 'CHECK',
-  현금영수증: 'CASH',
-  CASH: 'CASH',
-};
+// 분류 코드(services.js categoryCodes와 같은 이름) → SPEND_CATEGORY.CATEGORY_ID
+// 업로드 거래는 한글 이름(일반)이라 categoryCodes로 코드(GENERAL)로 바꾼 뒤 번호로, 가상 추가 사용액은 처음부터 코드
+const CATEGORY_ID = { GENERAL: 1, TRANSIT: 2, MARKET: 3, CULTURE: 4, EXCLUDED: 5 };
 export const SCENARIO_NAME_MAX = 16; // PREDICTION.SCENARIO_NAME (back 검사와 같음)
 export const DEFAULT_SCENARIO_NAME = '조건 변경 시나리오';
 
@@ -48,21 +29,21 @@ export function homelessHeadYn(d) {
 
 /**
  * 카드 사용액 → 분류 + 결제수단별 합계 (back CardSpendDTO 목록).
- * - 업로드 거래: 그 연도 · 집계 포함(중복 확인 중 · 제외 아님) · 결제수단을 아는 거래만
+ * - 업로드 거래: 그 연도 · 집계 포함(isCounted · 화면 합계 uploadTotals와 같은 기준)
  * - 가상 추가 사용액(simulationSpend): 0원보다 큰 줄만
  * - 기존 계산(back)이 EXPENSE를 분류 · 결제수단별로 더하는 것과 같은 모양이에요
  */
 export function cardSpends(transactions = [], simulationSpend = [], taxYear) {
   const sums = new Map();
   const add = (category, payment, amount) => {
-    const categoryId = CATEGORY_ID[category] ?? 1; // 분류를 모르면 일반 (업로드 화면 기본값과 같음)
-    const payMethod = PAY_METHOD[payment];
+    const categoryId = CATEGORY_ID[categoryCodes[category] ?? category] ?? 1; // 분류를 모르면 일반 (업로드 화면 기본값과 같음)
+    const payMethod = payCode(payment); // 결제수단 → CREDIT · CHECK · CASH (업로드 화면과 같은 변환)
     if (!payMethod || !Number.isFinite(amount)) return;
     const key = `${categoryId}|${payMethod}`;
     sums.set(key, (sums.get(key) || 0) + Math.round(amount));
   };
   for (const t of transactions) {
-    if (['pending', 'excluded'].includes(t.duplicateState || '')) continue;
+    if (!isCounted(t)) continue;
     if (Number(String(t.date || '').slice(0, 4)) !== taxYear) continue;
     add(t.category, t.paymentMethod, Number(t.amount));
   }
