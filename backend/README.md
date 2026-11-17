@@ -68,6 +68,13 @@ backend/
     │   │   │   ├── service/
     │   │   │   ├── mapper/
     │   │   │   └── dto/
+    │   │   ├── expense/                          # 카드내역 업로드 · 거래내역 조회·삭제 (CARD_UPLOAD · EXPENSE)
+    │   │   │   ├── controller/                   # CardUploadController (POST /api/card-uploads) · ExpenseController (업로드 이력 · 거래 목록 · 합계 · 업로드 삭제)
+    │   │   │   ├── service/                      # CardUploadService · CardUploadSaveService(저장 트랜잭션) · ExpenseService
+    │   │   │   ├── client/                       # CardParseClient (계산 서버 POST /card/parse 호출)
+    │   │   │   ├── mapper/                       # CardUploadMapper · ExpenseMapper
+    │   │   │   ├── exception/                    # CardUploadException (중복 경고 · 파일 오류 응답)
+    │   │   │   └── dto/
     │   │   ├── prediction/                       # 예상 세액 계산 · 청년 혜택 진단
     │   │   │   ├── controller/                   # CalculationController (GET·POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear}) · SimulationController (POST /api/simulations/{taxYear}) · PredictionController (GET /api/predictions)
     │   │   │   ├── service/                      # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
@@ -84,12 +91,14 @@ backend/
     │       ├── application.yml
     │       └── mapper/                           # MyBatis SQL (기능별 폴더)
     │           ├── income/IncomeMapper.xml
+    │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
     │           ├── prediction/PredictionMapper.xml
     │           └── statistics/GroupStatMapper.xml
     │
     └── test/java/com/hoperefund/
         ├── common/
         ├── income/
+        ├── expense/
         ├── prediction/
         └── statistics/
 ```
@@ -147,7 +156,7 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | 환경변수 | 설명 | 기본값 |
 |---|---|---|
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
-| `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 | `mock` |
+| `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 (카드 업로드는 모드와 관계없이 항상 계산 서버 `POST /card/parse`를 호출) | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
 | `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) | 없음 |
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
@@ -266,6 +275,8 @@ mvnw -B verify
 - 공통 오류 응답 DTO
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
 - 소득 정보 입력·조회 API (`GET` · `PUT /api/incomes/{taxYear}`)
+- 카드내역 업로드 API (`POST /api/card-uploads` · csv · xlsx · xls · 계산 서버에서 해석·분류 · 중복 경고 409 · 업로드 1행 + 지출 N행 한 트랜잭션 저장)
+- 거래내역 조회·삭제 API (`GET /api/card-uploads` 업로드 이력 · `GET /api/expenses?year=|uploadId=` 거래 목록 + 분류 근거 · `GET /api/expense-totals?year=` 분류 + 결제수단별 합계 · `DELETE /api/card-uploads/{uploadId}` 204 · 남의 것이면 404)
 - 예상 세액 계산 API + 결과 저장 (`POST /api/calculations/{taxYear}`)
 - 저장된 계산 결과 조회 API (`GET /api/calculations/{taxYear}` · 대시보드용 · 본인의 가장 최근 1건 · 없으면 404)
 - 청년 혜택 자격 진단 API (`GET /api/benefits/{taxYear}`)
@@ -279,7 +290,7 @@ mvnw -B verify
 
 - Spring Security 인증·권한 처리
 - 기능별 Controller·Service·Mapper·DTO
-- 회원·지출·관리자 API
+- 회원·관리자 API
 - Python AI 챗봇 서버 HTTP 통신
 - 공통 오류 처리 확장
 - API 및 DB 통합 테스트

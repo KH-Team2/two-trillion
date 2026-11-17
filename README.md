@@ -245,6 +245,14 @@
  │       │   │   │   ├── mapper/
  │       │   │   │   └── dto/
  │       │   │   │
+ │       │   │   ├── expense/                   # 카드내역 업로드 · 거래내역 조회·삭제
+ │       │   │   │   ├── controller/            # CardUploadController (POST /api/card-uploads) · ExpenseController (업로드 이력 · 거래 목록 · 합계 · 삭제)
+ │       │   │   │   ├── service/               # CardUploadService · CardUploadSaveService(저장 트랜잭션) · ExpenseService
+ │       │   │   │   ├── client/                # CardParseClient (계산 서버 POST /card/parse 호출)
+ │       │   │   │   ├── mapper/
+ │       │   │   │   ├── exception/
+ │       │   │   │   └── dto/
+ │       │   │   │
  │       │   │   └── prediction/                # 예상 세액 계산·청년 혜택 진단
  │       │   │       ├── controller/            # CalculationController (POST /api/calculations/{taxYear}) · BenefitController (GET /api/benefits/{taxYear})
  │       │   │       ├── service/               # CalculationService · BenefitService · PredictionSaveService(결과 저장 트랜잭션)
@@ -256,11 +264,13 @@
  │       │       ├── application.yml            # Spring Boot 공통 설정
  │       │       └── mapper/                    # MyBatis SQL (기능별 폴더)
  │       │           ├── income/IncomeMapper.xml
+ │       │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
  │       │           └── prediction/PredictionMapper.xml
  │       │
  │       └── test/java/com/hoperefund/
  │           ├── common/
  │           ├── income/
+ │           ├── expense/
  │           └── prediction/
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
@@ -279,8 +289,16 @@
  │   │   │   ├── __init__.py
  │   │   │   ├── benefit.py                   # 청년 혜택 API
  │   │   │   ├── calculate.py                 # 연말정산 계산 API
+ │   │   │   ├── card.py                      # 카드·홈택스 파일 해석 + 지출 분류 API (POST /card/parse)
  │   │   │   ├── deps.py                      # API 공통 의존성
  │   │   │   └── health.py                    # 서버 상태 확인 API
+ │   │   │
+ │   │   ├── card/                            # 카드 파일 처리 · 지출 분류
+ │   │   │   ├── __init__.py
+ │   │   │   ├── parser.py                    # 카드사·홈택스 파일(csv·xlsx·xls) → 공통 4칸
+ │   │   │   ├── normalize.py                 # 가맹점명 정제 (04_분류쿼리.sql과 같은 규칙)
+ │   │   │   ├── matcher.py                   # 정제한 이름을 목록과 대조해 분류
+ │   │   │   └── merchant_repo.py             # MERCHANT_LIST 읽기 (사용 중인 목록만)
  │   │   │
  │   │   ├── db/                              # Oracle DB 연결
  │   │   │   ├── __init__.py
@@ -295,6 +313,7 @@
  │   │   │   ├── __init__.py
  │   │   │   ├── benefit.py                   # 혜택 요청·응답 모델
  │   │   │   ├── calculation.py               # 계산 요청·응답 모델
+ │   │   │   ├── card.py                      # 카드 파일 해석 응답 모델
  │   │   │   └── common.py                    # 공통 데이터 모델
  │   │   │
  │   │   └── services/                        # 연말정산 계산 비즈니스 로직
@@ -319,13 +338,22 @@
  │   │       ├── 02_기준데이터.sql
  │   │       └── 03_데이터적재.sql
  │   │
+ │   ├── scripts/                             # 직접 돌리는 검증 도구
+ │   │   └── compare_card_classify.py         # 파이썬 분류 vs SQL 분류 비교 (10,453건)
+ │   │
  │   └── tests/                               # 계산 서버 테스트
  │       ├── __init__.py
  │       ├── criteria_data.py                  # 테스트용 기준 데이터
  │       ├── test_api.py                       # 계산 API 테스트
  │       ├── test_benefit.py                   # 청년 혜택 테스트
  │       ├── test_bracket.py                   # 세율 구간 테스트
+ │       ├── fixtures/                         # 더미 카드·홈택스 파일
+ │       ├── test_card_api.py                  # 카드 파일 해석 API 테스트
  │       ├── test_card_deduction.py            # 카드 공제 테스트
+ │       ├── test_card_matcher.py              # 지출 분류 테스트
+ │       ├── test_card_merchant_repo.py        # 분류 목록 읽기 테스트
+ │       ├── test_card_normalize.py            # 가맹점명 정제 테스트
+ │       ├── test_card_parser.py               # 카드 파일 해석 테스트
  │       ├── test_health.py                    # Health API 테스트
  │       ├── test_oracle_criteria.py           # Oracle 기준 데이터 조회 테스트
  │       ├── test_tax_calculator.py            # 세액 계산 테스트

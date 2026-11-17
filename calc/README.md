@@ -4,7 +4,7 @@
 
 연말정산 예상 세액 계산, 청년 혜택 진단, 카드·홈택스 파일 처리 및 지출 분류를 담당합니다.
 
-> **현재 상태:** 예상 세액 계산 · 청년 혜택 진단 API 구현 완료 / 카드·홈택스 파일 처리 · 지출 분류 개발 예정
+> **현재 상태:** 예상 세액 계산 · 청년 혜택 진단 · 카드·홈택스 파일 해석 · 지출 분류 API 구현 완료
 
 ## 1. 개발 환경
 
@@ -33,15 +33,15 @@ calc/
 ├── pyproject.toml
 ├── app/
 │   ├── main.py            # FastAPI 시작 · 오류 응답 통일 ({"error", "message"})
-│   ├── api/               # health · calculate(POST /calculate) · benefit(POST /benefit) · deps(X-Calc-Token 검사)
+│   ├── api/               # health · calculate(POST /calculate) · benefit(POST /benefit) · card(POST /card/parse) · deps(X-Calc-Token 검사)
 │   ├── schemas/           # 요청·응답 모양 (pydantic)
 │   ├── services/          # 세액 계산 · 카드 소득공제 · 구간 계산 · 혜택 진단 (순수 계산 · DB 안 봄)
+│   ├── card/              # 카드·홈택스 파일 해석(parser) · 가맹점명 정제(normalize) · 분류(matcher) · 분류 목록 읽기(merchant_repo)
 │   ├── repositories/      # 기준값 읽기 (Oracle · 5분 캐시)
 │   └── db/                # Oracle 연결 (읽기 전용 계정)
-└── tests/                 # pytest (기준값은 가짜 데이터로 바꿔 끼움 · DB 없이 실행)
+├── scripts/               # 사람이 직접 돌리는 검증 도구 (compare_card_classify.py: 파이썬 분류 vs SQL 분류 비교)
+└── tests/                 # pytest (기준값 · 분류 목록은 가짜 데이터로 바꿔 끼움 · DB 없이 실행 · fixtures/에 더미 카드 파일)
 ```
-
-카드·홈택스 파일 처리, 지출 분류는 담당자가 개발하면서 추가합니다.
 
 ## 3. 개발환경 준비
 
@@ -81,7 +81,7 @@ python -m pip install -r requirements-dev.txt
 
 | 환경변수 | 설명 |
 |---|---|
-| `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`../database/README.md`) |
+| `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`../database/README.md` · 카드 분류 때문에 `MERCHANT_LIST` · `SPEND_CATEGORY`도 읽음) |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `DB_DSN` | Oracle 접속 주소 `주소:포트/서비스이름` (python-oracledb는 JDBC 주소를 쓰지 않음) |
 | `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **비우면 모든 계산 요청을 막음** |
@@ -121,7 +121,10 @@ http://127.0.0.1:8000/health
 ```text
 POST http://127.0.0.1:8000/calculate   예상 세액 계산
 POST http://127.0.0.1:8000/benefit     청년 혜택 자격 진단
+POST http://127.0.0.1:8000/card/parse  카드·홈택스 파일 해석 + 지출 분류 (multipart: file · 선택 payMethod)
 ```
+
+`/card/parse`는 저장하지 않고 결과만 돌려줍니다 (저장은 Spring `POST /api/card-uploads`). 파일 오류는 400 `{"error", "message", "errorRows"}`로 문제 있는 행 번호까지 알려 줍니다. 분류 목록(`MERCHANT_LIST`)은 첫 요청 때 한 번만 읽으므로, 목록을 고친 뒤에는 서버를 다시 켭니다.
 
 FastAPI 자동 문서(`/docs`)는 내부 서버라 꺼 두었습니다. 요청·응답 모양은 `app/schemas/`를 참고합니다.
 
@@ -155,7 +158,17 @@ python -m ruff format --check .
 python -m ruff format .
 ```
 
-pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확인했습니다. 테스트는 기준값을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
+pytest 130개(health 1 · 계산·진단 · 카드 파일 해석 · 정제 · 분류 · 카드 API) 및 Ruff lint 통과를 확인했습니다 (2026-11-13). 테스트는 기준값과 분류 목록을 가짜 데이터로 바꿔 끼워 DB 없이 실행됩니다.
+
+### 분류 결과 검증 (DB 필요)
+
+파이썬 분류가 SQL 분류(`04_분류쿼리.sql`)와 같은지 건마다 비교합니다. SQL Developer에서 04번 분류를 `EXPENSE` 전체에 실행하고 `COMMIT`한 뒤 실행합니다 (DB는 읽기만 함).
+
+```cmd
+python -m scripts.compare_card_classify
+```
+
+2026-11-13 가상 카드 내역 10,453건 전부 일치를 확인했습니다.
 
 ## 7. 현재 구현 상태
 
@@ -166,13 +179,16 @@ pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확�
 - `POST /benefit` 청년 혜택 자격 진단 (해당 · 비해당 · 정보 부족)
 - Oracle DB 기준값 읽기 전용 조회 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · 5분 캐시)
 - `X-Calc-Token` 인증 검증 (토큰 미설정 시 모든 요청 차단)
-- pytest 테스트 63개
+- `POST /card/parse` 카드·홈택스 파일 해석 (csv · xlsx · xls → 사용일 · 가맹점명 · 금액 · 결제수단 · 행 수 한도 10,000 · 홈택스 양식은 현금영수증 CASH)
+- 지출 자동 분류 (가맹점명 정제 → `MERCHANT_LIST` 대조 → 공제 대상 아님 · 대중교통 · 전통시장 · 문화체육 · 일반 · SQL 분류와 10,453건 일치)
+- pytest 테스트 130개
 - Spring Boot(`backend/`) 연동 — `HttpCalcClient`로 호출 확인
 
-**추후 개발 예정**
+**추후 확인 예정**
 
-- 카드·홈택스 파일 파싱
-- 지출 자동 분류
+- Spring `POST /api/card-uploads` ↔ `/card/parse` 실제 연결 업로드
+- 실제 홈택스 파일 형식 (진짜 xls인지 HTML인지 · 칸 이름은 지금 추측값)
+- 배포용 읽기 계정에 `MERCHANT_LIST` · `SPEND_CATEGORY` 권한 추가 (`../database/README.md`)
 
 ## 8. 참고 문서
 
