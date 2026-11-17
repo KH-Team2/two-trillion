@@ -1,0 +1,48 @@
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hoperefund.admin.mapper.AdminMemberMapper">
+
+    <!-- F-20: 마스킹된 회원 목록 조회 (정규식을 통한 개인정보 보호 처리) -->
+    <select id="selectMaskedMemberList" resultType="com.hoperefund.admin.dto.MaskedMemberResponseDto">
+        SELECT 
+            MEMBER_ID AS memberId,
+            REGEXP_REPLACE(NAME, '(.{1})(.*)(.{1})', '\1*\3') AS name,
+            REGEXP_REPLACE(EMAIL, '(^.{2})(.*)(@.*)', '\1****\3') AS email,
+            ROLE AS role,
+            GENDER AS gender,
+            UPDATED_AT AS updatedAt
+        FROM MEMBER
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (NAME LIKE '%' || #{keyword} || '%' OR EMAIL LIKE '%' || #{keyword} || '%')
+            </if>
+            <if test="role != null and role != ''">
+                AND ROLE = #{role}
+            </if>
+        </where>
+        ORDER BY MEMBER_ID DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+    </select>
+
+    <!-- 회원 단건 조회 (예외 검증용) -->
+    <select id="selectMemberById" resultType="com.hoperefund.admin.dto.MaskedMemberResponseDto">
+        SELECT 
+            MEMBER_ID AS memberId,
+            NAME AS name,
+            EMAIL AS email,
+            ROLE AS role,
+            GENDER AS gender,
+            UPDATED_AT AS updatedAt
+        FROM MEMBER
+        WHERE MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- F-20: 회원 권한 업데이트 -->
+    <update id="updateMemberRole">
+        UPDATE MEMBER
+        SET ROLE = #{role},
+            UPDATED_AT = SYSDATE
+        WHERE MEMBER_ID = #{memberId}
+    </update>
+
+</mapper>
