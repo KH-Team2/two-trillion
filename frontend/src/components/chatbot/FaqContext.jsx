@@ -1,0 +1,77 @@
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
+import { askFaq, getFaqById, FAQ_FALLBACK } from "../../api/faq-service.js";
+const Context = createContext({
+  openFaq: () => {},
+  open: false,
+  messages: [],
+  busy: false,
+});
+export const useFaq = () => useContext(Context);
+export function FaqProvider({ children, sessionId }) {
+  const [open, setOpen] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [busy, setBusy] = useState(false);
+  const pending = useRef(false);
+  const generation = useRef(0);
+  useEffect(() => {
+    generation.current += 1;
+    pending.current = false;
+    setOpen(false);
+    setMessages([]);
+    setBusy(false);
+  }, [sessionId]);
+  async function submit({ id, question }) {
+    if (pending.current || (!id && !question?.trim())) return;
+    pending.current = true;
+    setBusy(true);
+    const current = generation.current;
+    try {
+      const faq = id ? await getFaqById(id) : await askFaq(question.trim());
+      if (current !== generation.current) return;
+      setMessages((previous) => [
+        ...previous,
+        {
+          role: "user",
+          text: question?.trim() || faq?.question || "선택한 용어",
+        },
+        {
+          role: "assistant",
+          text: faq?.answer || FAQ_FALLBACK,
+          source: faq?.source,
+        },
+      ]);
+    } catch {
+      if (current === generation.current)
+        setMessages((previous) => [
+          ...previous,
+          { role: "user", text: question?.trim() || "선택한 용어" },
+          {
+            role: "assistant",
+            text: "답변을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+          },
+        ]);
+    } finally {
+      if (current === generation.current) {
+        pending.current = false;
+        setBusy(false);
+      }
+    }
+  }
+  function openFaq(id) {
+    setOpen(true);
+    if (id) void submit({ id });
+  }
+  return (
+    <Context.Provider
+      value={{ open, setOpen, messages, busy, submit, openFaq }}
+    >
+      {children}
+    </Context.Provider>
+  );
+}

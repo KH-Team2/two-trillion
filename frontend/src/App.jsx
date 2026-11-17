@@ -25,6 +25,7 @@ import Sidebar from '@/components/layout/Sidebar.jsx';
 import AuthPage from '@/pages/auth/AuthPage.jsx';
 import HomePage from '@/pages/home/HomePage.jsx';
 import PublicHeader from '@/components/layout/PublicHeader.jsx';
+import FaqLayout from '@/components/chatbot/FaqLayout.jsx';
 
 // 공통 상태와 기존 이벤트 처리 흐름을 유지하는 앱 조정자입니다.
 export default function App() {
@@ -283,7 +284,7 @@ export default function App() {
   const sr = taxService.calculate(sim);
   const publicPage = ['home', 'login', 'signup', 'reset'].includes(page);
   return (
-    <>
+    <FaqLayout sessionId={session?.id ?? null} isAuthenticated={Boolean(session) && !publicPage}>
       {publicPage ? (
         <>
           <PublicHeader go={go} />
@@ -460,6 +461,6 @@ export default function App() {
           </button>
         </div>
       )}
-    </>
+    </FaqLayout>
   );
 }

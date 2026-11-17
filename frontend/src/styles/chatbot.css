@@ -1,0 +1,230 @@
+.tax-faq-widget {
+  position: fixed;
+  right: max(24px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 70;
+  font-family: inherit;
+}
+.tax-faq-launcher {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-left: auto;
+  border: 0;
+  border-radius: 28px;
+  background: #2767f5;
+  color: white;
+  padding: 15px 19px;
+  box-shadow: 0 6px 24px #2767f538;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tax-faq-panel {
+  display: flex;
+  flex-direction: column;
+  width: min(390px, calc(100vw - 32px));
+  height: min(610px, calc(100dvh - 120px));
+  margin-bottom: 12px;
+  border: 1px solid #dce6f5;
+  border-radius: 20px;
+  background: white;
+  box-shadow: 0 12px 48px #17386c26;
+  overflow: hidden;
+}
+.tax-faq-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 18px;
+  background: #2767f5;
+  color: white;
+}
+.tax-faq-header h2 {
+  color: white;
+  font-size: 16px;
+  margin: 0;
+}
+.tax-faq-header p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  opacity: 0.85;
+}
+.tax-faq-header > button {
+  margin-left: auto;
+  background: transparent;
+  color: white;
+  border: 0;
+  padding: 5px;
+}
+.tax-faq-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
+  background: #ffffff26;
+}
+.tax-faq-feed {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 18px 16px;
+  background: #f7f9fd;
+}
+.tax-faq-bubble {
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.75;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.tax-faq-bubble.assistant {
+  background: white;
+  border: 1px solid #e4eaf3;
+  color: #34445d;
+  border-top-left-radius: 3px;
+}
+.tax-faq-bubble.user {
+  background: #2767f5;
+  color: white;
+  border-top-right-radius: 3px;
+}
+.tax-faq-bubble small {
+  display: block;
+  font-size: 10px;
+  margin-top: 8px;
+  color: #77869c;
+}
+.tax-faq-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-top: 16px;
+}
+.tax-faq-message.user {
+  align-items: flex-end;
+}
+.tax-faq-message .tax-faq-bubble {
+  max-width: 94%;
+}
+.tax-faq-sender {
+  font-size: 10px;
+  color: #7b889b;
+  margin: 0 2px 5px;
+}
+.tax-faq-notice {
+  font-size: 11px;
+  color: #7c899c;
+  line-height: 1.65;
+  margin: 10px 0;
+}
+.tax-faq-choices {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.tax-faq-choice-title {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12px;
+  color: #52617a;
+  margin-bottom: 4px;
+}
+.tax-faq-choice-title button {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  width: fit-content;
+  background: none;
+  border: 0;
+  color: #2767f5;
+  padding: 3px 0;
+  font-size: 11px;
+}
+.tax-faq-choices > button {
+  text-align: left;
+  padding: 11px 13px;
+  border-radius: 10px;
+  border: 1px solid #dce6fa;
+  color: #2863cb;
+  background: white;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.tax-faq-choices > button:hover {
+  background: #edf4ff;
+}
+.tax-faq-form {
+  display: flex;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid #e7ecf4;
+  background: white;
+}
+.tax-faq-form input {
+  min-width: 0;
+  flex: 1;
+  border: 1px solid #dce4f0;
+  border-radius: 10px;
+  background: #f8faff;
+  padding: 11px;
+  font-size: 13px;
+  color: #34445d;
+}
+.tax-faq-form button {
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 10px;
+  width: 40px;
+  background: #2767f5;
+  color: white;
+}
+.tax-faq-widget button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tax-faq-widget button:focus-visible,
+.tax-term-help:focus-visible {
+  outline: 3px solid #94b7ff;
+  outline-offset: 3px;
+}
+.tax-faq-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.tax-term-help {
+  display: inline-flex;
+  vertical-align: middle;
+  align-items: center;
+  padding: 3px;
+  margin-left: 4px;
+  color: #7184a2;
+  border: 0;
+  background: transparent;
+}
+@media (max-width: 600px) {
+  .tax-faq-widget {
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .tax-faq-panel {
+    width: calc(100vw - 24px);
+    height: min(580px, calc(100dvh - 100px));
+  }
+  .tax-faq-launcher {
+    padding: 14px;
+  }
+  .tax-faq-launcher span {
+    display: none;
+  }
+}
