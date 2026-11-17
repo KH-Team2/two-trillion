@@ -1,16 +1,21 @@
 package com.hoperefund.member.dto;
 
 import java.time.LocalDateTime;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
 
 /**
- * 회원가입 성공 응답 DTO (Spring Boot → React)
- * API 명세 기준: memberId, loginId, email, name, role, createdAt
- * 비밀번호 등 민감정보는 돌려주지 않는다. name은 실명 미수집이라 항상 null.
+ * 회원가입 성공 응답 (F-01-01 · API 명세 기준).
+ * 비밀번호 같은 민감정보는 넣지 않는다.
  */
-public record MemberSignupResponseDTO(
-        Long memberId,
-        String loginId,
-        String email,
-        String name,
-        String role,
-        LocalDateTime createdAt) {}
+@Getter
+@AllArgsConstructor
+public class MemberSignupResponseDTO {
+
+    private final Long memberId;
+    private final String loginId;
+    private final String email;
+    private final String name; // 실명을 받지 않으므로 항상 null
+    private final String role;
+    private final LocalDateTime createdAt;
+}

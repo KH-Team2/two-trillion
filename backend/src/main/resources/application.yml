@@ -38,6 +38,9 @@ mybatis:
 member:
   email-verification:
     dev-code-enabled: ${EMAIL_DEV_CODE_ENABLED:false}
+    # 가입 때 이메일 인증을 꼭 마쳐야 하는지 · 실제 메일 발송이 아직 없어 기본 false (화면 인증 UI도 숨김)
+    # 메일 발송이 붙으면 true로 켜고 frontend AccountForms.jsx의 SHOW_EMAIL_VERIFICATION도 true로
+    required: ${EMAIL_VERIFICATION_REQUIRED:false}
 # 로그인 잠금 (F-01-02): 5번 연속 틀리면 10분 잠금 · false면 잠금 · 실패 횟수 기록을 하지 않음
   login-lock:
     enabled: ${LOGIN_LOCK_ENABLED:true}

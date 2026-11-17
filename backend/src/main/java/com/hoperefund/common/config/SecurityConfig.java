@@ -27,7 +27,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * 로그인 · 권한 검사 설정 (F-01-02 · decisions/0004)
+ * 로그인 · 권한 검사 설정 (F-01-02 · decisions/0004).
  *
  * <pre>
  * 요청 → JwtAuthenticationFilter (Authorization: Bearer 토큰 검사 → 로그인 정보 넣기)
@@ -51,9 +51,8 @@ public class SecurityConfig {
                 .cors(Customizer.withDefaults()) // CorsConfig 설정을 Security 단계에도 적용
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .formLogin(AbstractHttpConfigurer::disable)
-                .logout(
-                        AbstractHttpConfigurer
-                                ::disable) // 로그아웃은 POST /api/auth/logout (MemberController)
+                // Spring 기본 로그아웃은 끄고 POST /api/auth/logout (MemberController) 을 쓴다
+                .logout(AbstractHttpConfigurer::disable)
                 .sessionManagement(
                         session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(

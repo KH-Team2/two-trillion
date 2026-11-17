@@ -160,17 +160,7 @@ class MemberControllerTest {
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"));
     }
 
-    // 이메일 인증 번호표 누락 → 400
-    @Test
-    void missingVerificationIdReturns400() throws Exception {
-
-        String body =
-                VALID_BODY.replace("\"verificationId\": \"verify-1\"", "\"verificationId\": \"\"");
-
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.error.message").value("이메일 인증을 완료해 주세요"));
-    }
+    // [수정 11/17] 「인증 번호표 누락 → 400」은 MemberServiceTest로 옮김 (설정으로 인증 검사를 켜고 끄게 되어 Service가 검사)
 
     // 중복 아이디 → 409, GlobalExceptionHandler 형식
     @Test

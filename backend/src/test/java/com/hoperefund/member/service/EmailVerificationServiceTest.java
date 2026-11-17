@@ -45,9 +45,9 @@ class EmailVerificationServiceTest {
 
         EmailVerificationResponseDTO response = service.send(" Hope@Example.com ");
 
-        assertThat(response.verificationId()).isNotBlank();
-        assertThat(response.expiresAt()).isEqualTo(clock.instant().plus(Duration.ofMinutes(5)));
-        assertThat(response.devCode()).matches("^[0-9]{6}$");
+        assertThat(response.getVerificationId()).isNotBlank();
+        assertThat(response.getExpiresAt()).isEqualTo(clock.instant().plus(Duration.ofMinutes(5)));
+        assertThat(response.getDevCode()).matches("^[0-9]{6}$");
     }
 
     // 개발 설정이 꺼져 있으면 인증번호를 응답에 담지 않음
@@ -58,7 +58,7 @@ class EmailVerificationServiceTest {
                 new EmailVerificationService(
                         memberMapper, new BCryptPasswordEncoder(), clock, false);
 
-        assertThat(prod.send(EMAIL).devCode()).isNull();
+        assertThat(prod.send(EMAIL).getDevCode()).isNull();
     }
 
     // 이미 가입된 이메일은 발급하지 않음
@@ -78,13 +78,13 @@ class EmailVerificationServiceTest {
     void confirmThenRequireVerified() {
 
         EmailVerificationResponseDTO sent = service.send(EMAIL);
-        service.confirm(sent.verificationId(), sent.devCode());
+        service.confirm(sent.getVerificationId(), sent.getDevCode());
 
-        assertThatCode(() -> service.requireVerified(sent.verificationId(), EMAIL))
+        assertThatCode(() -> service.requireVerified(sent.getVerificationId(), EMAIL))
                 .doesNotThrowAnyException();
 
-        service.complete(sent.verificationId());
-        assertThatThrownBy(() -> service.requireVerified(sent.verificationId(), EMAIL))
+        service.complete(sent.getVerificationId());
+        assertThatThrownBy(() -> service.requireVerified(sent.getVerificationId(), EMAIL))
                 .extracting("code")
                 .isEqualTo("EMAIL_NOT_VERIFIED");
     }
@@ -94,9 +94,9 @@ class EmailVerificationServiceTest {
     void wrongCodeFails() {
 
         EmailVerificationResponseDTO sent = service.send(EMAIL);
-        String wrong = sent.devCode().equals("000000") ? "111111" : "000000";
+        String wrong = sent.getDevCode().equals("000000") ? "111111" : "000000";
 
-        assertThatThrownBy(() -> service.confirm(sent.verificationId(), wrong))
+        assertThatThrownBy(() -> service.confirm(sent.getVerificationId(), wrong))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("인증 코드가 맞지 않거나 만료됐어요")
                 .extracting("code")
@@ -110,7 +110,7 @@ class EmailVerificationServiceTest {
         EmailVerificationResponseDTO sent = service.send(EMAIL);
         clock.advance(Duration.ofMinutes(5));
 
-        assertThatThrownBy(() -> service.confirm(sent.verificationId(), sent.devCode()))
+        assertThatThrownBy(() -> service.confirm(sent.getVerificationId(), sent.getDevCode()))
                 .hasMessage("인증 코드가 맞지 않거나 만료됐어요")
                 .extracting("code")
                 .isEqualTo("VERIFICATION_EXPIRED");
@@ -121,17 +121,17 @@ class EmailVerificationServiceTest {
     void fiveFailuresInvalidate() {
 
         EmailVerificationResponseDTO sent = service.send(EMAIL);
-        String wrong = sent.devCode().equals("000000") ? "111111" : "000000";
+        String wrong = sent.getDevCode().equals("000000") ? "111111" : "000000";
 
         for (int i = 0; i < 4; i++) {
-            assertThatThrownBy(() -> service.confirm(sent.verificationId(), wrong))
+            assertThatThrownBy(() -> service.confirm(sent.getVerificationId(), wrong))
                     .extracting("code")
                     .isEqualTo("VERIFICATION_FAILED");
         }
-        assertThatThrownBy(() -> service.confirm(sent.verificationId(), wrong))
+        assertThatThrownBy(() -> service.confirm(sent.getVerificationId(), wrong))
                 .extracting("code")
                 .isEqualTo("VERIFICATION_LIMIT");
-        assertThatThrownBy(() -> service.confirm(sent.verificationId(), sent.devCode()))
+        assertThatThrownBy(() -> service.confirm(sent.getVerificationId(), sent.getDevCode()))
                 .extracting("code")
                 .isEqualTo("VERIFICATION_FAILED");
     }
@@ -142,18 +142,20 @@ class EmailVerificationServiceTest {
 
         EmailVerificationResponseDTO sent = service.send(EMAIL);
 
-        assertThatThrownBy(() -> service.requireVerified(sent.verificationId(), EMAIL))
+        assertThatThrownBy(() -> service.requireVerified(sent.getVerificationId(), EMAIL))
                 .extracting("code")
                 .isEqualTo("EMAIL_NOT_VERIFIED");
 
-        service.confirm(sent.verificationId(), sent.devCode());
+        service.confirm(sent.getVerificationId(), sent.getDevCode());
         assertThatThrownBy(
-                        () -> service.requireVerified(sent.verificationId(), "other@example.com"))
+                        () ->
+                                service.requireVerified(
+                                        sent.getVerificationId(), "other@example.com"))
                 .extracting("code")
                 .isEqualTo("EMAIL_NOT_VERIFIED");
 
         clock.advance(Duration.ofMinutes(30));
-        assertThatThrownBy(() -> service.requireVerified(sent.verificationId(), EMAIL))
+        assertThatThrownBy(() -> service.requireVerified(sent.getVerificationId(), EMAIL))
                 .extracting("code")
                 .isEqualTo("EMAIL_NOT_VERIFIED");
 

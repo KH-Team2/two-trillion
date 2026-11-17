@@ -80,11 +80,11 @@ class LoginServiceTest {
         LoginResponseDTO response =
                 service(true).login(new LoginRequestDTO(" Hope_User ", PASSWORD), IP);
 
-        assertThat(response.tokenType()).isEqualTo("Bearer");
-        assertThat(response.loginId()).isEqualTo("hope_user");
-        assertThat(response.role()).isEqualTo("USER");
-        assertThat(response.expiresAt()).isNotNull();
-        TokenService.TokenInfo info = tokenService.verify(response.accessToken()).orElseThrow();
+        assertThat(response.getTokenType()).isEqualTo("Bearer");
+        assertThat(response.getLoginId()).isEqualTo("hope_user");
+        assertThat(response.getRole()).isEqualTo("USER");
+        assertThat(response.getExpiresAt()).isNotNull();
+        TokenService.TokenInfo info = tokenService.verify(response.getAccessToken()).orElseThrow();
         assertThat(info.memberId()).isEqualTo(3L);
         assertThat(info.role()).isEqualTo("USER");
 
@@ -173,7 +173,7 @@ class LoginServiceTest {
 
         LoginResponseDTO response =
                 service(false).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
-        assertThat(response.accessToken()).isNotBlank();
+        assertThat(response.getAccessToken()).isNotBlank();
 
         assertThatThrownBy(
                         () ->
@@ -248,7 +248,7 @@ class LoginServiceTest {
         LoginResponseDTO response =
                 service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
 
-        assertThat(response.accessToken()).isNotBlank();
+        assertThat(response.getAccessToken()).isNotBlank();
         verify(accessLogMapper, times(2)).insertAccessLog(3L, "/api/auth/login", IP, "SUCCESS");
     }
 

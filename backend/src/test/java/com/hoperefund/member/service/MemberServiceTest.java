@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.member.dto.MemberAvailabilityResponseDTO;
@@ -94,11 +95,11 @@ class MemberServiceTest {
         assertThat(saved.getTermsVersion()).isEqualTo("v1.0");
         assertThat(saved.getEmailVerifiedYn()).isEqualTo("Y");
         assertThat(saved.getDataOrigin()).isEqualTo("INPUT");
-        assertThat(response.memberId()).isEqualTo(7L);
-        assertThat(response.loginId()).isEqualTo("hope_user");
-        assertThat(response.email()).isEqualTo("hope@example.com");
-        assertThat(response.name()).isNull();
-        assertThat(response.role()).isEqualTo("USER");
+        assertThat(response.getMemberId()).isEqualTo(7L);
+        assertThat(response.getLoginId()).isEqualTo("hope_user");
+        assertThat(response.getEmail()).isEqualTo("hope@example.com");
+        assertThat(response.getName()).isNull();
+        assertThat(response.getRole()).isEqualTo("USER");
 
         verify(emailVerificationService).requireVerified("verify-1", "hope@example.com");
         verify(emailVerificationService).complete("verify-1");
@@ -120,6 +121,65 @@ class MemberServiceTest {
                 .isEqualTo("EMAIL_NOT_VERIFIED");
 
         verify(memberMapper, never()).insertMember(any());
+    }
+
+    // 인증 검사를 켰는데 번호표가 비어 있음 → 400 EMAIL_NOT_VERIFIED · 저장 안 함
+    // [수정 11/17] 빈 값 검사를 DTO(@NotBlank) → Service로 옮김 (설정으로 인증을 끌 수 있게)
+    @Test
+    void blankVerificationIdThrowsWhenRequired() {
+
+        MemberSignupRequestDTO blank =
+                new MemberSignupRequestDTO(
+                        "hope_user",
+                        "hope@example.com",
+                        "password123",
+                        "password123",
+                        LocalDate.of(2000, 1, 15),
+                        "M",
+                        true,
+                        true,
+                        true,
+                        "v1.0",
+                        "v1.0",
+                        "v1.0",
+                        " ");
+
+        assertThatThrownBy(() -> memberService.signup(blank))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo("EMAIL_NOT_VERIFIED");
+
+        verify(memberMapper, never()).insertMember(any());
+    }
+
+    // 인증 검사를 끔(기본값 · 메일 발송 전) → 번호표 없이 가입 · EMAIL_VERIFIED_YN = N · 인증 기록은 건드리지 않음
+    @Test
+    void signupWithoutVerificationWhenNotRequired() {
+
+        MemberService noVerification =
+                new MemberService(memberMapper, passwordEncoder, emailVerificationService, false);
+        MemberSignupRequestDTO noId =
+                new MemberSignupRequestDTO(
+                        "hope_user",
+                        "hope@example.com",
+                        "password123",
+                        "password123",
+                        LocalDate.of(2000, 1, 15),
+                        "F",
+                        true,
+                        true,
+                        true,
+                        "v1.0",
+                        "v1.0",
+                        "v1.0",
+                        null);
+
+        noVerification.signup(noId);
+
+        ArgumentCaptor<MemberInsertDTO> captor = ArgumentCaptor.forClass(MemberInsertDTO.class);
+        verify(memberMapper).insertMember(captor.capture());
+        assertThat(captor.getValue().getEmailVerifiedYn()).isEqualTo("N");
+        verifyNoInteractions(emailVerificationService);
     }
 
     // 비밀번호 확인 불일치 → 400
@@ -243,8 +303,8 @@ class MemberServiceTest {
 
         MemberAvailabilityResponseDTO response = memberService.checkLoginId(" TEST0001 ");
 
-        assertThat(response.available()).isFalse();
-        assertThat(response.message()).isEqualTo("이미 사용 중인 아이디예요");
+        assertThat(response.isAvailable()).isFalse();
+        assertThat(response.getMessage()).isEqualTo("이미 사용 중인 아이디예요");
     }
 
     // 아이디 중복확인: withdrawn_ · 형식 오류 → 400
@@ -265,7 +325,7 @@ class MemberServiceTest {
 
         given(memberMapper.countByEmail("new@example.com")).willReturn(0);
 
-        assertThat(memberService.checkEmail("New@Example.com").available()).isTrue();
+        assertThat(memberService.checkEmail("New@Example.com").isAvailable()).isTrue();
         assertThatThrownBy(() -> memberService.checkEmail("not-an-email"))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("이메일 형식을 확인해 주세요");
