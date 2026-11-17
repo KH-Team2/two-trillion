@@ -36,37 +36,25 @@
 ### Backend
 - Java 17
 - Spring Boot 4.1.0
-- MyBatis
+- MyBatis (Spring Boot Starter 4.0.1)
 - Maven
 
 ### Frontend
-- React
+- React 19.2.6
 - JavaScript (JSX)
+- Vite 8.0.13 · Node.js 22.13 이상
 - HTML5
 - CSS3
 
 ### Database
-- Oracle Database 21c
+- Oracle Database 21c Express Edition (21.3.0.0.0)
 
 ### Calculation / AI
-- Python
+- Python 3.11.9
 - FastAPI
 - Ollama (Gemma 3 4B)
 - LangChain
 - Elasticsearch
-
-### 버전 (11/17 기준)
-
-| 구분 | 버전 | 확인한 곳 |
-| --- | --- | --- |
-| Java | 17 | `backend/pom.xml` |
-| Spring Boot | 4.1.0 | `backend/pom.xml` |
-| MyBatis Spring Boot Starter | 4.0.1 | `backend/pom.xml` |
-| Python | 3.11.9 | `calc/README.md` (가상환경 `py -3.11`) |
-| Node.js | 22.13 이상 | `frontend/package.json` (`engines`) |
-| React | 19.2.6 | `frontend/package.json` |
-| Vite | 8.0.13 | `frontend/package.json` |
-| Oracle Database | 21c Express Edition (21.3.0.0.0) | 공용 DB 서버 조회 |
 
 ### Collaboration
 - Git
