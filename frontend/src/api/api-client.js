@@ -9,12 +9,42 @@ const env = import.meta.env || {};
 // [수정 11/17] 개발용 X-Member-Id 헤더(VITE_DEV_MEMBER_ID) → 로그인 토큰 · 서버가 토큰에서 회원번호를 꺼내요
 export const ACCESS_TOKEN_KEY = 'hope-refund.accessToken';
 
+// 로그인한 회원 정보 보관 이름 (로그인 응답의 loginId · role · expiresAt · 비밀번호 등은 넣지 않음)
+export const LOGIN_MEMBER_KEY = 'hope-refund.loginMember';
+// 토큰이 만료 · 로그아웃되어 서버가 401을 주면 보내는 화면 알림 (App이 로그인 화면으로 이동)
+export const AUTH_EXPIRED_EVENT = 'hope-refund:auth-expired';
+
 /** 저장된 로그인 토큰 (없거나 저장소를 못 쓰면 null) */
 export function readAccessToken() {
   try {
     return globalThis.localStorage?.getItem(ACCESS_TOKEN_KEY) || null;
   } catch {
     return null; // 사생활 보호 모드 등 저장소를 막은 브라우저
+  }
+}
+
+/** 토큰을 Authorization 헤더 모양으로 (토큰이 없거나 공백 · 줄바꿈이 있으면 빈 객체 → 헤더 끼워넣기 방지) */
+export function bearerHeader(token = readAccessToken()) {
+  return typeof token === 'string' && /^[\w.~+/=-]+$/.test(token)
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+}
+
+/** 저장된 로그인 정보(토큰 · 회원 정보) 지우기 */
+export function clearLogin() {
+  try {
+    globalThis.localStorage?.removeItem(ACCESS_TOKEN_KEY);
+    globalThis.localStorage?.removeItem(LOGIN_MEMBER_KEY);
+  } catch {
+    // 저장소를 못 쓰는 브라우저 → 지울 것도 없음
+  }
+}
+
+/** 보낸 토큰이 거절됨(401) → 로그인 정보를 지우고 화면에 알림 */
+export function expireLogin() {
+  clearLogin();
+  if (typeof globalThis.dispatchEvent === 'function') {
+    globalThis.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
   }
 }
 
@@ -47,12 +77,8 @@ export async function apiRequest(
   path,
   { method = 'GET', body, fetchImpl = globalThis.fetch, accessToken, offlineMessage } = {},
 ) {
-  const token = accessToken ?? readAccessToken();
-  const headers = { Accept: 'application/json' };
   // 토큰에 공백 · 줄바꿈이 있으면 헤더에 넣지 않아요 (깨진 값 · 헤더 끼워넣기 방지) → 서버가 401
-  if (typeof token === 'string' && /^[\w.~+/=-]+$/.test(token)) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+  const headers = { Accept: 'application/json', ...bearerHeader(accessToken ?? readAccessToken()) };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   const offline = offlineMessage || '서버에 연결할 수 없어요.';
 
@@ -80,6 +106,8 @@ export async function apiRequest(
   }
   if (!response.ok || !json.success) {
     const err = json.error || {};
+    // 토큰을 보냈는데 401 → 만료 · 로그아웃된 토큰 → 로그인 화면으로 (토큰 없이 보낸 체험 요청은 그대로 오류만)
+    if (response.status === 401 && headers.Authorization) expireLogin();
     throw apiError(
       err.code || `HTTP_${response.status}`,
       err.message || '잠시 후 다시 시도해 주세요.',

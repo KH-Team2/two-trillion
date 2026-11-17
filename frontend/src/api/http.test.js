@@ -65,7 +65,10 @@ await assert.rejects(
 );
 
 // 봉투 모양이 아닌 200 응답 → NETWORK_ERROR
-await assert.rejects(apiRequest('/api/x', {}, reply(200, { id: 1 })), (e) => e.code === NETWORK_ERROR);
+await assert.rejects(
+  apiRequest('/api/x', {}, reply(200, { id: 1 })),
+  (e) => e.code === NETWORK_ERROR,
+);
 
 // 서버 연결 실패 → NETWORK_ERROR
 await assert.rejects(
@@ -78,4 +81,62 @@ await assert.rejects(
 // JSON이 아닌 오류 응답(프록시 502 등) → NETWORK_ERROR
 await assert.rejects(apiRequest('/api/x', {}, reply(502)), (e) => e.code === NETWORK_ERROR);
 
-console.log('PASS: http.js 봉투 정상 · 오류 코드 · errorId · 연결 실패 · JSON 아닌 응답');
+// 로그인 토큰 (F-01-02): auth 요청만 Authorization 헤더 · 그 요청이 401이면 로그인 정보 삭제 + 만료 알림
+const store = { 'hope-refund.accessToken': 'header.payload.sig', 'hope-refund.loginMember': '{}' };
+Object.defineProperty(globalThis, 'localStorage', {
+  configurable: true,
+  value: {
+    getItem: (key) => store[key] ?? null,
+    removeItem: (key) => delete store[key],
+  },
+});
+let expiredEvents = 0;
+globalThis.addEventListener?.('hope-refund:auth-expired', () => expiredEvents++);
+try {
+  let headers;
+  const capture = (status, body) => async (url, init) => {
+    headers = init.headers;
+    return reply(status, body)();
+  };
+  const fail401 = {
+    success: false,
+    data: null,
+    meta: null,
+    error: { code: 'LOGIN_FAILED', message: '아이디 또는 비밀번호가 맞지 않아요' },
+  };
+
+  // auth 없는 요청(로그인 등)은 토큰을 보내지 않고, 401(비밀번호 틀림)이어도 저장된 토큰을 지우지 않음
+  await assert.rejects(
+    apiRequest('/api/auth/login', { method: 'POST', body: {} }, capture(401, fail401)),
+    (e) => e.code === 'LOGIN_FAILED' && e.message === '아이디 또는 비밀번호가 맞지 않아요',
+  );
+  assert.equal(headers.Authorization, undefined);
+  assert.equal(store['hope-refund.accessToken'], 'header.payload.sig');
+
+  // auth 요청은 Bearer 토큰을 보냄
+  await apiRequest(
+    '/api/auth/logout',
+    { method: 'POST', auth: true },
+    capture(200, { success: true, data: null, meta: null, error: null }),
+  );
+  assert.equal(headers.Authorization, 'Bearer header.payload.sig');
+
+  // auth 요청이 401 → 토큰 · 회원 정보 삭제
+  await assert.rejects(
+    apiRequest(
+      '/api/auth/logout',
+      { method: 'POST', auth: true },
+      capture(401, { ...fail401, error: { code: 'UNAUTHORIZED', message: '로그인이 필요해요' } }),
+    ),
+    (e) => e.code === 'UNAUTHORIZED',
+  );
+  assert.equal(store['hope-refund.accessToken'], undefined);
+  assert.equal(store['hope-refund.loginMember'], undefined);
+  if (globalThis.addEventListener) assert.equal(expiredEvents, 1);
+} finally {
+  delete globalThis.localStorage;
+}
+
+console.log(
+  'PASS: http.js 봉투 정상 · 오류 코드 · errorId · 연결 실패 · JSON 아닌 응답 · 로그인 토큰 · 401 만료',
+);

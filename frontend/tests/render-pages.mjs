@@ -212,12 +212,34 @@ const cases = [
     />,
   ],
   ['profile', <Profile {...base} />],
+  // [수정 11/17] 서버 로그인 회원: 로그인 응답에 이메일 · 생년월일 · 성별이 없음 (값이 없을 때도 버티는지)
+  // → 대시보드 · 통계 · 프로필이 오류(빈 화면) 없이 그려져야 함
+  ...[
+    ['dashboard', Dashboard],
+    ['statistics', Statistics],
+    ['profile', Profile],
+  ].map(([page, Page]) => [
+    page + '-server-login',
+    <Page
+      {...base}
+      data={{ ...initial, name: 'hope_user', email: undefined, birth: undefined, gender: '' }}
+      session={{ id: 'member:hope_user', username: 'hope_user', role: 'USER', server: true }}
+      chart={() => null}
+    />,
+  ]),
   ['support', <Support {...base} />],
   ['admin-denied', <Admin {...base} admin={false} />],
 ];
 for (const [name, node] of cases) {
   const html = renderToStaticMarkup(node);
   if (!html || /NaN|undefined/.test(html)) throw Error(name + ': 렌더링 값 확인 필요');
+  // [수정 11/17] 메일 발송 전이라 가입 화면에 이메일 인증(인증번호) UI를 숨김
+  if (name === 'signup' && /인증번호|email-verification/.test(html))
+    throw Error('가입 화면에 이메일 인증 UI가 보임');
+  // [수정 11/17] 가입 · 로그인 화면에서 뺀 문구 (서버 연동 표시 · 검토용 초안 · 시연용 비밀번호 · 비밀번호 찾기 · 빠른 체험)
+  if (name === 'signup' && /서버 연동|검토용 초안/.test(html)) throw Error('가입 화면에 뺀 문구가 보임');
+  if (name === 'login' && /서버 연동|시연용 비밀번호|잊으셨나요|로그인 없이 바로 체험|사용자 체험/.test(html))
+    throw Error('로그인 화면에 뺀 문구가 보임');
   if (
     name === 'dashboard-api' &&
     (!html.includes('15,375,000') ||

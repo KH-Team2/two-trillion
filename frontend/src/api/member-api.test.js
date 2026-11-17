@@ -62,6 +62,15 @@ assert.equal(calls[4][0], '/api/auth/members');
 assert.equal(calls[4][1].method, 'POST');
 assert.equal(calls[4][1].body.loginId, 'Hope_User');
 
+// 로그인 · 로그아웃 (F-01-02): 아이디 앞뒤 공백 제거 · 비밀번호는 그대로 · 로그아웃만 토큰(auth) 필요
+await api.login(' hope_user ', ' pass word1 ');
+await api.logout();
+assert.deepEqual(calls[5], [
+  '/api/auth/login',
+  { method: 'POST', body: { loginId: 'hope_user', password: ' pass word1 ' } },
+]);
+assert.deepEqual(calls[6], ['/api/auth/logout', { method: 'POST', auth: true }]);
+
 // 화면 검사: 정상 → '' · 항목별 안내 문구
 const now = new Date('2026-11-10T03:00:00Z');
 const ready = { ...form, checkedUsername: form.username, checkedEmail: form.email };
@@ -71,7 +80,6 @@ const cases = [
   [{ password: 'short', confirm: 'short' }, '비밀번호는 8자 이상 입력해 주세요'],
   [{ confirm: 'different1' }, '비밀번호 확인이 일치하지 않아요'],
   [{ checkedEmail: '' }, '이메일 중복확인을 해주세요'],
-  [{ verificationId: '' }, '이메일 인증을 완료해 주세요'],
   [{ birth: '' }, '생년월일을 입력해 주세요'],
   [{ birth: '2013-01-01' }, '만 14세 이상만 가입할 수 있어요'],
   [{ birth: '2030-01-01' }, '생년월일을 확인해 주세요'],
@@ -83,6 +91,14 @@ const cases = [
 for (const [change, message] of cases) {
   assert.equal(signupFormError({ ...ready, ...change }, now), message);
 }
+// 이메일 인증 [수정 11/17]: 켜면 인증 번호표가 있어야 함 · 끄면(메일 발송 전 기본값) 없어도 가입 가능
+const noProof = { ...ready, verificationId: '' };
+assert.equal(
+  signupFormError(noProof, now, { requireVerification: true }),
+  '이메일 인증을 완료해 주세요',
+);
+assert.equal(signupFormError(noProof, now, { requireVerification: false }), '');
+assert.equal(toSignupRequest(noProof, versions).verificationId, null);
 // 만 14세 생일 당일(한국 시간)은 가입 가능
 assert.equal(signupFormError({ ...ready, birth: '2012-11-10' }, now), '');
 

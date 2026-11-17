@@ -4,6 +4,11 @@
 //   성공이면 data만 꺼내 돌려주고, 실패면 error {code, message}를 ApiError로 바꿔 던집니다 (화면은 message를 표시).
 // - 서버에 연결하지 못했거나 응답이 JSON이 아니면 error: 'NETWORK_ERROR'로 구분합니다.
 
+// - auth: true인 요청(로그아웃 등)만 저장된 로그인 토큰을 Authorization 헤더로 보냅니다.
+//   그 요청이 401이면 토큰이 만료 · 무효인 것 → 로그인 정보를 지우고 화면에 알립니다 (api-client.js expireLogin).
+//   로그인 요청은 auth가 없어서, 비밀번호가 틀린 401(LOGIN_FAILED)은 로그인 화면 오류로만 보입니다.
+import { bearerHeader, expireLogin } from './api-client.js';
+
 export const NETWORK_ERROR = 'NETWORK_ERROR';
 
 export class ApiError extends Error {
@@ -20,14 +25,19 @@ const CONNECTION_MESSAGE = '서버에 연결할 수 없어요. 잠시 후 다시
 
 export async function apiRequest(
   path,
-  { method = 'GET', body } = {},
+  { method = 'GET', body, auth = false } = {},
   fetchImpl = globalThis.fetch,
 ) {
+  // 헤더는 await 전에 만듦 → 로그아웃처럼 호출 직후 토큰을 지워도 보낼 토큰은 이미 담겨 있음
+  const headers = {
+    ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
+    ...(auth ? bearerHeader() : {}),
+  };
   let response;
   try {
     response = await fetchImpl(path, {
       method,
-      headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+      headers: Object.keys(headers).length ? headers : undefined,
       body: body === undefined ? undefined : JSON.stringify(body),
     });
   } catch {
@@ -47,6 +57,7 @@ export async function apiRequest(
   }
   if (!response.ok || !data.success) {
     const error = data.error || {};
+    if (response.status === 401 && headers.Authorization) expireLogin();
     throw new ApiError(
       error.code || NETWORK_ERROR,
       error.message || '요청을 처리하지 못했어요.',

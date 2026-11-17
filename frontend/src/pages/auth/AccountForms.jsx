@@ -1,10 +1,13 @@
-// 가입·로그인·이메일 인증·빠른 체험 UI입니다. TODO: 실제 인증은 Spring Boot API에서 재검증해야 합니다.
-// 일반 회원가입(F-01-01)은 Spring Boot API에 연결되어 있습니다 (memberApi). 로그인 · 최초 관리자 설정은 아직 브라우저 체험입니다.
+// 가입·로그인·이메일 인증·빠른 체험 UI입니다.
+// 회원가입(F-01-01) · 로그인(F-01-02)은 Spring Boot API에 연결되어 있습니다 (memberApi · accountService.login).
+// 빠른 체험은 서버 없이 이 브라우저에서만 동작합니다. 관리자 권한은 DB(MEMBER.ROLE = ADMIN)에서 지정합니다.
 import React, { useState, useEffect, useRef } from 'react';
 import { accountService } from '@/api/account-service.js';
-import { memberApi, signupFormError } from '@/api/member-api.js';
+import { EMAIL_VERIFICATION_REQUIRED, memberApi, signupFormError } from '@/api/member-api.js';
 import { recordAccess } from '@/api/prototype-records.js';
 // 동의서 버전은 별도 설정합니다. 미확정 버전의 서버 DTO는 생성할 수 없습니다.
+// 「비밀번호를 잊으셨나요?」 버튼 표시 여부 [추가 11/17] · 비밀번호 재설정 서버 API가 생기면 true
+const SHOW_PASSWORD_RESET = false;
 const notice =
   '브라우저 내 기능 시연입니다. 계정·권한·잠금 정보는 이 브라우저에만 저장되며 서버 보안 기능은 아직 연결되지 않았습니다. 동의서 운영 버전 미확정 시 로컬 체험만 제공하며 서버에 동의를 저장하지 않습니다. 실제 사용하는 비밀번호·개인정보는 입력하지 마세요.';
 const agreements = [
@@ -27,8 +30,7 @@ const agreements = [
 export function AccountForms({ page, go, onLogin }) {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
-    [setup, setSetup] = useState(false),
-    [hasAdmin, setHasAdmin] = useState(() => accountService.hasAdmin());
+    [setup, setSetup] = useState(false);
   const [email, setEmail] = useState(''),
     [username, setUsername] = useState(''),
     [checkedEmail, setCheckedEmail] = useState(''),
@@ -52,6 +54,7 @@ export function AccountForms({ page, go, onLogin }) {
   });
   const signup = page === 'signup' || setup;
   const serverSignup = page === 'signup' && !setup; // 서버 API로 가입하는 일반 회원가입
+  const serverLogin = page === 'login' && !setup; // 서버 API로 로그인 (F-01-02)
   useEffect(() => {
     if (!expiresAt) return;
     const timer = setInterval(() => setNow(Date.now()), 1000);
@@ -94,9 +97,8 @@ export function AccountForms({ page, go, onLogin }) {
   };
   return (
     <section className="card auth-card" key={page}>
-      {serverSignup ? (
-        <span className="tag blue">서버 연동</span>
-      ) : (
+      {/* [수정 11/17] 서버에 연결된 가입 · 로그인 화면에는 표시 없음 · 아직 서버 미연동 화면(비밀번호 재설정 등)만 표시 */}
+      {!(serverSignup || serverLogin) && (
         <span className="tag amber">브라우저 시연 · 서버 미연동</span>
       )}
       <h2>
@@ -111,7 +113,9 @@ export function AccountForms({ page, go, onLogin }) {
       <p className="muted">
         {serverSignup
           ? '입력한 회원 정보는 희망환급 서버에 저장됩니다. 비밀번호는 암호화하여 저장하며, 실명은 받지 않습니다.'
-          : notice}
+          : serverLogin
+            ? '희망환급에 가입한 아이디로 로그인해요. 비밀번호를 5번 틀리면 10분 동안 로그인할 수 없어요.'
+            : notice}
       </p>
       {success && (
         <p className="notice" role="status">
@@ -205,7 +209,6 @@ export function AccountForms({ page, go, onLogin }) {
                 ...consent,
               };
               await (setup ? accountService.bootstrap(payload) : accountService.signUp(payload));
-              setHasAdmin(accountService.hasAdmin());
               setSetup(false);
               setConsent({ terms: false, privacy: false, financial: false });
               setProof('');
@@ -282,7 +285,7 @@ export function AccountForms({ page, go, onLogin }) {
         )}
         <div className="field">
           <label htmlFor="account-email">
-            {signup || page === 'reset' ? '이메일 *' : '아이디 또는 이메일 *'}
+            {signup || page === 'reset' ? '이메일 *' : '아이디 *'}
           </label>
           <div className="input-action">
             <input
@@ -300,7 +303,7 @@ export function AccountForms({ page, go, onLogin }) {
                 setExpiresAt(0);
                 setVerificationMessage('');
               }}
-              autoComplete="off"
+              autoComplete={serverLogin ? 'username' : 'off'}
             />
             {signup && (
               <button className="btn secondary" type="button" onClick={() => check('email')}>
@@ -322,140 +325,142 @@ export function AccountForms({ page, go, onLogin }) {
               minLength={8}
               required
               autoComplete={signup ? 'new-password' : 'current-password'}
-              placeholder="시연용 비밀번호 8자 이상"
             />
           </label>
         )}
         {signup && (
           <>
-            <div className="email-verification">
-              <h3>{serverSignup ? '이메일 인증' : '이메일 인증 · 체험'}</h3>
-              <p>
-                {serverSignup
-                  ? '인증번호는 5분 동안 유효하며 5번 틀리면 다시 받아야 해요. 메일 발송 기능은 준비 중이라 개발 환경에서는 인증번호가 아래에 표시됩니다.'
-                  : '이메일 발송 API가 연결되지 않아 실제 메일은 보내지 않습니다. 아래에 표시되는 체험 인증번호로 동작을 확인하세요.'}
-              </p>
-              <button
-                className="btn secondary"
-                type="button"
-                onClick={async () => {
-                  if (serverSignup) {
-                    // 서버 인증번호 발급: verificationId(번호표)를 받아 둔다
-                    try {
-                      if (checkedEmail !== email || !email)
-                        throw Error('이메일 중복확인을 먼저 해주세요.');
-                      const result = await memberApi.sendEmailCode(email);
-                      setPendingId(result.verificationId);
-                      setDemoCode(result.devCode || '');
-                      setExpiresAt(Date.parse(result.expiresAt));
-                      setNow(Date.now());
-                      setProof('');
-                      setCode('');
-                      setVerificationMessage(
-                        result.devCode
-                          ? '개발 환경: 메일 대신 아래 인증번호를 사용하세요.'
-                          : '인증번호를 발급했어요. (메일 발송 기능은 아직 연결되지 않았어요)',
-                      );
-                    } catch (err) {
-                      if (err.code === 'DUPLICATE_EMAIL') setCheckedEmail('');
-                      setVerificationMessage(err.message);
-                    }
-                    return;
-                  }
-                  try {
-                    if (checkedEmail !== email || !email)
-                      throw Error('이메일 중복확인을 먼저 해주세요.');
-                    const result = accountService.sendEmailCode(email);
-                    setDemoCode(result.demoCode);
-                    setExpiresAt(result.expiresAt);
-                    setNow(Date.now());
-                    setProof('');
-                    setCode('');
-                    setVerificationMessage(
-                      '체험 인증번호를 생성했습니다. 실제 이메일은 발송되지 않았습니다.',
-                    );
-                  } catch (err) {
-                    setVerificationMessage(err.message);
-                  }
-                }}
-              >
-                {serverSignup
-                  ? pendingId
-                    ? '인증번호 다시 받기'
-                    : '인증번호 발송'
-                  : '인증번호 발송 (체험)'}
-              </button>
-              {demoCode && !(serverSignup && proof) && (
+            {/* 이메일 인증 UI: 실제 메일 발송 전이라 숨김 (코드는 그대로 · 켜려면 member-api.js EMAIL_VERIFICATION_REQUIRED = true) */}
+            {EMAIL_VERIFICATION_REQUIRED && (
+              <div className="email-verification">
+                <h3>{serverSignup ? '이메일 인증' : '이메일 인증 · 체험'}</h3>
                 <p>
-                  {serverSignup ? '개발용 인증번호' : '체험 인증번호'}: <b>{demoCode}</b> ·{' '}
-                  {expired
-                    ? '만료됨'
-                    : `${Math.max(0, Math.ceil((expiresAt - now) / 1000))}초 남음`}
+                  {serverSignup
+                    ? '인증번호는 5분 동안 유효하며 5번 틀리면 다시 받아야 해요. 메일 발송 기능은 준비 중이라 개발 환경에서는 인증번호가 아래에 표시됩니다.'
+                    : '이메일 발송 API가 연결되지 않아 실제 메일은 보내지 않습니다. 아래에 표시되는 체험 인증번호로 동작을 확인하세요.'}
                 </p>
-              )}
-              {serverSignup && pendingId && !demoCode && !proof && (
-                <p>
-                  {expired
-                    ? '인증번호 만료됨'
-                    : `인증번호 유효 시간 ${Math.max(0, Math.ceil((expiresAt - now) / 1000))}초 남음`}
-                </p>
-              )}
-              <div className="input-action">
-                <input
-                  aria-label="인증번호"
-                  inputMode="numeric"
-                  maxLength={6}
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="6자리 인증번호"
-                />
                 <button
                   className="btn secondary"
                   type="button"
-                  disabled={serverSignup && !!proof}
                   onClick={async () => {
                     if (serverSignup) {
-                      // 서버 인증번호 확인: 성공하면 번호표를 가입 요청에 사용
+                      // 서버 인증번호 발급: verificationId(번호표)를 받아 둔다
                       try {
-                        if (!pendingId) throw Error('인증번호를 먼저 요청해 주세요');
-                        if (!/^\d{6}$/.test(code)) throw Error('6자리 인증번호를 입력해 주세요');
-                        await memberApi.confirmEmailCode(pendingId, code);
-                        setProof(pendingId);
-                        setVerificationMessage('이메일 인증이 완료됐어요');
-                      } catch (err) {
+                        if (checkedEmail !== email || !email)
+                          throw Error('이메일 중복확인을 먼저 해주세요.');
+                        const result = await memberApi.sendEmailCode(email);
+                        setPendingId(result.verificationId);
+                        setDemoCode(result.devCode || '');
+                        setExpiresAt(Date.parse(result.expiresAt));
+                        setNow(Date.now());
                         setProof('');
-                        // 만료 · 5회 실패 → 번호표가 폐기되어 다시 발송해야 함
-                        if (['VERIFICATION_EXPIRED', 'VERIFICATION_LIMIT'].includes(err.code)) {
-                          setPendingId('');
-                          setDemoCode('');
-                          setExpiresAt(0);
-                        }
+                        setCode('');
+                        setVerificationMessage(
+                          result.devCode
+                            ? '개발 환경: 메일 대신 아래 인증번호를 사용하세요.'
+                            : '인증번호를 발급했어요. (메일 발송 기능은 아직 연결되지 않았어요)',
+                        );
+                      } catch (err) {
+                        if (err.code === 'DUPLICATE_EMAIL') setCheckedEmail('');
                         setVerificationMessage(err.message);
                       }
                       return;
                     }
                     try {
-                      setProof(accountService.verifyEmailCode(email, code));
-                      setVerificationMessage('인증 성공 (브라우저 체험)');
-                    } catch (err) {
+                      if (checkedEmail !== email || !email)
+                        throw Error('이메일 중복확인을 먼저 해주세요.');
+                      const result = accountService.sendEmailCode(email);
+                      setDemoCode(result.demoCode);
+                      setExpiresAt(result.expiresAt);
+                      setNow(Date.now());
                       setProof('');
+                      setCode('');
+                      setVerificationMessage(
+                        '체험 인증번호를 생성했습니다. 실제 이메일은 발송되지 않았습니다.',
+                      );
+                    } catch (err) {
                       setVerificationMessage(err.message);
                     }
                   }}
                 >
-                  인증확인
+                  {serverSignup
+                    ? pendingId
+                      ? '인증번호 다시 받기'
+                      : '인증번호 발송'
+                    : '인증번호 발송 (체험)'}
                 </button>
+                {demoCode && !(serverSignup && proof) && (
+                  <p>
+                    {serverSignup ? '개발용 인증번호' : '체험 인증번호'}: <b>{demoCode}</b> ·{' '}
+                    {expired
+                      ? '만료됨'
+                      : `${Math.max(0, Math.ceil((expiresAt - now) / 1000))}초 남음`}
+                  </p>
+                )}
+                {serverSignup && pendingId && !demoCode && !proof && (
+                  <p>
+                    {expired
+                      ? '인증번호 만료됨'
+                      : `인증번호 유효 시간 ${Math.max(0, Math.ceil((expiresAt - now) / 1000))}초 남음`}
+                  </p>
+                )}
+                <div className="input-action">
+                  <input
+                    aria-label="인증번호"
+                    inputMode="numeric"
+                    maxLength={6}
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                    placeholder="6자리 인증번호"
+                  />
+                  <button
+                    className="btn secondary"
+                    type="button"
+                    disabled={serverSignup && !!proof}
+                    onClick={async () => {
+                      if (serverSignup) {
+                        // 서버 인증번호 확인: 성공하면 번호표를 가입 요청에 사용
+                        try {
+                          if (!pendingId) throw Error('인증번호를 먼저 요청해 주세요');
+                          if (!/^\d{6}$/.test(code)) throw Error('6자리 인증번호를 입력해 주세요');
+                          await memberApi.confirmEmailCode(pendingId, code);
+                          setProof(pendingId);
+                          setVerificationMessage('이메일 인증이 완료됐어요');
+                        } catch (err) {
+                          setProof('');
+                          // 만료 · 5회 실패 → 번호표가 폐기되어 다시 발송해야 함
+                          if (['VERIFICATION_EXPIRED', 'VERIFICATION_LIMIT'].includes(err.code)) {
+                            setPendingId('');
+                            setDemoCode('');
+                            setExpiresAt(0);
+                          }
+                          setVerificationMessage(err.message);
+                        }
+                        return;
+                      }
+                      try {
+                        setProof(accountService.verifyEmailCode(email, code));
+                        setVerificationMessage('인증 성공 (브라우저 체험)');
+                      } catch (err) {
+                        setProof('');
+                        setVerificationMessage(err.message);
+                      }
+                    }}
+                  >
+                    인증확인
+                  </button>
+                </div>
+                <p role="status">
+                  {serverSignup && proof
+                    ? '✓ 이메일 인증 완료'
+                    : expired
+                      ? serverSignup
+                        ? '인증 코드가 맞지 않거나 만료됐어요. 인증번호를 다시 받아 주세요.'
+                        : '인증번호가 만료되었습니다. 다시 발송해주세요.'
+                      : verificationMessage}
+                </p>
               </div>
-              <p role="status">
-                {serverSignup && proof
-                  ? '✓ 이메일 인증 완료'
-                  : expired
-                    ? serverSignup
-                      ? '인증 코드가 맞지 않거나 만료됐어요. 인증번호를 다시 받아 주세요.'
-                      : '인증번호가 만료되었습니다. 다시 발송해주세요.'
-                    : verificationMessage}
-              </p>
-            </div>
+            )}
             <label className="field">
               <span>생년월일 * · 만 14세 이상</span>
               <input type="date" name="birth" required />
@@ -476,11 +481,13 @@ export function AccountForms({ page, go, onLogin }) {
               ))}
             </fieldset>
             <div className="agreement-list">
-              <p>
-                {serverSignup
-                  ? '아래 내용은 검토용 초안입니다. 동의한 일시와 동의서 버전은 서버에 기록됩니다. 운영 전 전문과 버전 확정이 필요합니다.'
-                  : '아래 내용은 검토용 초안입니다. 이용약관·개인정보·금융 동의 버전은 각각 미확정이며, 시연 동의일시만 따로 보관합니다. 운영 전 전문과 버전 확정이 필요합니다.'}
-              </p>
+              {/* [수정 11/17] 서버 회원가입 화면에서는 「검토용 초안」 안내 문구 삭제 */}
+              {!serverSignup && (
+                <p>
+                  아래 내용은 검토용 초안입니다. 이용약관·개인정보·금융 동의 버전은 각각 미확정이며,
+                  시연 동의일시만 따로 보관합니다. 운영 전 전문과 버전 확정이 필요합니다.
+                </p>
+              )}
               <label className="checkline">
                 <input
                   type="checkbox"
@@ -531,45 +538,11 @@ export function AccountForms({ page, go, onLogin }) {
                   : '로그인'}
         </button>
       </form>
-      {!signup && page === 'login' && (
-        <>
-          <button className="text-btn" onClick={() => go('reset')}>
-            비밀번호를 잊으셨나요?
-          </button>
-          {!hasAdmin && (
-            <button
-              className="btn secondary"
-              onClick={() => {
-                setSetup(true);
-                setError('');
-              }}
-            >
-              최초 관리자 초기 설정 (시연)
-            </button>
-          )}
-        </>
-      )}
-      {!signup && page === 'login' && (
-        <div className="quick-demo">
-          <div className="divider">로그인 없이 바로 체험해보세요</div>
-          <p className="muted">
-            별도 체험 데이터로 시작하며 가입한 회원 계정에는 영향을 주지 않습니다.
-          </p>
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => onLogin(accountService.enterDemo('USER'))}
-          >
-            일반 사용자 체험
-          </button>
-          <button
-            type="button"
-            className="btn secondary"
-            onClick={() => onLogin(accountService.enterDemo('ADMIN'))}
-          >
-            관리자 기능 체험
-          </button>
-        </div>
+      {/* 비밀번호 재설정: 서버 API가 아직 없어 화면에서만 숨김 (나중에 SHOW_PASSWORD_RESET = true) */}
+      {SHOW_PASSWORD_RESET && !signup && page === 'login' && (
+        <button className="text-btn" onClick={() => go('reset')}>
+          비밀번호를 잊으셨나요?
+        </button>
       )}
       <p className="auth-switch">
         {signup ? '이미 계정이 있으신가요?' : '아직 회원이 아니신가요?'}{' '}

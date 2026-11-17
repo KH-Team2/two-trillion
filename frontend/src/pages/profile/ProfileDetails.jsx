@@ -35,7 +35,7 @@ export function ProfileDetails({ data, onChange }) {
           이메일
           <input
             readOnly
-            value={(u?.email || data.email).replace(/^(.{1,2}).*(@.*)$/, '$1***$2')}
+            value={(u?.email || data.email || '').replace(/^(.{1,2}).*(@.*)$/, '$1***$2')}
           />
         </label>
         <label className="field">

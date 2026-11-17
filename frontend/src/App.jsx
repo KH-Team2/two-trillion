@@ -7,7 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
-import { canUseDemo } from '@/api/api-client.js';
+import { AUTH_EXPIRED_EVENT, canUseDemo } from '@/api/api-client.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -74,7 +74,18 @@ export default function App() {
     refreshSession();
     const sync = () => refreshSession();
     window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
+    // 로그인 토큰이 만료 · 무효(서버 401) → 로그인 화면으로 (api-client.js expireLogin)
+    const expired = () => {
+      setSession(null);
+      setPage('login');
+      location.hash = 'login';
+      setToast('로그인이 만료되었어요. 다시 로그인해 주세요.');
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, expired);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
+    };
   }, []);
   // 로그인한 계정에 해당하는 입력·거래·이력을 불러옵니다.
   useEffect(() => {
@@ -83,8 +94,9 @@ export default function App() {
       ...(session
         ? {
             name: session.username || '사용자',
-            email: session.email,
-            birth: session.birth,
+            // 서버 로그인 회원은 이메일 · 생년월일 · 성별이 없음 → 빈 값 (undefined로 두면 화면 계산에서 오류)
+            email: session.email || '',
+            birth: session.birth || '',
             gender: session.gender || '',
           }
         : {}),
@@ -99,8 +111,9 @@ export default function App() {
         ? {
             ...loaded,
             name: session.username || '사용자',
-            email: session.email,
-            birth: session.birth,
+            // 서버 로그인 회원은 이메일 · 생년월일 · 성별이 없음 → 빈 값 (undefined로 두면 화면 계산에서 오류)
+            email: session.email || '',
+            birth: session.birth || '',
             gender: session.gender || '',
           }
         : loaded,

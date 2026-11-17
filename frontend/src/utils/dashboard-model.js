@@ -7,7 +7,8 @@ export const TAX_YEAR = getDefaultTaxYear();
 export const TAX_GUIDANCE =
   'https://www.nts.go.kr/nts/cm/cntnts/cntntsView.do?cntntsId=7794&mi=2458';
 export function yearOf(date) {
-  const match = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(date.trim());
+  // [수정 11/17] 날짜가 없으면(서버 로그인 회원의 생년월일) null · 전에는 .trim 오류로 대시보드가 빈 화면
+  const match = /^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})$/.exec(String(date ?? '').trim());
   if (!match) return null;
   const [, y, m, d] = match.map(Number),
     test = new Date(Date.UTC(y, m - 1, d));
