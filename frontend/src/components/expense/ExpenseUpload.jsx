@@ -127,12 +127,13 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       {/* [수정 11/17 고은] 안내 문구를 서버 처리 기준으로 바꿈 · 이유: 이제 실제 목록으로 분류하고 DB에 저장함 */}
       <p>
         지원: CSV(UTF-8·한글 인코딩) · XLSX · 홈택스 현금영수증 XLS · 첫 행에 거래일자/승인일시,
-        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당 10,000건까지
-        올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
+        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당
+        10,000건까지 올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
       </p>
       <p>
-        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역 저장 →
-        세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지 않습니다.
+        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역
+        저장 → 세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지
+        않습니다.
       </p>
       <div className="form-grid">
         <label className="field">
@@ -254,8 +255,8 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       {payAsk && (
         <div className="duplicate-note" role="dialog" aria-label="결제수단 선택">
           <p role="status">
-            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을
-            골라 주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
+            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을 골라
+            주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
           </p>
           <div className="actions">
             <button type="button" className="btn" onClick={() => payAsk.answer('CREDIT')}>
