@@ -74,11 +74,7 @@ public class CalculationService {
         List<CardSpendDTO> cardSpends = predictionMapper.findCardSpends(memberId, taxYear);
 
         // 감면 신청(Y)이어도 진단이 「해당」이 아니면 감면 없이 계산 · 저장되는 입력값(PREDICTION_INPUT)도 실제로 쓴 값(N)
-        if ("Y".equals(income.getSmeReductionYn())
-                && !isSmeEligible(memberId, taxYear, income.getTotalSalary())) {
-            log.info("감면 신청(Y)이지만 진단이 「해당」이 아니라 감면 없이 계산 member={} year={}", memberId, taxYear);
-            income.setSmeReductionYn("N");
-        }
+        applySmeEligibility(memberId, taxYear, income);
 
         // 2. 계산은 CalcClient에 맡겨요 (mock 또는 파이썬 서버) · 트랜잭션 밖
         CalculationResponseDTO result =
@@ -122,10 +118,7 @@ public class CalculationService {
         }
 
         // 2. 감면 신청(Y)이어도 진단이 「해당」이 아니면 감면 없이 (계산과 같은 규칙)
-        if ("Y".equals(income.getSmeReductionYn())
-                && !isSmeEligible(memberId, taxYear, income.getTotalSalary())) {
-            income.setSmeReductionYn("N");
-        }
+        applySmeEligibility(memberId, taxYear, income);
 
         // 3. 계산 (트랜잭션 밖)
         CalculationResponseDTO result =
@@ -199,6 +192,15 @@ public class CalculationService {
         }
         result.setDetails(predictionMapper.findPredictionDetails(memberId, predictionId));
         return result;
+    }
+
+    /** 감면 신청(Y)인데 진단이 「해당」이 아니면 N으로 바꿔요 (계산 · 시뮬레이션 공통). */
+    private void applySmeEligibility(long memberId, int taxYear, IncomeResponseDTO income) {
+        if ("Y".equals(income.getSmeReductionYn())
+                && !isSmeEligible(memberId, taxYear, income.getTotalSalary())) {
+            log.info("감면 신청(Y)이지만 진단이 「해당」이 아니라 감면 없이 계산 member={} year={}", memberId, taxYear);
+            income.setSmeReductionYn("N");
+        }
     }
 
     /** 중소기업 취업자 감면 진단 결과가 「해당(true)」인지. 비해당(false) · 정보 부족(null) · 회원 정보 없음은 모두 false. */
