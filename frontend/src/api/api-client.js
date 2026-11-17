@@ -57,6 +57,10 @@ export async function apiRequest(
   } catch {
     throw apiError('OFFLINE', offline);
   }
+  // [수정 11/17 고은] 204(성공 · 본문 없음)면 JSON을 읽지 않고 바로 null을 돌려줌
+  // 이유: 업로드 삭제(DELETE /api/card-uploads/{id})는 성공하면 204로 빈 응답을 줌
+  //   → 그대로 JSON을 읽으면 실패해서 아래에서 「서버에 연결할 수 없어요(OFFLINE)」로 잘못 처리됨
+  if (response.status === 204) return null;
   let json = null;
   try {
     json = await response.json();

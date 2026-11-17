@@ -74,3 +74,64 @@ export function toUploadRow(item, upload) {
     serverSaved: true, // DB에 저장된 거래라는 표시
   };
 }
+
+// ───────── [추가 11/17 고은] TT-115: 업로드 이력 조회 · 삭제 ─────────
+
+/** 내 업로드 이력 (최근 것부터) · [{uploadId, fileName, rowCount, uploadedAt}] */
+export function fetchUploads(options = {}) {
+  return apiRequest('/api/card-uploads', {
+    ...options,
+    offlineMessage: '업로드 이력 서버에 연결할 수 없어요.',
+  });
+}
+
+/**
+ * 업로드 1건 삭제 (그 업로드의 거래도 서버가 같이 지움)
+ * - 성공하면 204(본문 없음) → null
+ * - 없거나 남의 업로드면 code 'NOT_FOUND' 오류
+ */
+export function deleteUpload(uploadId, options = {}) {
+  if (!Number.isInteger(Number(uploadId))) {
+    throw apiError('VALIDATION', '업로드 번호를 확인해주세요.');
+  }
+  return apiRequest(`/api/card-uploads/${encodeURIComponent(uploadId)}`, {
+    ...options,
+    method: 'DELETE',
+    offlineMessage: '업로드 삭제 서버에 연결할 수 없어요.',
+  });
+}
+
+/**
+ * 서버에 저장된 내 업로드 전체를 화면 모양으로 불러오기
+ * (업로드 이력 1번 + 업로드마다 거래 목록 1번씩 요청)
+ *
+ * @returns {{rows: 화면 거래 목록, files: 화면 파일 목록}}
+ */
+export async function loadServerUploads(options = {}) {
+  const uploads = await fetchUploads(options);
+  // Promise.all: 업로드마다 거래 목록 요청을 「동시에」 보내고, 전부 끝날 때까지 기다림
+  // (하나씩 차례로 기다리는 것보다 빠름 · 하나라도 실패하면 전체가 실패로 처리됨)
+  const perUpload = await Promise.all(
+    uploads.map(async (upload) => {
+      const rows = (await fetchUploadExpenses(upload.uploadId, options)).map((item) =>
+        toUploadRow(item, upload),
+      );
+      // 모든 거래가 현금영수증이면 홈택스 파일로 표시
+      const hometax = rows.length > 0 && rows.every((r) => r.PAY_METHOD === 'CASH');
+      const file = {
+        id: String(upload.uploadId),
+        name: upload.fileName,
+        count: rows.length,
+        at: upload.uploadedAt,
+        source: hometax ? 'hometax' : 'card',
+        status: '업로드 완료',
+        serverSaved: true,
+      };
+      return { rows, file };
+    }),
+  );
+  return {
+    rows: perUpload.flatMap((p) => p.rows), // flatMap: 업로드별 거래 목록을 한 줄로 이어 붙임
+    files: perUpload.map((p) => p.file),
+  };
+}

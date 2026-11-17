@@ -1,8 +1,16 @@
 // CSV·XLSX를 읽고 업로드 단위로 거래를 묶습니다. 중복 후보는 사용자 확인 전 집계에서 보류합니다.
-import React, { useState, useId } from 'react';
+// [수정 11/17 고은] useEffect 추가 · 이유: 화면이 열릴 때 서버 업로드 이력을 한 번 불러오려고 (TT-115)
+import React, { useState, useId, useEffect } from 'react';
 // [수정 11/17 고은] parseUploadFile(브라우저에서 파일 읽기) 대신 서버 업로드 API를 씀
 // 이유: 브라우저에서만 읽으면 DB(EXPENSE)에 저장되지 않아 세액 계산에 카드 내역이 빠짐
-import { uploadCardFile, fetchUploadExpenses, toUploadRow } from '@/api/card-upload-service.js';
+// [수정 11/17 고은] loadServerUploads · deleteUpload 추가 (TT-115 업로드 이력 · 삭제)
+import {
+  uploadCardFile,
+  fetchUploadExpenses,
+  toUploadRow,
+  loadServerUploads,
+  deleteUpload,
+} from '@/api/card-upload-service.js';
 import {
   payCode,
   transactionExamples,
@@ -22,6 +30,40 @@ export function ExpenseUpload({ rows, meta, onChange }) {
     // null이면 창 닫힘 · {fileName, answer}면 창 열림 (answer: 사용자가 고른 값을 업로드 쪽에 돌려주는 함수)
     [payAsk, setPayAsk] = useState(null);
   const files = uploadFiles(meta, rows);
+
+  // ───────── [추가 11/17 고은] TT-115: 화면이 열릴 때 서버 업로드 이력 불러오기 ─────────
+  // 이유: 브라우저에 남은 목록은 다른 PC · 다른 브라우저에서 올린 것과 다를 수 있고,
+  //       서버에서 지운 업로드가 화면에 남아 있을 수도 있음 → 서버(DB) 내용을 기준으로 다시 맞춤
+  // useEffect(함수, []): 화면이 처음 나타날 때 한 번만 실행 (빈 배열 [] = 다시 실행할 조건 없음)
+  useEffect(() => {
+    let stop = false; // 화면이 닫힌 뒤에 응답이 오면 무시하려는 표시
+    setBusy(true);
+    loadServerUploads()
+      .then(({ rows: serverRows, files: serverFiles }) => {
+        if (stop) return;
+        // 서버에 저장되지 않은 거래(예전 브라우저 체험 데이터)는 그대로 두고,
+        // 서버 거래는 방금 받은 최신 내용으로 통째로 바꿈
+        const localRows = rows.filter((r) => !r.serverSaved);
+        const localFiles = files.filter((f) => !f.serverSaved);
+        onChange([...localRows, ...serverRows], makeMeta([...localFiles, ...serverFiles]));
+      })
+      .catch((err) => {
+        if (stop) return;
+        // 서버가 꺼져 있거나(OFFLINE) 로그인 정보가 없으면(UNAUTHORIZED) 조용히 넘어감 → 화면 체험은 그대로
+        if (!['OFFLINE', 'UNAUTHORIZED'].includes(err.code)) {
+          setError(`업로드 이력을 불러오지 못했어요. ${err.message}`);
+        }
+      })
+      .finally(() => {
+        if (!stop) setBusy(false);
+      });
+    // 정리 함수: 화면이 사라질 때 실행 → 늦게 온 응답을 무시하게 표시
+    return () => {
+      stop = true;
+    };
+    // 처음 한 번만 불러오면 되므로 rows · onChange가 바뀌어도 다시 실행하지 않음
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ───────── [추가 11/17 고은] TT-113: 결제수단 선택 · 중복 경고 후 다시 보내기 ─────────
 
@@ -127,13 +169,12 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       {/* [수정 11/17 고은] 안내 문구를 서버 처리 기준으로 바꿈 · 이유: 이제 실제 목록으로 분류하고 DB에 저장함 */}
       <p>
         지원: CSV(UTF-8·한글 인코딩) · XLSX · 홈택스 현금영수증 XLS · 첫 행에 거래일자/승인일시,
-        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당
-        10,000건까지 올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
+        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당 10,000건까지
+        올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
       </p>
       <p>
-        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역
-        저장 → 세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지
-        않습니다.
+        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역 저장 →
+        세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지 않습니다.
       </p>
       <div className="form-grid">
         <label className="field">
@@ -255,8 +296,8 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       {payAsk && (
         <div className="duplicate-note" role="dialog" aria-label="결제수단 선택">
           <p role="status">
-            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을 골라
-            주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
+            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을
+            골라 주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
           </p>
           <div className="actions">
             <button type="button" className="btn" onClick={() => payAsk.answer('CREDIT')}>
@@ -364,13 +405,27 @@ export function ExpenseUpload({ rows, meta, onChange }) {
               <button
                 type="button"
                 className="text-btn danger"
-                onClick={() => {
+                // [수정 11/17 고은] 서버에 저장된 업로드면 서버에서도 지움 (TT-115)
+                // 이유: 화면에서만 지우면 DB(EXPENSE)에 남아 세액 계산에 계속 들어감
+                onClick={async () => {
                   if (
                     !window.confirm(
-                      `${file.name}에서 등록한 거래 ${fileRows.length}건을 모두 삭제하시겠습니까? 다른 파일의 거래는 유지됩니다.`,
+                      `${file.name}에서 등록한 거래 ${fileRows.length}건을 모두 삭제하시겠습니까? 서버에 저장된 거래도 지워지고 세액 계산에서 빠집니다. 다른 파일의 거래는 유지됩니다.`,
                     )
                   )
                     return;
+                  if (file.serverSaved) {
+                    try {
+                      await deleteUpload(file.id); // 성공하면 204 → 다음 줄로
+                    } catch (err) {
+                      // NOT_FOUND: 이미 서버에서 지워진 업로드 → 화면에서만 마저 지우면 됨
+                      // 그 밖의 오류: 서버에 남아 있으므로 화면에서도 지우지 않고 안내
+                      if (err.code !== 'NOT_FOUND') {
+                        setError(`${file.name}: 삭제하지 못했어요. ${err.message}`);
+                        return;
+                      }
+                    }
+                  }
                   const next = removeUpload(rows, files, file.id);
                   onChange(next.rows, next.meta);
                   recordAccess('UPLOAD_DELETE');
