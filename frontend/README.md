@@ -108,7 +108,6 @@ frontend/.env.example
 | `VITE_PRIVACY_VERSION` | 개인정보 처리 동의 버전 |
 | `VITE_FINANCE_VERSION` | 금융정보 저장 동의 버전 |
 | `VITE_API_PROXY` | 개발용 Spring Boot API 서버 주소 |
-| `VITE_DEV_MEMBER_ID` | 개발용 회원 식별 번호 |
 
 필요한 경우 `.env.example`을 복사해 `.env` 파일을 생성하고 팀에서 확정한 버전값을 입력합니다.
 
