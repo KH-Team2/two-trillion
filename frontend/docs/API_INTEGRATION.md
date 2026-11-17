@@ -73,7 +73,7 @@
 | 응답 봉투 · 오류 코드 | `backend/docs/api-rules.md` |
 | 화면 값 → 서버 이름 (소득 저장) | `src/api/income-service.js`의 `incomeRequest()` |
 | 계산 결과 응답 검사 | `src/api/calculation-contract.js`의 `parseCalculationResult()` |
-| 개발용 설정 (`VITE_API_PROXY` · `VITE_DEV_MEMBER_ID`) | `.env.example` · `vite.config.js` |
+| 개발용 설정 (`VITE_API_PROXY`) | `.env.example` · `vite.config.js` |
 | 로그인 토큰 보관 이름 (`ACCESS_TOKEN_KEY`) | `src/api/api-client.js` |
 
 ### 공통
