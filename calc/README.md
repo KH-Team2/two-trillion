@@ -84,9 +84,9 @@ python -m pip install -r requirements-dev.txt
 | `DB_USERNAME` | Oracle DB 계정 — 계산 서버 전용 **읽기 계정** (`../database/README.md`) |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `DB_DSN` | Oracle 접속 주소 `주소:포트/서비스이름` (python-oracledb는 JDBC 주소를 쓰지 않음) |
-| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **비우면 모든 계산 요청을 막음** |
-| `CALC_HOST` | FastAPI 실행 주소 |
-| `CALC_PORT` | FastAPI 실행 포트 |
+| `CALC_API_TOKEN` | Spring Boot와 Calc 서버 간 인증 토큰 — `backend/.env`와 같은 값 · **필수 · 비우면 서버가 시작되지 않음** (기본값 없음) |
+
+실행 주소 · 포트는 환경 변수가 아니라 실행 명령(`--host 127.0.0.1 --port 8000`)으로 정합니다. 포트를 바꾸면 `backend/.env`의 `CALC_BASE_URL`도 같이 바꿉니다.
 
 `.env.example`을 복사해 `calc/.env`로 만들면 서버 시작 시 자동으로 읽습니다 (python-dotenv).
 
@@ -182,4 +182,4 @@ pytest 63개(health 1 + 계산·진단 62) 및 Ruff lint·format 통과를 확�
 - ERD v4.1
 - 팀 API 공통 규칙
 
-각 기능의 실제 요청·응답 규격은 공식 API 명세서를 기준으로 구현합니다.
+각 기능의 실제 요청·응답 규격은 공식 API 명세서를 기준으로 구현합니다.

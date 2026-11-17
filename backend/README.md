@@ -149,7 +149,7 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
 | `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
-| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) | 없음 |
+| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) · `CALC_MODE=http`면 필수 (비우면 서버가 시작되지 않음 · 계산 서버도 같은 규칙) | 없음 |
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
 | `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
@@ -299,4 +299,4 @@ mvnw -B verify
 
 ERD는 팀에서 공유한 v4.1을 기준으로 합니다.
 
-일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.
+일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.

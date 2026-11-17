@@ -101,6 +101,21 @@ def test_rejects_all_requests_when_server_token_not_set(client, monkeypatch):
     assert response.json()["error"] == "TOKEN_NOT_SET"
 
 
+def test_server_does_not_start_without_token(monkeypatch):
+    """서버에 토큰이 설정되지 않으면 시작하지 않는다 (backend와 같은 규칙)"""
+    monkeypatch.delenv("CALC_API_TOKEN", raising=False)
+    with pytest.raises(RuntimeError, match="CALC_API_TOKEN"):
+        with TestClient(app):
+            pass
+
+
+def test_server_starts_with_token(monkeypatch):
+    """토큰이 있으면 정상 시작"""
+    monkeypatch.setenv("CALC_API_TOKEN", TOKEN)
+    with TestClient(app) as started:
+        assert started.get("/health").status_code == 200
+
+
 def test_diagnoses_benefits(client):
     """혜택 진단"""
     body = client.post(
