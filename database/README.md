@@ -94,8 +94,8 @@ ROLE 행 없이 SESSION 4개(`CREATE PROCEDURE` · `CREATE SEQUENCE` · `CREATE 
 
 ## 계산 서버 전용 읽기 계정 (최소 권한)
 
-계산 서버(`calc/`)는 기준값 테이블 3개(`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION`)를 **읽기만** 해요.
-그래서 테이블 주인 계정 대신, 이 3개만 읽을 수 있는 계정을 따로 써요. 계산 서버에 문제가 생겨도 회원 정보를 읽거나 데이터를 고치거나 지울 수 없어요.
+계산 서버(`calc/`)는 기준값 테이블 3개(`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION`)와 카드 분류 목록 2개(`MERCHANT_LIST` · `SPEND_CATEGORY` · 카드 파일 분류 `POST /card/parse`용)를 **읽기만** 해요.
+그래서 테이블 주인 계정 대신, 이 5개만 읽을 수 있는 계정을 따로 써요. 계산 서버에 문제가 생겨도 회원 정보를 읽거나 데이터를 고치거나 지울 수 없어요.
 
 - 계산 서버 `calc/.env`의 `DB_USERNAME` · `DB_PASSWORD`에 이 계정을 넣어요
 - Spring 서버(`backend/`)는 소득 · 계산 결과를 저장해야 해서 테이블 주인 계정을 그대로 써요
@@ -109,14 +109,19 @@ GRANT CREATE SESSION TO <계산서버계정>;
 GRANT SELECT ON <주인계정>.DEDUCTION_TYPE    TO <계산서버계정>;
 GRANT SELECT ON <주인계정>.TAX_BRACKET       TO <계산서버계정>;
 GRANT SELECT ON <주인계정>.BENEFIT_CONDITION TO <계산서버계정>;
+-- 카드 파일 분류 (POST /card/parse · 사용 중인 목록만 읽음)
+GRANT SELECT ON <주인계정>.MERCHANT_LIST     TO <계산서버계정>;
+GRANT SELECT ON <주인계정>.SPEND_CATEGORY    TO <계산서버계정>;
 
 -- 계산 서버 코드가 테이블 이름만 쓰기 때문에 동의어로 연결 (코드 수정 없음)
 CREATE SYNONYM <계산서버계정>.DEDUCTION_TYPE    FOR <주인계정>.DEDUCTION_TYPE;
 CREATE SYNONYM <계산서버계정>.TAX_BRACKET       FOR <주인계정>.TAX_BRACKET;
 CREATE SYNONYM <계산서버계정>.BENEFIT_CONDITION FOR <주인계정>.BENEFIT_CONDITION;
+CREATE SYNONYM <계산서버계정>.MERCHANT_LIST     FOR <주인계정>.MERCHANT_LIST;
+CREATE SYNONYM <계산서버계정>.SPEND_CATEGORY    FOR <주인계정>.SPEND_CATEGORY;
 ```
 
-확인 (새 계정으로 접속): 기준값 3개 `SELECT COUNT(*)`는 숫자가 나오고, `<주인계정>.MEMBER` 조회는 ORA-00942, `DELETE`/`UPDATE`는 ORA-01031이 나오면 정상이에요.
+확인 (새 계정으로 접속): 기준값 3개 · 분류 목록 2개 `SELECT COUNT(*)`는 숫자가 나오고, `<주인계정>.MEMBER` 조회는 ORA-00942, `DELETE`/`UPDATE`는 ORA-01031이 나오면 정상이에요.
 
 나중에 계산 서버가 다른 테이블을 읽게 되면 그 테이블도 `GRANT SELECT` + `CREATE SYNONYM`을 추가해야 해요. 안 하면 계산 서버에서 ORA-00942가 나요.
 

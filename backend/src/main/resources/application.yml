@@ -14,6 +14,14 @@ spring:
   web:
     error:
       include-stacktrace: never
+# [추가 11/17 고은] 카드 · 홈택스 파일 업로드 크기 (POST /api/card-uploads)
+# 이유: 설정이 없으면 스프링 기본값 1MB라, 카드사 원본처럼 칸이 많은 파일은 1만 행(계산 서버 한도)보다 먼저 막힘
+#   · max-file-size: 파일 1개 최대 크기 · max-request-size: 요청 전체 최대 크기(파일 + 결제수단 등 다른 칸)
+#   · 넘으면 공통 처리기가 413 PAYLOAD_TOO_LARGE 「파일이 너무 커요」로 응답
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
 
 # Oracle DB 연결 설정
 # 실제 접속 정보는 로컬 환경변수에서 가져옴.
