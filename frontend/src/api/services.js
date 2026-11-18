@@ -100,6 +100,15 @@ export function validateTaxData(d) {
 export function settlementLabel(refund) {
   return refund > 0 ? '예상 환급액' : refund < 0 ? '예상 추가 납부액' : '환급 및 추가 납부 예상액';
 }
+// 환급(돌려받음) · 추가 납부(더 냄)를 색으로도 구분하는 CSS 클래스 (글자 표기와 함께 씀 · 색만으로 구분하지 않음)
+export function settlementTone(refund) {
+  return refund > 0 ? 'amount-refund' : refund < 0 ? 'amount-pay' : 'amount-zero';
+}
+// 표 한 칸처럼 좁은 곳에 쓰는 표기: 「환급 446,240원」 · 「추가 납부 12,000원」 · 「0원」
+export function settlementText(refund) {
+  const amount = `${Math.abs(refund).toLocaleString('ko-KR')}원`;
+  return refund > 0 ? `환급 ${amount}` : refund < 0 ? `추가 납부 ${amount}` : amount;
+}
 export const categories = ['일반', '대중교통', '전통시장', '문화체육', '공제 대상 아님'];
 export const categoryCodes = {
   일반: 'GENERAL',
@@ -185,7 +194,7 @@ export const taxService = {
           detail('CARD_CREDIT', '신용카드', 'CARD', d.credit, d.credit * 0.15),
           detail('CARD_CHECK', '체크카드', 'CARD', d.debit, d.debit * 0.3),
           detail('CARD_CASH', '현금영수증', 'CARD', d.cash, d.cash * 0.3),
-          
+
           detail('CARD_TRANSIT', '대중교통', 'CARD', 0, 0),
           detail('CARD_MARKET', '전통시장', 'CARD', 0, 0),
           detail('CARD_CULTURE', '문화체육', 'CARD', 0, 0),

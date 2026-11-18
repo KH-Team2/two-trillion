@@ -211,6 +211,17 @@ const cases = [
       simTx={[]}
     />,
   ],
+  [
+    'simulation-pay',
+    <Simulation
+      {...base}
+      baseData={{ ...initial, taxYear: 2025, family: 0 }}
+      sim={{ ...initial, taxYear: 2024, family: 2 }}
+      br={{ ...apiResult, expectedRefund: 446240 }}
+      sr={{ ...apiResult, expectedRefund: -12000 }}
+      simTx={[]}
+    />,
+  ],
   ['profile', <Profile {...base} />],
   ['support', <Support {...base} />],
   ['admin-denied', <Admin {...base} admin={false} />],
@@ -218,6 +229,17 @@ const cases = [
 for (const [name, node] of cases) {
   const html = renderToStaticMarkup(node);
   if (!html || /NaN|undefined/.test(html)) throw Error(name + ': 렌더링 값 확인 필요');
+  if (
+    name === 'simulation-pay' &&
+    (!html.includes('amount-refund') ||
+      !html.includes('amount-pay') ||
+      !html.includes('예상 추가 납부액') ||
+      !html.includes('458,240원 불리해졌어요') ||
+      !html.includes('2024년') ||
+      !html.includes('2명') ||
+      html.includes('2,024'))
+  )
+    throw Error('시뮬레이션 환급/추가 납부 구분 · 변경 조건 표기 실패');
   if (
     name === 'dashboard-api' &&
     (!html.includes('15,375,000') ||

@@ -6,6 +6,8 @@
   --muted: #8995a9;
   --line: #e6ebf2;
   --bg: #f5f7fb;
+  --refund: #2466f5; /* 환급 (돌려받음) */
+  --pay: #d23f3f; /* 추가 납부 (더 냄) */
   --font: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 * {
@@ -3983,4 +3985,18 @@ button:disabled {
   min-width: 85px;
   height: 7px;
   margin: 8px 0 2px;
+}
+
+/* 환급 · 추가 납부 금액 색 (settlementTone) · 표기 글자와 함께 씀 */
+.amount-refund,
+.dashboard-v3 .dash-primary h2.amount-refund,
+.comparison h2.amount-refund,
+.comparison .after h2.amount-refund {
+  color: var(--refund);
+}
+.amount-pay,
+.dashboard-v3 .dash-primary h2.amount-pay,
+.comparison h2.amount-pay,
+.comparison .after h2.amount-pay {
+  color: var(--pay);
 }
