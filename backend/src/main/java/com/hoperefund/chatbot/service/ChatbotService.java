@@ -1,9 +1,10 @@
 package com.hoperefund.chatbot.service;
 
-import tools.jackson.databind.JsonNode;
 import com.hoperefund.chatbot.client.FaqClient;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.JsonNode;
 
+// 요청에 맞는 FAQ 조회 작업 연결
 @Service
 public class ChatbotService {
     private final FaqClient faqClient;

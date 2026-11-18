@@ -1,3 +1,4 @@
+/* 챗봇 디자인 담당 */
 .tax-faq-widget {
   position: fixed;
   right: max(24px, env(safe-area-inset-right));
@@ -123,13 +124,16 @@
 .tax-faq-choices {
   margin-top: 20px;
   display: flex;
-  flex-direction: column;
-  gap: 7px;
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
 }
 .tax-faq-choice-title {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-basis: 100%;
   font-size: 12px;
   color: #52617a;
   margin-bottom: 4px;
@@ -146,17 +150,28 @@
   font-size: 11px;
 }
 .tax-faq-choices > button {
-  text-align: left;
-  padding: 11px 13px;
-  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: auto;
+  max-width: 100%;
+  padding: 9px 15px;
+  border-radius: 9999px;
   border: 1px solid #dce6fa;
+  background: #ffffff;
   color: #2863cb;
-  background: white;
   font-size: 12px;
+  font-weight: 500;
   line-height: 1.5;
+  text-align: center;
+  white-space: normal;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
 }
+
 .tax-faq-choices > button:hover {
   background: #edf4ff;
+  border-color: #a9c6ff;
 }
 .tax-faq-form {
   display: flex;
@@ -201,16 +216,6 @@
   overflow: hidden;
   clip-path: inset(50%);
   white-space: nowrap;
-}
-.tax-term-help {
-  display: inline-flex;
-  vertical-align: middle;
-  align-items: center;
-  padding: 3px;
-  margin-left: 4px;
-  color: #7184a2;
-  border: 0;
-  background: transparent;
 }
 @media (max-width: 600px) {
   .tax-faq-widget {

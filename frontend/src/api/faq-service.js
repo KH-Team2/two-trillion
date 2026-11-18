@@ -1,4 +1,5 @@
-// FAQ 원본 데이터는 FastAPI에서 관리합니다. React에는 별도 JSON을 저장하지 않습니다.
+// FAQ 원본 데이터는 FastAPI 관리. React에는 별도 JSON을 저장하지 않음.
+// Spring Boot API 호출과 FAQ 목록 가공
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
 const FAQ_URL = `${API_BASE_URL}/api/chatbot/faq`;
 
@@ -14,6 +15,7 @@ export const FAQ_FALLBACK =
 let faqCache = null;
 let loadingPromise = null;
 
+// Spring Boot에 fetch() 요청
 async function requestFaq(url) {
   const response = await fetch(url, { headers: { Accept: "application/json" } });
   if (!response.ok) {
@@ -29,6 +31,7 @@ async function requestFaq(url) {
 
 // FastAPI GET /faq 응답: { total: 36, items: [...] }
 // Spring Boot가 감싼 응답: { success: true, data: { total, items }, ... }
+// FAQ 목록 조회 및 캐싱
 export async function loadFaqs() {
   if (faqCache) return faqCache;
   if (!loadingPromise) {
@@ -45,21 +48,25 @@ export async function loadFaqs() {
   return loadingPromise;
 }
 
+// FAQ 목록에서 중복 없는 카테고리 추출
 export function getFaqCategories(items) {
   return [...new Set(items.map((item) => item.category))];
 }
 
+// 선택한 카테고리의 용어 목록 생성
 export function listFaqQuestions(items, category) {
   return items
     .filter((item) => item.category === category)
-    .map(({ id, question }) => ({ id, question }));
+    .map(({ id, term }) => ({ id, term }));
 }
 
+// FAQ ID로 상세 답변 조회
 export async function getFaqById(id) {
   if (!id) return null;
   return requestFaq(`${FAQ_URL}/${encodeURIComponent(id)}`);
 }
 
+// 입력 문장과 등록된 용어·별칭 비교
 // AI 분류 연동 전까지 질문/별칭의 정확한 일치만 처리합니다.
 export async function askFaq(question) {
   const key = normalize(question);
@@ -68,13 +75,4 @@ export async function askFaq(question) {
   return items.find((item) =>
     [item.question, ...(item.aliases ?? [])].some((value) => normalize(value) === key)
   ) ?? null;
-}
-
-// TermHelp에서 기존 동기식 호출을 유지할 수 있도록 캐시를 사용합니다.
-// FAQ 목록이 로드되기 전에는 undefined를 반환합니다.
-export function faqIdForTerm(term) {
-  const key = normalize(term);
-  return faqCache?.find((item) =>
-    [item.question, ...(item.aliases ?? [])].some((value) => normalize(value) === key)
-  )?.id;
 }

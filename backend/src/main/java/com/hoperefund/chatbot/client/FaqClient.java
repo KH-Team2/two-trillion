@@ -1,6 +1,5 @@
 package com.hoperefund.chatbot.client;
 
-import tools.jackson.databind.JsonNode;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +10,9 @@ import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
+import tools.jackson.databind.JsonNode;
 
+// FastAPI 서버에 실제 HTTP 요청
 @Component
 public class FaqClient {
     private final RestClient restClient;
@@ -59,5 +60,28 @@ public class FaqClient {
             throw new ResponseStatusException(
                     HttpStatus.SERVICE_UNAVAILABLE, "챗봇 서버에 연결할 수 없습니다.", e);
         }
+    }
+
+    public JsonNode ask(String question) {
+    	try {
+    		JsonNode result = restClient
+    				.post()
+    				.uri("/faq/ask")
+    				.body(java.util.Map.of("question", question))
+    				.retrieve()
+    				.body(JsonNode.class);
+
+    		if (result == null) {
+    			throw new IllegalStateException("챗봇 서버 응답이 비어 있습니다.");
+    		}
+
+    		return result;
+    	} catch (RestClientException | IllegalStateException e) {
+    		throw new ResponseStatusException(
+    				HttpStatus.SERVICE_UNAVAILABLE,
+    				"AI 질문 분류 서비스를 이용할 수 없습니다.",
+    				e
+    				);
+    	}
     }
 }

@@ -13,7 +13,7 @@ def test_categories():
 def test_list():
     response = client.get('/faq')
     assert response.status_code == 200
-    assert response.json()['total'] == 50
+    assert response.json()['total'] == 36
     assert 'answer' not in response.json()['items'][0]
 
 

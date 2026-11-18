@@ -1,3 +1,4 @@
+// 열림 상태, 대화 내용, 요청 처리 관리
 import React, {
   createContext,
   useContext,
@@ -38,7 +39,7 @@ export function FaqProvider({ children, sessionId }) {
         ...previous,
         {
           role: "user",
-          text: question?.trim() || faq?.question || "선택한 용어",
+          text: question?.trim() || faq?.term || faq?.question || "선택한 용어",
         },
         {
           role: "assistant",

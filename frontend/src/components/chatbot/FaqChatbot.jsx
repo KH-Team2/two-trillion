@@ -1,3 +1,4 @@
+// 챗봇 화면과 버튼 표시
 import React, { useEffect, useRef, useState } from "react";
 import { MessageCircle, X, Send, ChevronLeft, BookOpen } from "lucide-react";
 import { getFaqCategories, listFaqQuestions, loadFaqs } from "../../api/faq-service.js";
@@ -130,9 +131,11 @@ export default function FaqChatbot() {
                       type="button"
                       key={item.id}
                       disabled={busy || loadingFaqs}
-                      onClick={() => void submit({ id: item.id })}
+                      onClick={() => {void submit({ id: item.id });
+                              setCategory(null);
+                      }}
                     >
-                      {item.question}
+                      {item.term}
                     </button>
                   ))
                 : faqCategories.map((item) => (
