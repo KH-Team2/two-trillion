@@ -63,9 +63,9 @@ export default function TaxInfoForm({
         setErr('총급여·기납부 소득세는 필수입니다.');
         return;
       }
-      // 시뮬레이션: 주거 정보(5단계)를 넘어갈 때 무주택 세대주 여부가 정해져야 함
-      // (「확인 필요」면 마지막 계산 때 막히던 것을 5단계에서 바로 안내 · prediction-service homelessHeadYn과 같은 기준)
-      if (mode === 'simulation' && step <= 4 && next > 4 && housingUnconfirmed(d)) {
+      // 주거 정보(5단계)를 넘어갈 때 무주택 세대주 여부가 정해져야 함 (정보 입력 · 시뮬레이션 공통)
+      // 단계 번호를 눌러 건너뛰어도 같이 막음 · 기준은 prediction-service homelessHeadYn과 같음
+      if (step <= 4 && next > 4 && housingUnconfirmed(d)) {
         setErr('주택 보유 상태와 무주택 세대주 여부를 선택해주세요.');
         if (step !== 4) setStep(4);
         return;
