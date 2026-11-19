@@ -24,4 +24,8 @@ public class ChatbotService {
     public JsonNode detail(String faqId) {
         return faqClient.get("/faq/" + faqId, null);
     }
+
+    public JsonNode ask(String question) {
+    	return faqClient.ask(question);
+    }
 }

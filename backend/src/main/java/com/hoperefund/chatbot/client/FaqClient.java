@@ -63,25 +63,23 @@ public class FaqClient {
     }
 
     public JsonNode ask(String question) {
-    	try {
-    		JsonNode result = restClient
-    				.post()
-    				.uri("/faq/ask")
-    				.body(java.util.Map.of("question", question))
-    				.retrieve()
-    				.body(JsonNode.class);
+        try {
+            JsonNode result =
+                    restClient
+                            .post()
+                            .uri("/faq/ask")
+                            .body(java.util.Map.of("question", question))
+                            .retrieve()
+                            .body(JsonNode.class);
 
-    		if (result == null) {
-    			throw new IllegalStateException("챗봇 서버 응답이 비어 있습니다.");
-    		}
+            if (result == null) {
+                throw new IllegalStateException("챗봇 서버 응답이 비어 있습니다.");
+            }
 
-    		return result;
-    	} catch (RestClientException | IllegalStateException e) {
-    		throw new ResponseStatusException(
-    				HttpStatus.SERVICE_UNAVAILABLE,
-    				"AI 질문 분류 서비스를 이용할 수 없습니다.",
-    				e
-    				);
-    	}
+            return result;
+        } catch (RestClientException | IllegalStateException e) {
+            throw new ResponseStatusException(
+                    HttpStatus.SERVICE_UNAVAILABLE, "AI 질문 분류 서비스를 이용할 수 없습니다.", e);
+        }
     }
 }

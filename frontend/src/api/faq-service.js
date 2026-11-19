@@ -66,13 +66,29 @@ export async function getFaqById(id) {
   return requestFaq(`${FAQ_URL}/${encodeURIComponent(id)}`);
 }
 
-// 입력 문장과 등록된 용어·별칭 비교
-// AI 분류 연동 전까지 질문/별칭의 정확한 일치만 처리합니다.
+// 자유 입력 질문을 Spring Boot → FastAPI → Gemma 3로 전달
 export async function askFaq(question) {
-  const key = normalize(question);
-  if (!key) return null;
-  const items = await loadFaqs();
-  return items.find((item) =>
-    [item.question, ...(item.aliases ?? [])].some((value) => normalize(value) === key)
-  ) ?? null;
+  const trimmed = String(question ?? "").trim();
+  if (!trimmed) return null;
+
+  const response = await fetch(`${FAQ_URL}/ask`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({ question: trimmed }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`FAQ 질문 분류 API 오류 (${response.status})`);
+  }
+
+  const result = await response.json();
+
+  if (!result || result.success !== true || !result.data) {
+    throw new Error("FAQ 질문 분류 API 응답 형식이 올바르지 않습니다.");
+  }
+
+  return result.data.matched ? result.data.faq ?? null : null;
 }
