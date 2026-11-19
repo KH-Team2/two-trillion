@@ -133,7 +133,7 @@ try {
       ],
       calls,
     ),
-    memberId: '1',
+    accessToken: 'header.payload.sig',
   });
   assert.equal(calls.length, 2);
   assert.equal(calls[0].url, '/api/incomes/2025');
@@ -143,7 +143,7 @@ try {
   assert.equal(calls[1].url, '/api/calculations/2025');
   assert.equal(calls[1].method, 'POST');
   assert.equal(calls[1].body, undefined);
-  assert.equal(calls[1].headers['X-Member-Id'], '1');
+  assert.equal(calls[1].headers.Authorization, 'Bearer header.payload.sig'); // [수정 11/17] X-Member-Id → 로그인 토큰
   assert.equal(result.expectedRefund, 435500);
   assert.equal(result.predictionId, 7); // 저장된 결과 번호를 버리지 않음 (결과 이력 · 다시 열기용)
   assert.equal(result.details[0].typeCode, 'EARNED_DEDUCTION');
@@ -222,11 +222,14 @@ try {
     requestCalculation(2025, { fetchImpl: fakeSeq([[200, { ...ok, decidedTax: null }]]) }),
     /decidedTax/,
   );
-  // 잘못된 연도 · 숫자 아닌 회원번호
+  // 잘못된 연도 · 깨진 토큰(공백 · 줄바꿈)
   await assert.rejects(requestCalculation(1999), (e) => e.code === 'VALIDATION');
   const seenBad = [];
-  await requestCalculation(2025, { fetchImpl: fakeSeq([[200, ok]], seenBad), memberId: '1; DROP' });
-  assert.equal(seenBad[0].headers['X-Member-Id'], undefined);
+  await requestCalculation(2025, {
+    fetchImpl: fakeSeq([[200, ok]], seenBad),
+    accessToken: 'a b\r\nX-Admin: 1',
+  });
+  assert.equal(seenBad[0].headers.Authorization, undefined);
   // 소득 조회 (GET)
   const getCalls = [];
   await fetchIncome(2025, { fetchImpl: fakeSeq([[200, { taxYear: 2025 }]], getCalls) });

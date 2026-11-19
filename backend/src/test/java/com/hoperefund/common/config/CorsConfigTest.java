@@ -31,7 +31,7 @@ class CorsConfigTest {
                         options("/api/health")
                                 .header("Origin", "http://localhost:5173")
                                 .header("Access-Control-Request-Method", "GET")
-                                .header("Access-Control-Request-Headers", "X-Member-Id"))
+                                .header("Access-Control-Request-Headers", "Authorization"))
                 .andExpect(status().isOk())
                 .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"));
     }

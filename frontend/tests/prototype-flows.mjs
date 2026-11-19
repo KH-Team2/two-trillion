@@ -40,8 +40,16 @@ const {
   makeMeta,
   uploadBlocker,
 } = await import(pathToFileURL(path.join(dir, 'expense-service.mjs')).href);
-const { taxService, initial, normalizeTaxData, validateTaxData, settlementLabel, merchantService } =
-  await import(pathToFileURL(path.join(dir, 'services.mjs')).href);
+const {
+  taxService,
+  initial,
+  normalizeTaxData,
+  validateTaxData,
+  settlementLabel,
+  settlementTone,
+  settlementText,
+  merchantService,
+} = await import(pathToFileURL(path.join(dir, 'services.mjs')).href);
 const { dashboardModel } = await import(pathToFileURL(path.join(dir, 'dashboard-model.mjs')).href);
 const { groupComparison } = await import(pathToFileURL(path.join(dir, 'group-model.mjs')).href);
 class Memory {
@@ -240,6 +248,13 @@ assert.deepEqual(original, initial);
 assert.equal(settlementLabel(-300000), '예상 추가 납부액');
 assert.equal(settlementLabel(0), '환급 및 추가 납부 예상액');
 assert.equal(settlementLabel(1), '예상 환급액');
+// 환급 · 추가 납부 구분 (색 클래스 + 글자 표기)
+assert.equal(settlementTone(446240), 'amount-refund');
+assert.equal(settlementTone(-12000), 'amount-pay');
+assert.equal(settlementTone(0), 'amount-zero');
+assert.equal(settlementText(446240), '환급 446,240원');
+assert.equal(settlementText(-12000), '추가 납부 12,000원');
+assert.equal(settlementText(0), '0원');
 const groups = groupComparison({ ...initial, gender: '여성', salary: 30000000 });
 assert.equal(groups.rows.length, 3);
 assert.match(groups.rows[0].label, /30세 미만 여성/);

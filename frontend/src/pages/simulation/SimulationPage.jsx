@@ -1,7 +1,7 @@
 import DeductionDetails from '@/components/common/DeductionDetails.jsx';
 import React, { Fragment, useEffect, useState } from 'react';
 import { ArrowRight, SlidersHorizontal, Plus, Info } from 'lucide-react';
-import { userService, settlementLabel } from '@/api/services.js';
+import { userService, settlementLabel, settlementTone, settlementText } from '@/api/services.js';
 import { newPrototypeId } from '@/api/account-service.js';
 import {
   DEFAULT_SCENARIO_NAME,
@@ -12,6 +12,21 @@ import { money, Btn, Tag } from '@/components/common/site-primitives.jsx';
 
 // 시뮬레이션 전후 결과를 비교하고 원본과 분리해 저장합니다.
 // isDemo: true면 체험용 계산(브라우저) 비교, false면 서버 계산 결과(기준 결과 · 시나리오) 비교
+
+// 변경 전후 차이 표기: 환급이 늘거나 추가 납부가 줄면 「유리」 (부호만 보고 헷갈리지 않게)
+function changeText(diff) {
+  if (diff === 0) return '변화 없음';
+  return `${money(Math.abs(diff))}원 ${diff > 0 ? '유리해졌어요' : '불리해졌어요'}`;
+}
+// 변경한 조건 표의 숫자 표기: 금액은 쉼표 + 원 · 연도는 쉼표 없이 · 인원 · 개월은 단위
+const COUNT_UNIT = { family: '명', children: '명', militaryMonths: '개월' };
+function conditionValue(key, value) {
+  const n = Number(value);
+  if (key === 'taxYear') return `${n}년`;
+  if (COUNT_UNIT[key]) return `${n}${COUNT_UNIT[key]}`;
+  return `${money(n)}원`;
+}
+
 export default function SimulationPage({
   setMode,
   simTx,
@@ -66,7 +81,7 @@ export default function SimulationPage({
           <div className="comparison">
             <section className="card">
               <small>기존 {settlementLabel(br.expectedRefund)}</small>
-              <h2>
+              <h2 className={settlementTone(br.expectedRefund)}>
                 {money(Math.abs(br.expectedRefund))}
                 <span>원</span>
               </h2>
@@ -75,14 +90,11 @@ export default function SimulationPage({
             <ArrowRight size={22} />
             <section className="card after">
               <small>변경 후 {settlementLabel(sr.expectedRefund)}</small>
-              <h2>
+              <h2 className={settlementTone(sr.expectedRefund)}>
                 {money(Math.abs(sr.expectedRefund))}
                 <span>원</span>
               </h2>
-              <Tag>
-                {sr.expectedRefund - br.expectedRefund >= 0 ? '+' : ''}
-                {money(sr.expectedRefund - br.expectedRefund)}원 변화
-              </Tag>
+              <Tag>{changeText(sr.expectedRefund - br.expectedRefund)}</Tag>
             </section>
           </div>
           <section className="card">
@@ -162,7 +174,7 @@ export default function SimulationPage({
                       </td>
                       <td>
                         {typeof baseData[k] === 'number'
-                          ? money(Number(baseData[k]))
+                          ? conditionValue(k, baseData[k])
                           : baseData[k] == null
                             ? '없음'
                             : typeof baseData[k] === 'object'
@@ -171,7 +183,7 @@ export default function SimulationPage({
                       </td>
                       <td>
                         {typeof sim[k] === 'number'
-                          ? money(Number(sim[k]))
+                          ? conditionValue(k, sim[k])
                           : typeof sim[k] === 'object'
                             ? Array.isArray(sim[k])
                               ? sim[k]
@@ -311,7 +323,7 @@ function PredictionHistory({ taxYear, basePredictionId, latestId }) {
           <thead>
             <tr>
               <th>이름</th>
-              <th>예상 환급액</th>
+              <th>예상 환급 · 추가 납부</th>
               <th>계산일</th>
               <th />
             </tr>
@@ -325,7 +337,9 @@ function PredictionHistory({ taxYear, basePredictionId, latestId }) {
                     {row.predictionId === basePredictionId && ' · 기준'}
                     {row.predictionId === latestId && ' · 방금 계산'}
                   </td>
-                  <td>{money(row.expectedRefund)}원</td>
+                  <td className={settlementTone(row.expectedRefund)}>
+                    {settlementText(row.expectedRefund)}
+                  </td>
                   <td>{row.predictedAt.slice(0, 10)}</td>
                   <td>
                     <button
@@ -348,7 +362,9 @@ function PredictionHistory({ taxYear, basePredictionId, latestId }) {
                       <div className="review">
                         <div>
                           {settlementLabel(opened.result.expectedRefund)}{' '}
-                          <b>{money(Math.abs(opened.result.expectedRefund))}원</b>
+                          <b className={settlementTone(opened.result.expectedRefund)}>
+                            {money(Math.abs(opened.result.expectedRefund))}원
+                          </b>
                         </div>
                         <div>
                           결정세액 <b>{money(opened.result.decidedTax)}원</b>

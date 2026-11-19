@@ -7,8 +7,8 @@ import { useState, useEffect, useRef } from 'react';
 import { initial, normalizeTaxData, userService, taxService } from '@/api/services.js';
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
-import { canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
-import { simulate } from '@/api/prediction-service.js';
+import { AUTH_EXPIRED_EVENT, canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
+import { cardTotalsByMethod, fetchCardTotals, simulate } from '@/api/prediction-service.js';
 import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { inquiryService, recordAccess } from '@/api/prototype-records.js';
@@ -45,6 +45,9 @@ export default function App() {
   const admin = session?.role === 'ADMIN' && accountService.current()?.role === 'ADMIN';
   const [upload, setUpload] = useState(null);
   const [simTx, setSimTx] = useState([]);
+  // 시뮬레이션 출발 카드 사용액 = 서버 합계 {rows, byMethod} (TT-118)
+  // undefined: 서버 기준 결과 없음(체험용 비교) · null: 불러오기 실패 → 계산할 때 다시 불러옴
+  const [simCard, setSimCard] = useState(undefined);
   const [simUpload, setSimUpload] = useState(null);
   const [histories, setHistories] = useState([]);
   const [saved, setSaved] = useState([]);
@@ -81,7 +84,18 @@ export default function App() {
     refreshSession();
     const sync = () => refreshSession();
     window.addEventListener('storage', sync);
-    return () => window.removeEventListener('storage', sync);
+    // 로그인 토큰이 만료 · 무효(서버 401) → 로그인 화면으로 (api-client.js expireLogin)
+    const expired = () => {
+      setSession(null);
+      setPage('login');
+      location.hash = 'login';
+      setToast('로그인이 만료되었어요. 다시 로그인해 주세요.');
+    };
+    window.addEventListener(AUTH_EXPIRED_EVENT, expired);
+    return () => {
+      window.removeEventListener('storage', sync);
+      window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
+    };
   }, []);
   // 로그인한 계정에 해당하는 입력·거래·이력을 불러옵니다.
   useEffect(() => {
@@ -90,8 +104,9 @@ export default function App() {
       ...(session
         ? {
             name: session.username || '사용자',
-            email: session.email,
-            birth: session.birth,
+            // 서버 로그인 회원은 이메일 · 생년월일 · 성별이 없음 → 빈 값 (undefined로 두면 화면 계산에서 오류)
+            email: session.email || '',
+            birth: session.birth || '',
             gender: session.gender || '',
           }
         : {}),
@@ -106,8 +121,9 @@ export default function App() {
         ? {
             ...loaded,
             name: session.username || '사용자',
-            email: session.email,
-            birth: session.birth,
+            // 서버 로그인 회원은 이메일 · 생년월일 · 성별이 없음 → 빈 값 (undefined로 두면 화면 계산에서 오류)
+            email: session.email || '',
+            birth: session.birth || '',
             gender: session.gender || '',
           }
         : loaded,
@@ -220,6 +236,19 @@ export default function App() {
     } catch {
       // 서버 소득이 없으면 브라우저 입력값으로 시작
     }
+    // 카드 사용액도 기준 계산과 같은 서버 합계에서 출발 (브라우저 거래 목록은 다른 PC · 새 브라우저에서 비어 있음)
+    // 서버 기준 결과가 있을 때만 (체험용 비교는 브라우저 거래 그대로)
+    let card;
+    if (calcResult && calcResult.taxYear === data.taxYear) {
+      try {
+        const rows = await fetchCardTotals(data.taxYear);
+        card = { rows, byMethod: cardTotalsByMethod(rows) };
+        start = { ...start, ...card.byMethod };
+      } catch {
+        card = null; // 계산할 때 다시 불러와요 (그때도 실패하면 계산하지 않음)
+      }
+    }
+    setSimCard(card);
     setCompareBase(structuredClone(start));
     // 기준 결과 = 지금 대시보드에 보이는 서버 계산 결과 (없으면 null → 계산할 때 안내)
     setBaseResult(calcResult && calcResult.taxYear === data.taxYear ? calcResult : null);
@@ -263,7 +292,14 @@ export default function App() {
       } else {
         calculating.current = true;
         try {
-          server = await simulate(d, tx, baseId);
+          let card = simCard;
+          if (!card) {
+            const rows = await fetchCardTotals(d.taxYear);
+            card = { rows, byMethod: cardTotalsByMethod(rows) };
+            setSimCard(card);
+          }
+          Object.assign(d, card.byMethod); // 비교 화면 합계도 서버 기준
+          server = await simulate(d, card.rows, baseId);
         } catch (error) {
           // 입력 오류 · 기준 결과 없음 등은 입력 화면에 그대로 머물러요 (입력값 유지)
           if (!canUseDemo(error)) {
@@ -405,6 +441,8 @@ export default function App() {
                   upload={upload}
                   simTx={simTx}
                   simUpload={simUpload}
+                  simCardTotals={simCard?.byMethod ?? null}
+                  simCardMissing={simCard === null}
                   onTaxYearChange={setDraftTaxYear}
                   formSeed={formSeed}
                   go={go}
