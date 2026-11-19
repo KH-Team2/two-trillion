@@ -13,7 +13,7 @@ import {
   Leaf,
 } from 'lucide-react';
 import { dashboardModel, TAX_GUIDANCE } from '@/utils/dashboard-model.js';
-import { settlementLabel } from '@/api/services.js';
+import { settlementLabel, settlementTone } from '@/api/services.js';
 const money = (value) => value.toLocaleString('ko-KR');
 const pending = '계산 연동 필요';
 // [수정 11/19 TT-124] 공제·감면 목록 상태 이름: 「확인 필요」 → 「증빙 확인」
@@ -210,7 +210,7 @@ export default function Dashboard({
                   {r.taxYear}년 귀속 · {isDemo ? '체험값' : '계산값'}
                 </Badge>
                 <p>{resultLabel}</p>
-                <h2>
+                <h2 className={settlementTone(r.expectedRefund)}>
                   {money(Math.abs(r.expectedRefund))}
                   <span>원</span>
                 </h2>
@@ -240,7 +240,7 @@ export default function Dashboard({
               </div>
             </div>
             <div className="dash-equation">
-              <span>기납부세액 − 결정세액 = 환급액</span>
+              <span>기납부세액 − 결정세액 = 환급액 (음수면 추가 납부)</span>
               <b>
                 {money(r.withheldTax)}원 − {money(r.decidedTax)}원 = {money(r.expectedRefund)}원
               </b>

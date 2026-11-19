@@ -211,6 +211,17 @@ const cases = [
       simTx={[]}
     />,
   ],
+  [
+    'simulation-pay',
+    <Simulation
+      {...base}
+      baseData={{ ...initial, taxYear: 2025, family: 0 }}
+      sim={{ ...initial, taxYear: 2024, family: 2 }}
+      br={{ ...apiResult, expectedRefund: 446240 }}
+      sr={{ ...apiResult, expectedRefund: -12000 }}
+      simTx={[]}
+    />,
+  ],
   ['profile', <Profile {...base} />],
   // [수정 11/17] 서버 로그인 회원: 로그인 응답에 이메일 · 생년월일 · 성별이 없음 (값이 없을 때도 버티는지)
   // → 대시보드 · 통계 · 프로필이 오류(빈 화면) 없이 그려져야 함
@@ -240,6 +251,17 @@ for (const [name, node] of cases) {
   if (name === 'signup' && /서버 연동|검토용 초안/.test(html)) throw Error('가입 화면에 뺀 문구가 보임');
   if (name === 'login' && /서버 연동|시연용 비밀번호|잊으셨나요|로그인 없이 바로 체험|사용자 체험/.test(html))
     throw Error('로그인 화면에 뺀 문구가 보임');
+  if (
+    name === 'simulation-pay' &&
+    (!html.includes('amount-refund') ||
+      !html.includes('amount-pay') ||
+      !html.includes('예상 추가 납부액') ||
+      !html.includes('458,240원 불리해졌어요') ||
+      !html.includes('2024년') ||
+      !html.includes('2명') ||
+      html.includes('2,024'))
+  )
+    throw Error('시뮬레이션 환급/추가 납부 구분 · 변경 조건 표기 실패');
   if (
     name === 'dashboard-api' &&
     (!html.includes('15,375,000') ||
