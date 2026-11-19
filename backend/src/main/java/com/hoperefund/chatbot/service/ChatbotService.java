@@ -26,6 +26,6 @@ public class ChatbotService {
     }
 
     public JsonNode ask(String question) {
-    	return faqClient.ask(question);
+        return faqClient.ask(question);
     }
 }
