@@ -11,6 +11,8 @@ export default function TaxInputPage({
   upload,
   simTx,
   simUpload,
+  simCardTotals,
+  simCardMissing,
   formSeed,
   go,
   calculate,
@@ -24,6 +26,8 @@ export default function TaxInputPage({
       data={mode === 'simulation' ? sim : data}
       transactions={mode === 'simulation' ? simTx : transactions}
       upload={mode === 'simulation' ? simUpload : upload}
+      spendTotals={mode === 'simulation' ? simCardTotals : null}
+      spendTotalsMissing={mode === 'simulation' && simCardMissing}
       onSubmit={calculate}
       onCancel={() => go('dashboard')}
     />

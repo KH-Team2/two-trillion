@@ -2,10 +2,11 @@
 //   POST /api/simulations/{taxYear}  바꾼 조건으로 다시 계산 → 시나리오로 저장 (INCOME · EXPENSE는 그대로)
 //   GET  /api/predictions?year=      현재(기준 결과) + 시나리오 목록
 //   GET  /api/predictions/{id}       결과 하나 다시 열기 (항목별 내역 포함)
+//   GET  /api/expense-totals?year=   서버에 저장된 카드 사용액 합계 (시뮬레이션 출발값 · 기준 계산과 같은 EXPENSE 합계)
 import { apiError, apiRequest, checkTaxYear } from './api-client.js';
 import { parseCalculationResult } from './calculation-contract.js';
 import { incomeRequest } from './income-service.js';
-import { isCounted, payCode } from './expense-service.js';
+import { payCode } from './expense-service.js';
 import { categoryCodes } from './services.js';
 import { getTaxYear } from '../utils/tax-year.js';
 
@@ -28,31 +29,59 @@ export function homelessHeadYn(d) {
 }
 
 /**
+ * 서버에 저장된 카드 사용액 합계 (GET /api/expense-totals?year=) → [{categoryId, payMethod, amount}]
+ * - 기준 계산(back findCardSpends)과 같은 EXPENSE · 같은 연도 · 분류 × 결제수단 합계
+ * - 시뮬레이션은 이 합계에서 출발해요 (브라우저 거래 목록은 다른 PC · 새 브라우저에서 비어 있음 · TT-118)
+ */
+export async function fetchCardTotals(taxYear, options = {}) {
+  checkTaxYear(taxYear);
+  const rows = await apiRequest(`/api/expense-totals?year=${taxYear}`, {
+    ...options,
+    offlineMessage: '카드 사용 내역 서버에 연결할 수 없어요.',
+  });
+  if (!Array.isArray(rows)) throw apiError('OFFLINE', '카드 사용 내역 합계를 불러올 수 없어요.');
+  return rows.map((row) => ({
+    categoryId: Number(row.categoryId),
+    payMethod: String(row.payMethod),
+    amount: Number(row.totalAmount) || 0,
+  }));
+}
+
+/**
+ * 서버 합계 → 화면 표시용 결제수단별 합계 {credit, debit, cash}
+ * - 「공제 대상 아님」(분류 5)은 빼요 (화면 합계 uploadTotals와 같은 기준)
+ */
+export function cardTotalsByMethod(totals = []) {
+  const sum = { credit: 0, debit: 0, cash: 0 };
+  const key = { CREDIT: 'credit', CHECK: 'debit', CASH: 'cash' };
+  for (const row of totals) {
+    if (row.categoryId === CATEGORY_ID.EXCLUDED || !key[row.payMethod]) continue;
+    sum[key[row.payMethod]] += row.amount;
+  }
+  return sum;
+}
+
+/**
  * 카드 사용액 → 분류 + 결제수단별 합계 (back CardSpendDTO 목록).
- * - 업로드 거래: 그 연도 · 집계 포함(isCounted · 화면 합계 uploadTotals와 같은 기준)
- * - 가상 추가 사용액(simulationSpend): 0원보다 큰 줄만
+ * - 서버 합계(fetchCardTotals) + 가상 추가 사용액(simulationSpend · 0원보다 큰 줄만)
  * - 기존 계산(back)이 EXPENSE를 분류 · 결제수단별로 더하는 것과 같은 모양이에요
  */
-export function cardSpends(transactions = [], simulationSpend = [], taxYear) {
+export function cardSpends(baseTotals = [], simulationSpend = []) {
   const sums = new Map();
-  const add = (category, payment, amount) => {
-    const categoryId = CATEGORY_ID[categoryCodes[category] ?? category] ?? 1; // 분류를 모르면 일반 (업로드 화면 기본값과 같음)
-    const payMethod = payCode(payment); // 결제수단 → CREDIT · CHECK · CASH (업로드 화면과 같은 변환)
+  const add = (categoryId, payMethod, amount) => {
     if (!payMethod || !Number.isFinite(amount)) return;
     const key = `${categoryId}|${payMethod}`;
     sums.set(key, (sums.get(key) || 0) + Math.round(amount));
   };
-  for (const t of transactions) {
-    if (!isCounted(t)) continue;
-    if (Number(String(t.date || '').slice(0, 4)) !== taxYear) continue;
-    add(t.category, t.paymentMethod, Number(t.amount));
-  }
+  for (const row of baseTotals) add(row.categoryId, row.payMethod, row.amount);
   for (const row of simulationSpend || []) {
     const amount = Number(row.amount);
     if (!Number.isFinite(amount) || amount < 0) {
       throw apiError('VALIDATION', '가상 추가 사용액은 0원 이상으로 입력해주세요.');
     }
-    if (amount > 0) add(row.category, row.payment, amount);
+    // 분류를 모르면 일반 (업로드 화면 기본값과 같음) · 결제수단 → CREDIT · CHECK · CASH
+    const categoryId = CATEGORY_ID[categoryCodes[row.category] ?? row.category] ?? 1;
+    if (amount > 0) add(categoryId, payCode(row.payment), amount);
   }
   return [...sums.entries()]
     .map(([key, amount]) => {
@@ -64,9 +93,16 @@ export function cardSpends(transactions = [], simulationSpend = [], taxYear) {
 }
 
 /** 화면 입력 → back SimulationRequestDTO (바꾼 값만이 아니라 입력값 전부) */
-export function simulationRequest(d, transactions, basePredictionId) {
+export function simulationRequest(d, baseTotals, basePredictionId) {
   if (!Number.isInteger(basePredictionId)) {
     throw apiError('NO_BASE', '먼저 기존 정보로 계산해 주세요. 비교할 기준 결과가 없어요.');
+  }
+  // 서버 카드 합계 없이 보내면 카드 공제가 빠진 결과가 정상처럼 보여요 → 보내지 않음
+  if (!Array.isArray(baseTotals)) {
+    throw apiError(
+      'NO_CARD_TOTALS',
+      '카드 사용 내역 합계를 불러오지 못했어요. 다시 시도해 주세요.',
+    );
   }
   const scenarioName = String(d.scenarioName || '').trim() || DEFAULT_SCENARIO_NAME;
   if (scenarioName.length > SCENARIO_NAME_MAX) {
@@ -77,18 +113,18 @@ export function simulationRequest(d, transactions, basePredictionId) {
     scenarioName,
     income: incomeRequest(d),
     homelessHeadYn: homelessHeadYn(d),
-    cardSpends: cardSpends(transactions, d.simulationSpend, getTaxYear(d)),
+    cardSpends: cardSpends(baseTotals, d.simulationSpend),
   };
 }
 
 /** 시뮬레이션 계산 (POST) → 응답 모양 검사 · 저장이 켜져 있으면 predictionId가 시나리오 번호예요 */
-export async function simulate(d, transactions, basePredictionId, options = {}) {
+export async function simulate(d, baseTotals, basePredictionId, options = {}) {
   const taxYear = getTaxYear(d);
   checkTaxYear(taxYear);
   const body = await apiRequest(`/api/simulations/${taxYear}`, {
     ...options,
     method: 'POST',
-    body: simulationRequest(d, transactions, basePredictionId),
+    body: simulationRequest(d, baseTotals, basePredictionId),
     offlineMessage: '시뮬레이션 서버에 연결할 수 없어요.',
   });
   return parseCalculationResult(body);
