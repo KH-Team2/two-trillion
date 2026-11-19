@@ -27,6 +27,8 @@ export default function TaxInfoForm({
   data,
   transactions,
   upload,
+  spendTotals = null, // 시뮬레이션 출발 카드 합계 {credit, debit, cash} (서버 · 없으면 업로드 거래로 계산)
+  spendTotalsMissing = false, // 서버 카드 합계를 못 불러옴 (계산할 때 다시 시도)
   onSubmit,
   onCancel,
   onTaxYearChange,
@@ -38,9 +40,10 @@ export default function TaxInfoForm({
   const [tx, setTx] = useState(() => structuredClone(transactions)),
     [uploadMeta, setUploadMeta] = useState(() => structuredClone(upload));
   // 파일 추가·삭제 또는 귀속 연도 변경 시 업로드 거래에서만 실제 지출 합계를 갱신합니다.
+  // 시뮬레이션은 서버 카드 합계(spendTotals)를 보여 줘요 (기준 계산과 같은 값 · TT-118)
   useEffect(() => {
-    setD((current) => ({ ...current, ...uploadTotals(tx, current.taxYear) }));
-  }, [tx, d.taxYear]);
+    setD((current) => ({ ...current, ...(spendTotals ?? uploadTotals(tx, current.taxYear)) }));
+  }, [tx, d.taxYear, spendTotals]);
   const familyError =
     (d.children ?? 0) > d.family
       ? '20세 이하 자녀 수는 추가 부양가족 수(본인 제외)보다 많을 수 없습니다.'
@@ -231,11 +234,20 @@ export default function TaxInfoForm({
                 <div>
                   현금영수증 <b>{d.cash.toLocaleString()}원</b>
                 </div>
-                <p>
-                  다른 연도 거래{' '}
-                  {tx.filter((row) => Number(row.date.slice(0, 4)) !== d.taxYear).length}건은
-                  보존하며 이번 계산에서만 제외합니다.
-                </p>
+                {spendTotals ? (
+                  <p>서버에 저장된 카드 사용 내역 합계예요. 기존 계산 결과와 같은 값이에요.</p>
+                ) : spendTotalsMissing ? (
+                  <p>
+                    서버 카드 사용 내역을 불러오지 못해 이 브라우저의 거래로 보여 줘요. 계산할 때
+                    서버 합계를 다시 불러와요.
+                  </p>
+                ) : (
+                  <p>
+                    다른 연도 거래{' '}
+                    {tx.filter((row) => Number(row.date.slice(0, 4)) !== d.taxYear).length}건은
+                    보존하며 이번 계산에서만 제외합니다.
+                  </p>
+                )}
               </div>
               <p className="full muted">
                 {mode === 'simulation'

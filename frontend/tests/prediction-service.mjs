@@ -17,6 +17,8 @@ try {
   });
   const {
     cardSpends,
+    cardTotalsByMethod,
+    fetchCardTotals,
     homelessHeadYn,
     simulationRequest,
     simulate,
@@ -81,21 +83,6 @@ try {
       { category: 'GENERAL', payment: 'CREDIT', amount: 0 }, // 0원 줄은 보내지 않음
     ],
   };
-  const tx = [
-    { date: '2025-03-01', category: '일반', paymentMethod: '신용카드', amount: 100000 },
-    { date: '2025-03-02', category: '일반', paymentMethod: '신용카드', amount: 50000 },
-    { date: '2025-03-03', category: '대중교통', paymentMethod: '체크카드', amount: 20000 },
-    { date: '2025-03-04', category: '공제 대상 아님', paymentMethod: '현금영수증', amount: 7000 },
-    { date: '2024-12-31', category: '일반', paymentMethod: '신용카드', amount: 999 }, // 다른 연도
-    {
-      date: '2025-03-05',
-      category: '일반',
-      paymentMethod: '신용카드',
-      amount: 888,
-      duplicateState: 'pending', // 중복 확인 중 → 집계 안 함
-    },
-    { date: '2025-03-06', category: '일반', paymentMethod: '확인 필요', amount: 777 }, // 결제수단 모름
-  ];
 
   // 무주택 세대주: 무주택 + 예만 Y · 아니요/주택 보유는 N · 확인 필요는 막음
   assert.equal(homelessHeadYn({ housing: '무주택', headOfHousehold: '예' }), 'Y');
@@ -106,28 +93,69 @@ try {
     (e) => e.code === 'VALIDATION',
   );
 
-  // 카드 사용액: 그 연도 · 집계 포함 거래 + 가상 추가액을 분류 × 결제수단별로 합침
-  assert.deepEqual(cardSpends(tx, input.simulationSpend, 2025), [
+  // 카드 사용액: 서버 합계 + 가상 추가액을 분류 × 결제수단별로 합침 (TT-118)
+  const totals = [
+    { categoryId: 1, payMethod: 'CREDIT', amount: 150000 },
+    { categoryId: 2, payMethod: 'CHECK', amount: 20000 },
+    { categoryId: 5, payMethod: 'CASH', amount: 7000 },
+  ];
+  assert.deepEqual(cardSpends(totals, input.simulationSpend), [
     { categoryId: 1, payMethod: 'CREDIT', amount: 150000 },
     { categoryId: 2, payMethod: 'CHECK', amount: 320000 },
     { categoryId: 5, payMethod: 'CASH', amount: 7000 },
   ]);
+  // 서버 합계가 비어도(카드 내역 없음) 가상 추가액만 보냄
+  assert.deepEqual(cardSpends([], [{ category: '대중교통', payment: '신용카드', amount: 1000 }]), [
+    { categoryId: 2, payMethod: 'CREDIT', amount: 1000 },
+  ]);
   assert.throws(
-    () => cardSpends([], [{ category: 'GENERAL', payment: 'CREDIT', amount: -1 }], 2025),
+    () => cardSpends([], [{ category: 'GENERAL', payment: 'CREDIT', amount: -1 }]),
     /0원 이상/,
   );
   // 취소가 더 많아 음수가 되면 0
+  assert.deepEqual(cardSpends([{ categoryId: 1, payMethod: 'CREDIT', amount: -5000 }], []), [
+    { categoryId: 1, payMethod: 'CREDIT', amount: 0 },
+  ]);
+  // 화면 표시 합계: 공제 대상 아님(5) 제외
+  assert.deepEqual(cardTotalsByMethod(totals), { credit: 150000, debit: 20000, cash: 0 });
+
+  // 서버 합계 조회: GET /api/expense-totals?year=2025 · totalAmount → amount
+  const totalCalls = [];
   assert.deepEqual(
-    cardSpends(
-      [{ date: '2025-01-01', category: '일반', paymentMethod: '신용카드', amount: -5000 }],
-      [],
-      2025,
-    ),
-    [{ categoryId: 1, payMethod: 'CREDIT', amount: 0 }],
+    await fetchCardTotals(2025, {
+      fetchImpl: fake(
+        200,
+        [
+          {
+            categoryId: 2,
+            categoryCode: 'TRANSIT',
+            payMethod: 'CHECK',
+            totalAmount: 20000,
+            count: 3,
+          },
+        ],
+        totalCalls,
+      ),
+    }),
+    [{ categoryId: 2, payMethod: 'CHECK', amount: 20000 }],
+  );
+  assert.equal(totalCalls[0].url, '/api/expense-totals?year=2025');
+  await assert.rejects(
+    fetchCardTotals(2025, {
+      fetchImpl: async () => {
+        throw new TypeError('Failed to fetch');
+      },
+    }),
+    (e) => e.code === 'OFFLINE',
+  );
+  // 서버 합계 없이 시뮬레이션 요청을 만들지 않음 (카드 공제가 빠진 결과 방지)
+  assert.throws(
+    () => simulationRequest(input, null, 6),
+    (e) => e.code === 'NO_CARD_TOTALS',
   );
 
   // 요청 본문: 기준 결과 번호 · 시나리오 이름 · 소득 전부 · 무주택 세대주 · 카드 사용액
-  const body = simulationRequest(input, tx, 6);
+  const body = simulationRequest(input, totals, 6);
   assert.equal(body.basePredictionId, 6);
   assert.equal(body.scenarioName, '연금 추가 납입');
   assert.equal(body.income.pensionSaving, 4000000);
@@ -151,7 +179,10 @@ try {
 
   // 시뮬레이션 요청: POST /api/simulations/2025 · 응답 모양 검사
   const calls = [];
-  const sr = await simulate(input, tx, 6, { fetchImpl: fake(200, result, calls), accessToken: 'header.payload.sig' });
+  const sr = await simulate(input, totals, 6, {
+    fetchImpl: fake(200, result, calls),
+    accessToken: 'header.payload.sig',
+  });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/simulations/2025');
   assert.equal(calls[0].method, 'POST');
@@ -163,20 +194,20 @@ try {
   // 입력이 잘못되면 요청을 보내지 않음
   const noCalls = [];
   await assert.rejects(
-    simulate({ ...input, sme: '확인 필요' }, tx, 6, { fetchImpl: fake(200, result, noCalls) }),
+    simulate({ ...input, sme: '확인 필요' }, totals, 6, { fetchImpl: fake(200, result, noCalls) }),
     (e) => e.code === 'VALIDATION',
   );
   assert.equal(noCalls.length, 0);
   // 기준 결과가 남의 것 · 없음 → 서버 문구 그대로
   await assert.rejects(
-    simulate(input, tx, 999, {
+    simulate(input, totals, 999, {
       fetchImpl: fake(404, { error: 'NOT_FOUND', message: '기준 결과를 찾을 수 없어요' }),
     }),
     (e) => e.code === 'NOT_FOUND' && e.message === '기준 결과를 찾을 수 없어요',
   );
   // 서버 꺼짐 → OFFLINE
   await assert.rejects(
-    simulate(input, tx, 6, {
+    simulate(input, totals, 6, {
       fetchImpl: async () => {
         throw new TypeError('Failed to fetch');
       },
