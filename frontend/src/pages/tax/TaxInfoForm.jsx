@@ -22,6 +22,12 @@ function Field({ label, children, hint }) {
     </label>
   );
 }
+// 무주택 세대주 Y/N을 정할 수 없는 상태 (세대주 「아니요」 또는 「주택 보유」면 N · 「무주택」 + 「예」면 Y · 나머지는 미확정)
+function housingUnconfirmed(d) {
+  if (d.headOfHousehold === '아니요' || d.housing === '주택 보유') return false;
+  return !(d.headOfHousehold === '예' && d.housing === '무주택');
+}
+
 export default function TaxInfoForm({
   mode,
   data,
@@ -58,6 +64,13 @@ export default function TaxInfoForm({
       }
       if (step === 1 && (!Number.isFinite(d.salary) || !Number.isFinite(d.paid))) {
         setErr('총급여·기납부 소득세는 필수입니다.');
+        return;
+      }
+      // 주거 정보(5단계)를 넘어갈 때 무주택 세대주 여부가 정해져야 함 (정보 입력 · 시뮬레이션 공통)
+      // 단계 번호를 눌러 건너뛰어도 같이 막음 · 기준은 prediction-service homelessHeadYn과 같음
+      if (step <= 4 && next > 4 && housingUnconfirmed(d)) {
+        setErr('주택 보유 상태와 무주택 세대주 여부를 선택해주세요.');
+        if (step !== 4) setStep(4);
         return;
       }
     }
