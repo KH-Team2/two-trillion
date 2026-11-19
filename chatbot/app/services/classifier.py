@@ -15,20 +15,20 @@ def match_simple_question(question: str, terms: list[dict]) -> str | None:
     question = re.sub(r"\s+", " ", question.strip())
     question = question.rstrip("?!？ ")
 
-    patterns = [
-        "{term}",
-        "{term} 뜻",
-        "{term}은 뭐야",
-        "{term}는 뭐야",
-        "{term}은 무슨 뜻이야",
-        "{term}는 무슨 뜻이야",
-    ]
-
     for item in terms:
-        term = item["term"]
-        for pattern in patterns:
-            if question == pattern.format(term=term):
-                return item["id"]
+        term = re.escape(item["term"])
+
+        pattern = (
+            rf"^{term}"
+            r"(?:"
+            r"| ?뜻"
+            r"|(?:은|는|이|가) ?(?:뭐야|무슨 뜻이야)"
+            r")$"
+        )
+
+        if re.fullmatch(pattern, question):
+            return item["id"]
+
     return None
 
 def classify_question(question: str, terms: list[dict]) -> str | None:
@@ -77,6 +77,8 @@ def classify_question(question: str, terms: list[dict]) -> str | None:
         '[출력 형식]\n'
         'faq_id 키 하나만 포함한 JSON 객체를 반환하세요.\n'
         'FAQ 후보 객체 전체를 복사하지 마세요.\n'
+        # '분류 근거를 답변하세요.\n'
+        # '예: {"faq_id":"TAX_001", "reason" : "판단근거를 작성"} 또는 {"faq_id":null}\n\n'
         '예: {"faq_id":"TAX_001"} 또는 {"faq_id":null}\n\n'
 
         '[FAQ 후보]\n'

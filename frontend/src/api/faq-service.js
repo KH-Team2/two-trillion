@@ -1,3 +1,4 @@
+import { apiRequest } from "./api-client.js";
 // FAQ 원본 데이터는 FastAPI 관리. React에는 별도 JSON을 저장하지 않음.
 // Spring Boot API 호출과 FAQ 목록 가공
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
