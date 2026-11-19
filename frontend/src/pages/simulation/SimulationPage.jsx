@@ -1,12 +1,17 @@
 import DeductionDetails from '@/components/common/DeductionDetails.jsx';
-import React from 'react';
+import React, { Fragment, useEffect, useState } from 'react';
 import { ArrowRight, SlidersHorizontal, Plus, Info } from 'lucide-react';
 import { userService, settlementLabel } from '@/api/services.js';
 import { newPrototypeId } from '@/api/account-service.js';
-import { ChatPanel } from '@/pages/chatbot/ChatPanel.jsx';
+import {
+  DEFAULT_SCENARIO_NAME,
+  fetchPrediction,
+  fetchPredictions,
+} from '@/api/prediction-service.js';
 import { money, Btn, Tag } from '@/components/common/site-primitives.jsx';
 
 // 시뮬레이션 전후 결과를 비교하고 원본과 분리해 저장합니다.
+// isDemo: true면 체험용 계산(브라우저) 비교, false면 서버 계산 결과(기준 결과 · 시나리오) 비교
 export default function SimulationPage({
   setMode,
   simTx,
@@ -21,6 +26,9 @@ export default function SimulationPage({
   baseData,
   br,
   sr,
+  isDemo = true,
+  taxYear,
+  basePredictionId = null,
 }) {
   return (
     <>
@@ -41,11 +49,19 @@ export default function SimulationPage({
           다시 조건 수정 <SlidersHorizontal size={16} />
         </Btn>
       </div>
-      <div className="notice amber">
-        <Info size={16} />
-        체험용 계산 결과입니다. 실제 절세 효과나 법정 계산을 의미하지 않습니다.
-      </div>
-      <div className="dashboard-grid">
+      {isDemo ? (
+        <div className="notice amber">
+          <Info size={16} />
+          체험용 계산 결과입니다. 실제 절세 효과나 법정 계산을 의미하지 않습니다.
+        </div>
+      ) : (
+        <div className="notice">
+          <Info size={16} />
+          기존 결과와 변경 후 결과 모두 계산 서버 결과예요. 원본 소득 · 지출 정보는 바뀌지 않아요.
+        </div>
+      )}
+      {/* 상담 칸은 두지 않아요 · 챗봇은 세법 용어 설명용이라 시뮬레이션 숫자와 연결하지 않음 (11/16) */}
+      <div>
         <div>
           <div className="comparison">
             <section className="card">
@@ -54,7 +70,7 @@ export default function SimulationPage({
                 {money(Math.abs(br.expectedRefund))}
                 <span>원</span>
               </h2>
-              <Tag tone="gray">원본 저장 정보</Tag>
+              <Tag tone="gray">{isDemo ? '원본 저장 정보' : '기존 계산 결과'}</Tag>
             </section>
             <ArrowRight size={22} />
             <section className="card after">
@@ -70,13 +86,15 @@ export default function SimulationPage({
             </section>
           </div>
           <section className="card">
-            <h3>변경 후 계산 상세 · 체험용</h3>
+            <h3>변경 후 계산 상세{isDemo ? ' · 체험용' : ''}</h3>
             <div className="review">
               <div>
                 과세표준{' '}
                 <b>
                   {sr.taxableIncome === null
-                    ? '계산 API 연동 후 제공'
+                    ? isDemo
+                      ? '계산 API 연동 후 제공'
+                      : '제공되지 않음'
                     : `${money(sr.taxableIncome)}원`}
                 </b>
               </div>
@@ -84,7 +102,7 @@ export default function SimulationPage({
                 산출세액 <b>{money(sr.calculatedTax)}원</b>
               </div>
             </div>
-            <DeductionDetails details={sr.details} />
+            <DeductionDetails details={sr.details} calculationConnected={!isDemo} />
           </section>
           <section className="card">
             <h3>변경한 조건</h3>
@@ -186,37 +204,165 @@ export default function SimulationPage({
               </div>
             </div>
             <div className="actions">
-              <Btn
-                onClick={() => {
-                  const next = [
-                    {
-                      id: newPrototypeId(),
-                      scenarioName: sim.scenarioName || '조건 변경 시나리오',
-                      baselineData: structuredClone(baseData),
-                      basePredictionId: histories[0]?.id || null,
-                      date: new Date().toLocaleDateString('ko-KR'),
-                      data: sim,
-                      transactions: simTx,
-                      upload: simUpload,
-                      ...sr,
-                    },
-                    ...saved,
-                  ];
-                  setSaved(next);
-                  userService.save('saved', next);
-                  notify('시나리오를 이 브라우저에 별도로 저장했습니다. 원본은 유지됩니다.');
-                }}
-              >
-                시뮬레이션 저장 <Plus size={16} />
-              </Btn>
+              {/* 서버 결과는 시뮬레이션 API가 시나리오로 저장해요 → 브라우저 저장 버튼은 체험용일 때만 */}
+              {isDemo ? (
+                <Btn
+                  onClick={() => {
+                    const next = [
+                      {
+                        id: newPrototypeId(),
+                        scenarioName: sim.scenarioName || DEFAULT_SCENARIO_NAME,
+                        baselineData: structuredClone(baseData),
+                        basePredictionId: histories[0]?.id || null,
+                        date: new Date().toLocaleDateString('ko-KR'),
+                        data: sim,
+                        transactions: simTx,
+                        upload: simUpload,
+                        ...sr,
+                      },
+                      ...saved,
+                    ];
+                    setSaved(next);
+                    userService.save('saved', next);
+                    notify('시나리오를 이 브라우저에 별도로 저장했습니다. 원본은 유지됩니다.');
+                  }}
+                >
+                  시뮬레이션 저장 <Plus size={16} />
+                </Btn>
+              ) : (
+                <p className="muted">
+                  {Number.isInteger(sr.predictionId)
+                    ? '이 결과는 시나리오로 저장됐어요. 아래 결과 이력에서 다시 열 수 있어요.'
+                    : '서버 저장 설정이 꺼져 있어 이 결과는 저장되지 않았어요.'}
+                </p>
+              )}
               <Btn secondary onClick={() => go('dashboard')}>
                 기존 결과로 돌아가기
               </Btn>
             </div>
           </section>
+          {!isDemo && (
+            <PredictionHistory
+              taxYear={taxYear}
+              basePredictionId={basePredictionId}
+              latestId={sr.predictionId}
+            />
+          )}
         </div>
-        <ChatPanel data={sim} baseline={baseData} />
       </div>
     </>
+  );
+}
+
+// 결과 이력 (F-04-02) · 현재(기준 결과)와 시나리오 목록 · 하나를 골라 항목별 내역을 다시 열어요
+// 서버 결과로 비교할 때만 보여 줘요 (체험용 비교에는 서버 이력이 없음)
+function PredictionHistory({ taxYear, basePredictionId, latestId }) {
+  const [rows, setRows] = useState(null); // null = 불러오는 중
+  const [error, setError] = useState('');
+  // 열어 본 결과 { row, result } · 누른 줄 바로 아래에 펼쳐요
+  // (표 아래 멀리 나오면 누른 뒤 변화가 안 보였음 · 11/17 사용자 흐름 테스트)
+  const [opened, setOpened] = useState(null);
+  const [opening, setOpening] = useState(null);
+  // 새 시나리오가 저장되면(latestId가 바뀌면) 목록을 다시 불러와요
+  useEffect(() => {
+    let ignore = false;
+    setRows(null);
+    setError('');
+    fetchPredictions(taxYear)
+      .then((found) => {
+        if (!ignore) setRows(found);
+      })
+      .catch((e) => {
+        if (!ignore) {
+          setRows([]);
+          setError(e.message);
+        }
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [taxYear, latestId]);
+  async function open(row) {
+    // 이미 펼친 줄을 다시 누르면 접어요
+    if (opened?.row.predictionId === row.predictionId) {
+      setOpened(null);
+      return;
+    }
+    setOpening(row.predictionId);
+    setError('');
+    try {
+      setOpened({ row, result: await fetchPrediction(row.predictionId) });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setOpening(null);
+    }
+  }
+  return (
+    <section className="card">
+      <h3>결과 이력</h3>
+      {error && <p className="empty">{error}</p>}
+      {rows === null ? (
+        <p className="empty">결과 이력을 불러오는 중이에요.</p>
+      ) : rows.length === 0 ? (
+        !error && <p className="empty">저장된 결과가 없어요.</p>
+      ) : (
+        <table>
+          <thead>
+            <tr>
+              <th>이름</th>
+              <th>예상 환급액</th>
+              <th>계산일</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <Fragment key={row.predictionId}>
+                <tr>
+                  <td>
+                    {row.scenarioName || '현재'}
+                    {row.predictionId === basePredictionId && ' · 기준'}
+                    {row.predictionId === latestId && ' · 방금 계산'}
+                  </td>
+                  <td>{money(row.expectedRefund)}원</td>
+                  <td>{row.predictedAt.slice(0, 10)}</td>
+                  <td>
+                    <button
+                      type="button"
+                      className="text-btn"
+                      disabled={opening !== null}
+                      onClick={() => open(row)}
+                    >
+                      {opening === row.predictionId
+                        ? '여는 중'
+                        : opened?.row.predictionId === row.predictionId
+                          ? '닫기'
+                          : '열기'}
+                    </button>
+                  </td>
+                </tr>
+                {opened?.row.predictionId === row.predictionId && (
+                  <tr>
+                    <td colSpan={4}>
+                      <div className="review">
+                        <div>
+                          {settlementLabel(opened.result.expectedRefund)}{' '}
+                          <b>{money(Math.abs(opened.result.expectedRefund))}원</b>
+                        </div>
+                        <div>
+                          결정세액 <b>{money(opened.result.decidedTax)}원</b>
+                        </div>
+                        <DeductionDetails details={opened.result.details} calculationConnected />
+                      </div>
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
   );
 }

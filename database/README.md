@@ -17,7 +17,7 @@
 | 2 | `02_기준데이터.sql` | 주인 | 기준값 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · `SPEND_CATEGORY` · `GROUP_STAT` 등) |
 | 3 | `03_데이터적재.sql` | 주인 | **팀 노션 zip에만 있음** · 가맹점 목록(`MERCHANT_LIST` · 공공 데이터) · 가상 회원 · 소득 · 카드 내역 |
 | 4 | `04_분류함수.sql` | 주인 | 가맹점명 정제 함수 `FN_NORMALIZE_NAME` (카드 내역 자동 분류용) |
-| 계정 2 | `계정_2_계산서버_권한.sql` | DB 관리자 | 계산 서버 계정에 기준값 3개 읽기 권한 + 동의어 (02 다음) |
+| 계정 2 | `계정_2_계산서버_권한.sql` | DB 관리자 | 계산 서버 계정에 기준값 3개 · 분류 목록 2개 읽기 권한 + 동의어 (02 다음) |
 
 ## 실행 순서
 
@@ -33,13 +33,15 @@
 - 공용 DB(CDB 루트)에서는 계정 이름이 `C##`으로 시작해야 해요 (아니면 ORA-65096)
 - `03_데이터적재.sql`은 18MB라 편집창에 열지 말고 `@"경로\03_데이터적재.sql"`로 실행하세요.
 
-## DB 계정 (2개 · 둘 다 최소 권한)
+## DB 계정 (용도별 2개 · 둘 다 최소 권한)
 
-| 계정 | 쓰는 곳 | 할 수 있는 것 |
-|---|---|---|
-| 주인 계정 | Spring(`backend/.env`) · DB 담당의 스키마 작업 | 자기 테이블 20개 조회 · 저장 · 수정 + 테이블 · 시퀀스 · 함수 만들기 |
-| 계산 서버 계정 | 계산 서버(`calc/.env`) | 기준값 테이블 3개 **읽기만** |
+| 계정 | 용도 | 쓰는 곳 | 할 수 있는 것 |
+|---|---|---|---|
+| 주인 계정 | 테이블 소유 · 백엔드 접속 | Spring(`backend/.env`) · DB 담당의 스키마 작업 | 자기 테이블 20개 조회 · 저장 · 수정 + 테이블 · 시퀀스 · 함수 만들기 |
+| 계산 서버 계정 | 읽기 전용 | 계산 서버(`calc/.env`) | 기준값 테이블 3개(`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION`) + 카드 분류 목록 2개(`MERCHANT_LIST` · `SPEND_CATEGORY`) **읽기만** |
 
+- 관리자는 DB 계정이 아니에요. 서비스 회원(`MEMBER`) 중 관리자 권한으로 올린 계정이에요 (화면 · Spring에서 구분)
+- 로컬 DB도 공용 DB와 **같은 계정 이름**을 써요. 이름이 같아야 로컬에서 된 게 공용 DB에서도 똑같이 돼요 (계정 이름은 Oracle에서 바꿀 수 없어서, 다른 이름으로 만들었으면 새 계정을 만들고 01~04를 다시 실행)
 - 계정 이름 · 비밀번호 · DB 주소: **팀 단톡에만** (노션 · GitHub에 적지 않음)
 - 아래 SQL의 `<주인계정>` · `<계산서버계정>` · `<비밀번호>`는 실제 값으로 바꿔서 실행해요
 - 공용 DB에는 두 계정 모두 이미 만들어져 있어요. 팀원은 각자 `.env`에만 넣으면 돼요
@@ -94,8 +96,8 @@ ROLE 행 없이 SESSION 4개(`CREATE PROCEDURE` · `CREATE SEQUENCE` · `CREATE 
 
 ## 계산 서버 전용 읽기 계정 (최소 권한)
 
-계산 서버(`calc/`)는 기준값 테이블 3개(`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION`)를 **읽기만** 해요.
-그래서 테이블 주인 계정 대신, 이 3개만 읽을 수 있는 계정을 따로 써요. 계산 서버에 문제가 생겨도 회원 정보를 읽거나 데이터를 고치거나 지울 수 없어요.
+계산 서버(`calc/`)는 기준값 테이블 3개(`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION`)와 카드 분류 목록 2개(`MERCHANT_LIST` · `SPEND_CATEGORY` · 카드 파일 분류 `POST /card/parse`용)를 **읽기만** 해요.
+그래서 테이블 주인 계정 대신, 이 5개만 읽을 수 있는 계정을 따로 써요. 계산 서버에 문제가 생겨도 회원 정보를 읽거나 데이터를 고치거나 지울 수 없어요.
 
 - 계산 서버 `calc/.env`의 `DB_USERNAME` · `DB_PASSWORD`에 이 계정을 넣어요
 - Spring 서버(`backend/`)는 소득 · 계산 결과를 저장해야 해서 테이블 주인 계정을 그대로 써요
@@ -109,14 +111,19 @@ GRANT CREATE SESSION TO <계산서버계정>;
 GRANT SELECT ON <주인계정>.DEDUCTION_TYPE    TO <계산서버계정>;
 GRANT SELECT ON <주인계정>.TAX_BRACKET       TO <계산서버계정>;
 GRANT SELECT ON <주인계정>.BENEFIT_CONDITION TO <계산서버계정>;
+-- 카드 파일 분류 (POST /card/parse · 사용 중인 목록만 읽음)
+GRANT SELECT ON <주인계정>.MERCHANT_LIST     TO <계산서버계정>;
+GRANT SELECT ON <주인계정>.SPEND_CATEGORY    TO <계산서버계정>;
 
 -- 계산 서버 코드가 테이블 이름만 쓰기 때문에 동의어로 연결 (코드 수정 없음)
 CREATE SYNONYM <계산서버계정>.DEDUCTION_TYPE    FOR <주인계정>.DEDUCTION_TYPE;
 CREATE SYNONYM <계산서버계정>.TAX_BRACKET       FOR <주인계정>.TAX_BRACKET;
 CREATE SYNONYM <계산서버계정>.BENEFIT_CONDITION FOR <주인계정>.BENEFIT_CONDITION;
+CREATE SYNONYM <계산서버계정>.MERCHANT_LIST     FOR <주인계정>.MERCHANT_LIST;
+CREATE SYNONYM <계산서버계정>.SPEND_CATEGORY    FOR <주인계정>.SPEND_CATEGORY;
 ```
 
-확인 (새 계정으로 접속): 기준값 3개 `SELECT COUNT(*)`는 숫자가 나오고, `<주인계정>.MEMBER` 조회는 ORA-00942, `DELETE`/`UPDATE`는 ORA-01031이 나오면 정상이에요.
+확인 (새 계정으로 접속): 기준값 3개 · 분류 목록 2개 `SELECT COUNT(*)`는 숫자가 나오고, `<주인계정>.MEMBER` 조회는 ORA-00942, `DELETE`/`UPDATE`는 ORA-01031이 나오면 정상이에요.
 
 나중에 계산 서버가 다른 테이블을 읽게 되면 그 테이블도 `GRANT SELECT` + `CREATE SYNONYM`을 추가해야 해요. 안 하면 계산 서버에서 ORA-00942가 나요.
 

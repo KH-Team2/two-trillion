@@ -26,7 +26,9 @@ try {
     bundle: true,
     logLevel: 'silent',
   });
-  const { incomeRequest, fetchIncome } = await import(pathToFileURL(`${dir}/income.mjs`));
+  const { incomeRequest, fetchIncome, incomeToInput } = await import(
+    pathToFileURL(`${dir}/income.mjs`)
+  );
   await build({
     entryPoints: ['src/api/api-client.js'],
     outfile: `${dir}/client.mjs`,
@@ -230,6 +232,31 @@ try {
   await fetchIncome(2025, { fetchImpl: fakeSeq([[200, { taxYear: 2025 }]], getCalls) });
   assert.equal(getCalls[0].method, 'GET');
   assert.equal(getCalls[0].url, '/api/incomes/2025');
+
+  // 서버 소득 → 화면 입력값 (시뮬레이션 출발값) · incomeRequest와 왕복하면 같은 값
+  const saved = {
+    taxYear: 2025,
+    totalSalary: 36000000,
+    withheldTax: 1523000,
+    nationalPension: 1620000,
+    healthInsurance: 1400000,
+    dependents: 2,
+    children: 1,
+    monthlyRent: 500000,
+    housingSaving: 1200000,
+    pensionSaving: 3000000,
+    irpSaving: 1000000,
+    smeReductionYn: 'N',
+  };
+  const back = incomeToInput(saved);
+  assert.equal(back.nationalPension, 1620000);
+  assert.equal(back.healthEmploymentInsurance, 1400000);
+  assert.equal(back.sme, '아니요');
+  assert.equal(incomeToInput({ smeReductionYn: 'Y' }).sme, '예');
+  const { taxYear, ...savedFields } = saved;
+  assert.deepEqual(incomeRequest(back), savedFields);
+  // 숫자가 아닌 칸은 넣지 않음 (화면 값 유지)
+  assert.deepEqual(incomeToInput({ totalSalary: null, smeReductionYn: '확인 필요' }), {});
 
   console.log(
     'PASS: 소득 저장 · 세액 계산 API 연결 · 저장 후 계산 순서 · 오류 코드 · 연결 실패 · 응답 검사',

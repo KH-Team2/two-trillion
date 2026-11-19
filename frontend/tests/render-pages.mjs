@@ -260,6 +260,14 @@ for (const [name, node] of cases) {
       !html.includes('계산값'))
   )
     throw Error('계산 결과 화면에 체험 문구가 남음');
+  // [수정 11/19 TT-124] 계산 결과 화면: 공제·감면 상태는 「증빙 확인」 · 서버가 계산하는 항목에 「미연동입니다」 문구가 남지 않음
+  if (
+    name === 'dashboard-api' &&
+    (!html.includes('증빙 확인') ||
+      html.includes('미연동입니다') ||
+      !html.includes('소비 유형별로'))
+  )
+    throw Error('계산 결과 화면에 미연동 안내가 남음');
   if (name === 'dashboard-demo' && (!html.includes('데모값') || !html.includes('시연 결과')))
     throw Error('체험 결과 문구 누락');
   if (name === 'dashboard-demo') {
