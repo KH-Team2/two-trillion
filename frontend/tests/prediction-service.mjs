@@ -151,11 +151,12 @@ try {
 
   // 시뮬레이션 요청: POST /api/simulations/2025 · 응답 모양 검사
   const calls = [];
-  const sr = await simulate(input, tx, 6, { fetchImpl: fake(200, result, calls), memberId: '1' });
+  const sr = await simulate(input, tx, 6, { fetchImpl: fake(200, result, calls), accessToken: 'header.payload.sig' });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/simulations/2025');
   assert.equal(calls[0].method, 'POST');
-  assert.equal(calls[0].headers['X-Member-Id'], '1');
+  assert.equal(calls[0].headers.Authorization, 'Bearer header.payload.sig');
+  assert.equal(calls[0].headers['X-Member-Id'], undefined);
   assert.equal(JSON.parse(calls[0].body).basePredictionId, 6);
   assert.equal(sr.predictionId, 12);
   assert.equal(sr.expectedRefund, 535500);

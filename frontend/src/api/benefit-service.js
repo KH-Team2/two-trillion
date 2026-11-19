@@ -64,15 +64,14 @@ export function parseBenefitResponse(raw) {
 
 /**
  * 혜택 진단 요청.
- * - 회원 구분: 로그인(Spring Security) 연결 전까지 개발 서버에서만 .env의 VITE_DEV_MEMBER_ID를 X-Member-Id 헤더로 보내요.
- *   빌드한 파일에서는 보내지 않고, 서버가 로그인 정보로 회원을 정해요.
+ * - 회원 구분: 로그인 토큰을 Authorization 헤더로 보내고, 서버가 토큰에서 회원번호를 꺼내요 (api-client.js).
  * - 서버에 연결할 수 없으면 code가 'OFFLINE'인 오류를 던져요 (화면은 체험 판정으로 돌아가요).
  */
-export async function fetchBenefits(taxYear, { fetchImpl = globalThis.fetch, memberId } = {}) {
+export async function fetchBenefits(taxYear, { fetchImpl = globalThis.fetch, accessToken } = {}) {
   checkTaxYear(taxYear);
   const body = await apiRequest(`/api/benefits/${taxYear}`, {
     fetchImpl,
-    memberId,
+    accessToken,
     offlineMessage: '혜택 진단 서버에 연결할 수 없어요.',
   });
   return parseBenefitResponse(body);

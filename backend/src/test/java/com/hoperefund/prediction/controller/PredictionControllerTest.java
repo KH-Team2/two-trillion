@@ -20,11 +20,16 @@ import com.hoperefund.prediction.service.CalculationService;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 /**
@@ -68,11 +73,32 @@ class PredictionControllerTest {
         };
     }
 
+    /**
+     * 로그인한 회원으로 요청 (JWT 필터가 하는 일을 대신: principal = 회원번호)
+     * [수정 11/17] X-Member-Id 헤더 → 로그인 정보 · 토큰 검사 자체는 SecurityConfigTest에서 확인
+     */
+    private static RequestPostProcessor loginAs(long memberId) {
+        return request -> {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(
+                            new UsernamePasswordAuthenticationToken(memberId, null, List.of()));
+            return request;
+        };
+    }
+
+    // 로그인 정보가 다음 테스트로 넘어가지 않게 지움
+    @AfterEach
+    void clearLogin() {
+        SecurityContextHolder.clearContext();
+    }
+
     private MockHttpServletResponse call(Object controller, RequestBuilder request)
             throws Exception {
         MockMvc mockMvc =
                 MockMvcBuilders.standaloneSetup(controller)
                         .setControllerAdvice(new GlobalExceptionHandler())
+                        // @AuthenticationPrincipal 처리기 (실제 서버에서는 Spring Security가 등록)
+                        .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                         .build();
         return mockMvc.perform(request).andReturn().getResponse();
     }
@@ -92,12 +118,12 @@ class PredictionControllerTest {
     // ---------- 계산 POST /api/calculations/{taxYear} ----------
 
     @Test
-    @DisplayName("계산하면 200과 결과를 돌려주고 헤더의 회원번호와 주소의 연도를 쓴다")
-    void calculateReturns200AndUsesHeaderMemberAndPathYear() throws Exception {
+    @DisplayName("계산하면 200과 결과를 돌려주고 로그인 회원번호와 주소의 연도를 쓴다")
+    void calculateReturns200AndUsesLoginMemberAndPathYear() throws Exception {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res =
-                call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, post("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(200, res.getStatus());
         // 공통 봉투: 결과는 data 안에
@@ -110,18 +136,6 @@ class PredictionControllerTest {
     }
 
     @Test
-    @DisplayName("계산 회원번호 헤더가 없으면 401이고 계산하지 않는다")
-    void calculateReturns401WithoutMemberHeader() throws Exception {
-        CalculationController controller =
-                new CalculationController(calculationService(this::result));
-        MockHttpServletResponse res = call(controller, post("/api/calculations/2026"));
-
-        assertEquals(401, res.getStatus());
-        assertTrue(text(res).contains("\"code\":\"UNAUTHORIZED\""));
-        assertEquals(0, receivedTaxYear);
-    }
-
-    @Test
     @DisplayName("계산 기준값 없는 연도는 400 NO CRITERIA")
     void calculateReturns400NoCriteriaForUnknownYear() throws Exception {
         CalculationController controller =
@@ -131,7 +145,7 @@ class PredictionControllerTest {
                                     throw new NoCriteriaException();
                                 }));
         MockHttpServletResponse res =
-                call(controller, post("/api/calculations/2024").header("X-Member-Id", "81"));
+                call(controller, post("/api/calculations/2024").with(loginAs(81L)));
 
         assertEquals(400, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"NO_CRITERIA\""));
@@ -147,7 +161,7 @@ class PredictionControllerTest {
                                     throw new CalcRejectedException("계산 서버 입력 거부 /calculate", null);
                                 }));
         MockHttpServletResponse res =
-                call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, post("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(400, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"CALC_REJECTED\""));
@@ -164,7 +178,7 @@ class PredictionControllerTest {
                                             "계산 서버 연결 실패 /calculate http://내부주소", null);
                                 }));
         MockHttpServletResponse res =
-                call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, post("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(503, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"CALC_UNAVAILABLE\""));
@@ -182,7 +196,7 @@ class PredictionControllerTest {
                                     throw new NotFoundException("2026년 소득 정보가 아직 없어요");
                                 }));
         MockHttpServletResponse res =
-                call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, post("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(404, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"NOT_FOUND\""));
@@ -200,7 +214,7 @@ class PredictionControllerTest {
                                             "ORA-00942 SELECT * FROM PREDICTION");
                                 }));
         MockHttpServletResponse res =
-                call(controller, post("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, post("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(500, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"SERVER_ERROR\""));
@@ -215,7 +229,7 @@ class PredictionControllerTest {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res =
-                call(controller, put("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, put("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(405, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"METHOD_NOT_ALLOWED\""));
@@ -224,12 +238,12 @@ class PredictionControllerTest {
     // ---------- 저장된 결과 조회 GET /api/calculations/{taxYear} ----------
 
     @Test
-    @DisplayName("저장된 결과를 조회하면 200과 결과를 돌려주고 헤더의 회원번호와 주소의 연도를 쓴다")
-    void getLatestReturns200AndUsesHeaderMemberAndPathYear() throws Exception {
+    @DisplayName("저장된 결과를 조회하면 200과 결과를 돌려주고 로그인 회원번호와 주소의 연도를 쓴다")
+    void getLatestReturns200AndUsesLoginMemberAndPathYear() throws Exception {
         CalculationController controller =
                 new CalculationController(calculationService(this::result));
         MockHttpServletResponse res =
-                call(controller, get("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, get("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(200, res.getStatus());
         // 공통 봉투: 결과는 data 안에
@@ -251,7 +265,7 @@ class PredictionControllerTest {
                                     throw new NotFoundException("2026년 계산 결과가 아직 없어요");
                                 }));
         MockHttpServletResponse res =
-                call(controller, get("/api/calculations/2026").header("X-Member-Id", "81"));
+                call(controller, get("/api/calculations/2026").with(loginAs(81L)));
 
         assertEquals(404, res.getStatus());
         assertTrue(text(res).contains("\"code\":\"NOT_FOUND\""));
@@ -279,7 +293,7 @@ class PredictionControllerTest {
                                     return r;
                                 }));
         MockHttpServletResponse res =
-                call(controller, get("/api/benefits/2026").header("X-Member-Id", "81"));
+                call(controller, get("/api/benefits/2026").with(loginAs(81L)));
 
         assertEquals(200, res.getStatus());
         String body = text(res);
@@ -287,17 +301,5 @@ class PredictionControllerTest {
         assertTrue(body.contains("\"eligible\":null"));
         assertTrue(body.contains("\"eligible\":false"));
         assertEquals(81L, receivedMemberId);
-    }
-
-    @Test
-    @DisplayName("혜택 진단 회원번호가 숫자가 아니면 400 VALIDATION")
-    void benefitReturns400WhenMemberIdIsNotNumber() throws Exception {
-        BenefitController controller =
-                new BenefitController(benefitService(BenefitResponseDTO::new));
-        MockHttpServletResponse res =
-                call(controller, get("/api/benefits/2026").header("X-Member-Id", "1 OR 1=1"));
-
-        assertEquals(400, res.getStatus());
-        assertEquals(0L, receivedMemberId);
     }
 }

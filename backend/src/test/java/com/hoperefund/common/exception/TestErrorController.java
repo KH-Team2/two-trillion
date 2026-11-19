@@ -29,6 +29,18 @@ public class TestErrorController {
         throw new IllegalStateException("테스트용 오류");
     }
 
+    // 서비스가 상태 · 코드를 직접 정해 던지는 업무 오류 (409)
+    @GetMapping("/api/test-errors/business")
+    public String businessError() {
+        throw new BusinessException(HttpStatus.CONFLICT, "TEST_CONFLICT", "테스트 업무 오류");
+    }
+
+    // 업무 오류인데 서버 쪽 상태(500)인 경우 — 원인 문구가 응답에 나가면 안 된다
+    @GetMapping("/api/test-errors/business-server")
+    public String businessServerError() {
+        throw new BusinessException(HttpStatus.INTERNAL_SERVER_ERROR, "SIGNUP_FAILED", "내부 저장 실패");
+    }
+
     // 필수 쿼리 값(year)이 있는 조회
     @GetMapping("/api/test-errors/param")
     public String requiredParam(@RequestParam("year") int year) {
