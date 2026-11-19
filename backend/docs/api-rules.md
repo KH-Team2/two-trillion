@@ -18,8 +18,9 @@
 ## 2. 로그인 정보 넘기는 방식
 
 - 화면은 회원번호를 주소 · 본문에 **보내지 않는다**. 서버가 로그인 정보에서 회원을 정한다.
-- 로그인 방식(세션 / 토큰)은 Spring Security 담당이 정한다 (미정).
-- **개발용 임시**: Security 연결 전까지만 요청 헤더 `X-Member-Id: 회원번호` (화면 `.env`의 `VITE_DEV_MEMBER_ID` · 개발 서버에서만 보냄). 연결되면 헤더를 없앤다.
+- 로그인 방식: **토큰(JWT)** (11/16 · [decisions/0004](decisions/0004-login-jwt.md)). `POST /api/auth/login`이 준 `accessToken`을 요청 헤더 `Authorization: Bearer <토큰>`으로 보낸다. 유효 2시간 · 리프레시 토큰 없음 (만료되면 다시 로그인).
+- Controller는 회원번호를 `@AuthenticationPrincipal Long memberId`로 받는다 (토큰에서 꺼낸 값 · `common/config/SecurityConfig`).
+- ~~개발용 임시 `X-Member-Id` 헤더~~ → 2026-11-17 없앰: 소득 · 계산 · 혜택 · 시뮬레이션 · 이력 · 그룹 통계 Controller 모두 `@AuthenticationPrincipal`로 바꿈 · 화면은 `Authorization: Bearer <토큰>`만 보냄 (`X-Member-Id`만 보내면 401)
 - 로그인이 필요한데 정보가 없으면 401 `UNAUTHORIZED`.
 
 ## 3. GET / POST / PUT / DELETE 쓰는 기준
@@ -67,8 +68,9 @@
 | 400 | `VALIDATION` | 입력값 오류 (빈 칸 · 범위 밖 · 형식 · 업무 규칙 위반 · 필수 쿼리 값 누락 · 업로드 파일 누락) |
 | 400 | `NO_CRITERIA` | 기준값이 없는 연도 |
 | 400 | `CALC_REJECTED` | 계산 서버가 입력을 거부 |
-| 401 | `UNAUTHORIZED` | 로그인 안 함 |
-| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출 · ACCESS_LOG에 DENIED) — Security 연결 후 |
+| 401 | `UNAUTHORIZED` | 로그인 안 함 (토큰 없음 · 위조 · 만료 · 로그아웃됨) |
+| 401 | `LOGIN_FAILED` · `WITHDRAWN_MEMBER` · `LOGIN_LOCKED` | 로그인 실패 (`POST /api/auth/login`만 · 화면은 이 401에서 로그인 화면으로 보내지 않는다) |
+| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출) · ACCESS_LOG `DENIED` 기록은 아직 안 함 |
 | 404 | `NOT_FOUND` | 데이터 · 주소 없음 · **남의 데이터도 404** (없는 것과 같은 응답 · F-09-02) |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |

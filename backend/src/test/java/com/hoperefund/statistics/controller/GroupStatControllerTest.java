@@ -1,7 +1,6 @@
 package com.hoperefund.statistics.controller;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 
@@ -10,12 +9,18 @@ import com.hoperefund.statistics.dto.GroupStatDTO;
 import com.hoperefund.statistics.dto.GroupStatResponseDTO;
 import com.hoperefund.statistics.service.GroupStatService;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletResponse;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.method.annotation.AuthenticationPrincipalArgumentResolver;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.RequestBuilder;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 /**
@@ -40,11 +45,32 @@ class GroupStatControllerTest {
         };
     }
 
+    /**
+     * 로그인한 회원으로 요청 (JWT 필터가 하는 일을 대신: principal = 회원번호)
+     * [수정 11/17] X-Member-Id 헤더 → 로그인 정보 · 토큰 검사 자체는 SecurityConfigTest에서 확인
+     */
+    private static RequestPostProcessor loginAs(long memberId) {
+        return request -> {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(
+                            new UsernamePasswordAuthenticationToken(memberId, null, List.of()));
+            return request;
+        };
+    }
+
+    // 로그인 정보가 다음 테스트로 넘어가지 않게 지움
+    @AfterEach
+    void clearLogin() {
+        SecurityContextHolder.clearContext();
+    }
+
     private MockHttpServletResponse call(Object controller, RequestBuilder request)
             throws Exception {
         MockMvc mockMvc =
                 MockMvcBuilders.standaloneSetup(controller)
                         .setControllerAdvice(new GlobalExceptionHandler())
+                        // @AuthenticationPrincipal 처리기 (실제 서버에서는 Spring Security가 등록)
+                        .setCustomArgumentResolvers(new AuthenticationPrincipalArgumentResolver())
                         .build();
         return mockMvc.perform(request).andReturn().getResponse();
     }
@@ -62,8 +88,8 @@ class GroupStatControllerTest {
     }
 
     @Test
-    @DisplayName("조회하면 200과 두 그룹을 돌려주고 헤더의 회원번호와 주소의 연도를 쓴다")
-    void getReturns200AndUsesHeaderMemberAndPathYear() throws Exception {
+    @DisplayName("조회하면 200과 두 그룹을 돌려주고 로그인 회원번호와 주소의 연도를 쓴다")
+    void getReturns200AndUsesLoginMemberAndPathYear() throws Exception {
         GroupStatController controller =
                 new GroupStatController(
                         groupStatService(
@@ -73,7 +99,7 @@ class GroupStatControllerTest {
                                                 group("여성 40대", 2_274_940L),
                                                 group("4천만 이하", 394_361L))));
         MockHttpServletResponse res =
-                call(controller, get("/api/group-stats/2026").header("X-Member-Id", "81"));
+                call(controller, get("/api/group-stats/2026").with(loginAs(81L)));
 
         assertEquals(200, res.getStatus());
         // 공통 봉투: 결과는 data 안에
@@ -96,23 +122,10 @@ class GroupStatControllerTest {
                                         new GroupStatResponseDTO(
                                                 2026, group("여성 40대", 2_274_940L), null)));
         MockHttpServletResponse res =
-                call(controller, get("/api/group-stats/2026").header("X-Member-Id", "81"));
+                call(controller, get("/api/group-stats/2026").with(loginAs(81L)));
 
         assertEquals(200, res.getStatus());
         assertTrue(text(res).contains("\"salaryGroup\":null"));
         assertTrue(text(res).contains("\"groupLabel\":\"여성 40대\""));
-    }
-
-    @Test
-    @DisplayName("회원번호 헤더가 없으면 401")
-    void getReturns401WhenMemberHeaderMissing() throws Exception {
-        GroupStatController controller =
-                new GroupStatController(
-                        groupStatService(() -> new GroupStatResponseDTO(2026, null, null)));
-        MockHttpServletResponse res = call(controller, get("/api/group-stats/2026"));
-
-        assertEquals(401, res.getStatus());
-        assertTrue(text(res).contains("\"code\":\"UNAUTHORIZED\""));
-        assertFalse(text(res).contains("errorId")); // 사용자 쪽 오류엔 추적 번호 없음
     }
 }

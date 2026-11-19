@@ -181,12 +181,13 @@ try {
   const calls = [];
   const sr = await simulate(input, totals, 6, {
     fetchImpl: fake(200, result, calls),
-    memberId: '1',
+    accessToken: 'header.payload.sig',
   });
   assert.equal(calls.length, 1);
   assert.equal(calls[0].url, '/api/simulations/2025');
   assert.equal(calls[0].method, 'POST');
-  assert.equal(calls[0].headers['X-Member-Id'], '1');
+  assert.equal(calls[0].headers.Authorization, 'Bearer header.payload.sig');
+  assert.equal(calls[0].headers['X-Member-Id'], undefined);
   assert.equal(JSON.parse(calls[0].body).basePredictionId, 6);
   assert.equal(sr.predictionId, 12);
   assert.equal(sr.expectedRefund, 535500);

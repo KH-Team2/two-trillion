@@ -54,9 +54,14 @@ backend/
     │   │   ├── HopeRefundBackendApplication.java
     │   │   ├── common/
     │   │   │   ├── config/
-    │   │   │   │   └── CorsConfig.java
+    │   │   │   │   ├── CorsConfig.java
+    │   │   │   │   └── SecurityConfig.java           # 로그인 필요 주소 · JWT 필터 · 401/403 응답
     │   │   │   ├── controller/
     │   │   │   │   └── HealthController.java
+    │   │   │   ├── service/
+    │   │   │   │   └── TokenService.java             # 로그인 토큰(JWT) 발급 · 검사 · 로그아웃 목록
+    │   │   │   ├── mapper/
+    │   │   │   │   └── AccessLogMapper.java          # 접속 기록(ACCESS_LOG)
     │   │   │   ├── dto/
     │   │   │   │   ├── ApiResponse.java          # 공통 응답 봉투 {success, data, meta, error}
     │   │   │   │   └── PageMeta.java             # 목록 응답의 페이지 정보
@@ -148,6 +153,7 @@ src/main/resources/application.yml
 | `DB_URL` | Oracle JDBC 접속 주소 |
 | `DB_USERNAME` | Oracle DB 사용자 계정 |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
+| `JWT_SECRET` | 로그인 토큰 서명 비밀키 (32바이트 이상 · 없으면 서버가 켜지지 않음 · `CALC_API_TOKEN`과 다른 값) |
 
 Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 
@@ -162,6 +168,8 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
 | `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
+| `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
+| `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
 
 환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
 
@@ -300,5 +308,6 @@ mvnw -B verify
 기능 요구사항은 [희망환급 기능명세서 v1.13](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
 
 ERD는 팀에서 공유한 v4.1을 기준으로 합니다.
+https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
 일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.

@@ -1,5 +1,10 @@
 import { consentVersions } from '../config/consent-versions.js';
-// 체험용 계정 어댑터입니다. TODO: 가입·로그인·권한·잠금·탈퇴는 Spring Boot와 Oracle에서 검증·저장해야 합니다.
+import { ACCESS_TOKEN_KEY, LOGIN_MEMBER_KEY, clearLogin, readAccessToken } from './api-client.js';
+import { memberApi } from './member-api.js';
+// 계정 어댑터입니다.
+// - 로그인 · 로그아웃(F-01-02): Spring Boot 서버 (아래 accountService.login · logout · current) · 토큰은 localStorage
+// - createAccountService: 브라우저 체험용 계정 (빠른 체험 · 관리자 화면 시연 · 기존 테스트)
+// TODO: 회원정보 수정 · 비밀번호 변경 · 탈퇴 · 관리자 회원 관리는 아직 브라우저 체험 (서버 API 없음)
 export const LOCK_MS = 10 * 60 * 1000;
 export const ACCOUNT_KEY = 'hope-accounts-v1';
 export const SESSION_KEY = 'hope-session-v1';
@@ -370,10 +375,40 @@ function browserAdapter() {
     sessionStorage,
   );
 }
+// 서버 로그인 응답의 만료 시각(한국 시각 · 시간대 표시 없음) → 밀리초
+function expiresAtMs(value) {
+  const text = String(value || '');
+  return Date.parse(/(Z|[+-]\d\d:\d\d)$/i.test(text) ? text : `${text}+09:00`);
+}
+// 서버에 로그인한 회원 (토큰과 회원 정보가 둘 다 있고 만료 전일 때만)
+function serverMember() {
+  try {
+    const member = JSON.parse(localStorage.getItem(LOGIN_MEMBER_KEY) || 'null');
+    if (!member?.loginId || !localStorage.getItem(ACCESS_TOKEN_KEY)) return null;
+    if (!(expiresAtMs(member.expiresAt) > Date.now())) {
+      clearLogin(); // 만료된 토큰 → 다시 로그인
+      return null;
+    }
+    const id = `member:${member.loginId}`;
+    // 화면 입력 · 기록 저장 칸을 회원별로 나눔 (services.js scopedKey가 이 값을 씀)
+    if (sessionStorage.getItem(SESSION_KEY) !== id) sessionStorage.setItem(SESSION_KEY, id);
+    // 서버 로그인 응답에는 아이디 · 권한만 있음 (이메일 · 성별 · 생년월일은 서버가 회원번호로 조회해서 씀)
+    return { id, username: member.loginId, role: member.role, status: 'ACTIVE', server: true };
+  } catch {
+    return null;
+  }
+}
 export const accountService = {
-  current: () => (typeof window === 'undefined' ? null : browserAdapter().current()),
+  current: () => {
+    if (typeof window === 'undefined') return null;
+    return sessionStorage.getItem(DEMO_MODE_KEY) ? browserAdapter().current() : serverMember();
+  },
   hasAdmin: () => normalAdapter().hasAdmin(),
-  enterDemo: (role) => enterDemoSession(localStorage, sessionStorage, role),
+  // 빠른 체험: 서버 로그인 정보를 지우고 체험 계정으로 (체험 중 실제 회원 토큰이 API에 실리지 않게)
+  enterDemo: (role) => {
+    clearLogin();
+    return enterDemoSession(localStorage, sessionStorage, role);
+  },
   isDemo: () => typeof window !== 'undefined' && !!sessionStorage.getItem(DEMO_MODE_KEY),
   checkUsername: (value) => normalAdapter().checkUsername(value),
   sendEmailCode: (value) => normalAdapter().sendEmailCode(value),
@@ -381,12 +416,25 @@ export const accountService = {
   checkEmail: (email) => normalAdapter().checkEmail(email),
   signUp: (d) => normalAdapter().signUp(d),
   bootstrap: (d) => normalAdapter().bootstrap(d),
-  login: async (email, password) => {
-    const user = await normalAdapter().login(email, password);
+  // 로그인(F-01-02): 서버 POST /api/auth/login → 토큰 · 회원 정보 저장 → 로그인한 회원 반환
+  // 실패하면 서버 오류(ApiError: code · message)를 그대로 던짐 → 화면이 message 표시
+  login: async (loginId, password) => {
+    const result = await memberApi.login(loginId, password);
     sessionStorage.removeItem(DEMO_MODE_KEY);
-    return user;
+    localStorage.setItem(ACCESS_TOKEN_KEY, result.accessToken);
+    localStorage.setItem(
+      LOGIN_MEMBER_KEY,
+      JSON.stringify({ loginId: result.loginId, role: result.role, expiresAt: result.expiresAt }),
+    );
+    return serverMember();
   },
+  // 로그아웃: 서버에 토큰 무효 요청(POST /api/auth/logout) 후 저장값 삭제
+  // 서버 요청이 실패해도(서버 꺼짐 등) 화면은 로그아웃 · 요청 헤더는 호출 순간에 담기므로 바로 지워도 됨
   logout: () => {
+    if (!sessionStorage.getItem(DEMO_MODE_KEY) && readAccessToken()) {
+      memberApi.logout().catch(() => {});
+    }
+    clearLogin();
     sessionStorage.removeItem(SESSION_KEY);
     sessionStorage.removeItem(DEMO_MODE_KEY);
   },

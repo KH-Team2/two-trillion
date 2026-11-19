@@ -45,7 +45,7 @@ export default function ProfilePage({
         <span className="avatar large">희</span>
         <div>
           <h2>{data.name}님</h2>
-          <p>{data.email.replace(/^(.{1,2}).*(@.*)$/, '$1***$2')}</p>
+          <p>{(data.email || '').replace(/^(.{1,2}).*(@.*)$/, '$1***$2')}</p>
         </div>
         <Tag>{session?.role || '비로그인 체험'}</Tag>
       </div>

@@ -35,7 +35,7 @@ export default function AuthPage({ page, setSession, go, notify }) {
           notify(
             accountService.isDemo()
               ? '로그인 없이 별도 데이터로 체험을 시작했습니다.'
-              : '이 브라우저의 시연 계정으로 로그인했습니다.',
+              : '로그인했습니다.',
           );
         }}
       />
