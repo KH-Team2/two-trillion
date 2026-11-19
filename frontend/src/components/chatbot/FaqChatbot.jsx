@@ -157,7 +157,7 @@ export default function FaqChatbot() {
               id="tax-faq-input"
               ref={input}
               value={question}
-              maxLength={500}
+              maxLength={100}
               placeholder="예: 과세표준 뜻"
               onChange={(event) => setQuestion(event.target.value)}
               onKeyDown={(event) => {

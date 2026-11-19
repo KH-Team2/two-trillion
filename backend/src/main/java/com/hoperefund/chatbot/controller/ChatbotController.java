@@ -26,7 +26,7 @@ public class ChatbotController {
 
     public record FaqAskRequest(
     		@NotBlank
-    		@Size(max = 200)
+    		@Size(max = 100)
     		String question
 	) {}
 
