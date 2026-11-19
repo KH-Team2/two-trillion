@@ -16,6 +16,11 @@ import { dashboardModel, TAX_GUIDANCE } from '@/utils/dashboard-model.js';
 import { settlementLabel } from '@/api/services.js';
 const money = (value) => value.toLocaleString('ko-KR');
 const pending = '계산 연동 필요';
+// [수정 11/19 TT-124] 공제·감면 목록 상태 이름: 「확인 필요」 → 「증빙 확인」
+// 이유: 공제액은 서버가 계산하고, 이 상태는 「입력은 됐고 요건·증빙 서류는 본인이 확인」이라는 뜻이라
+//   「확인 필요」는 계산이 안 된 것처럼 읽힘 (체험 모드도 같은 이름 · 증빙 확인은 어느 쪽이든 본인 몫)
+const REVIEW = '증빙 확인';
+const reviewLabel = (status) => (status === '확인 필요' ? REVIEW : status);
 function Badge({ children, tone = 'blue' }) {
   return <span className={'tag ' + tone}>{children}</span>;
 }
@@ -70,53 +75,59 @@ export default function Dashboard({
       id: 'cards',
       type: '소득공제',
       name: '신용·체크카드·현금영수증',
-      status: '확인 필요',
-      reason:
-        '업로드된 결제수단 정보는 조회할 수 있지만, 적격 증빙·최저사용기준·한도 계산은 미연동입니다. 실제 사용금액은 업로드된 거래내역을 집계합니다.',
+      status: REVIEW,
+      // [수정 11/19 TT-124] 서버 계산 결과일 때 「미연동」 문구 → 서버가 계산한다는 문구 (체험 모드는 그대로)
+      reason: isDemo
+        ? '업로드된 결제수단 정보는 조회할 수 있지만, 적격 증빙·최저사용기준·한도 계산은 미연동입니다. 실제 사용금액은 업로드된 거래내역을 집계합니다.'
+        : '업로드된 거래를 서버가 분류해 문턱(총급여 25%)·공제율·한도를 적용해 계산했습니다. 카드 사용분의 적격 여부와 증빙은 본인 확인이 필요합니다.',
     },
     {
       id: 'family',
       type: '소득공제',
       name: '추가 부양가족',
-      status: data.family > 0 ? '확인 필요' : '미적용',
+      status: data.family > 0 ? REVIEW : '미적용',
       reason:
         data.family > 0
-          ? `${data.family}명 입력 · 가족별 소득·연령·중복공제 요건 및 증빙 확인 필요. 공제액은 미산출입니다.`
-          : '추가 부양가족 0명 입력. 법정 인적공제 계산은 미연동입니다.',
+          ? isDemo
+            ? `${data.family}명 입력 · 가족별 소득·연령·중복공제 요건 및 증빙 확인 필요. 공제액은 미산출입니다.`
+            : `${data.family}명 입력 · 인적공제는 서버 계산 결과에 반영됩니다. 가족별 소득·연령·중복공제 요건과 증빙은 본인 확인이 필요합니다.`
+          : isDemo
+            ? '추가 부양가족 0명 입력. 법정 인적공제 계산은 미연동입니다.'
+            : '추가 부양가족 0명 입력. 본인 기본공제만 계산에 반영됩니다.',
     },
     {
       id: 'rent',
       type: '세액공제',
       name: '월세',
-      status: data.rent <= 0 || data.housing === '주택 보유' ? '미적용' : '확인 필요',
-      reason: `월세 월 납부액 ${money(data.rent)}원 입력 · 주택 상태 ${data.housing}. ${data.housing === '주택 보유' ? '무주택 요건 미충족으로 표시합니다.' : data.rent <= 0 ? '월세 입력 금액이 없습니다.' : '급여·세대·주택·계약·납부증빙 등 확인 필요.'} 법정 계산은 미연동이며 상단 데모 계산과 별개입니다.`,
+      status: data.rent <= 0 || data.housing === '주택 보유' ? '미적용' : REVIEW,
+      reason: `월세 월 납부액 ${money(data.rent)}원 입력 · 주택 상태 ${data.housing}. ${data.housing === '주택 보유' ? '무주택 요건 미충족으로 표시합니다.' : data.rent <= 0 ? '월세 입력 금액이 없습니다.' : '급여·세대·주택·계약·납부증빙 등 확인 필요.'} ${isDemo ? '법정 계산은 미연동이며 상단 데모 계산과 별개입니다.' : '세액공제액은 서버 계산 결과입니다.'}`,
     },
     {
       id: 'social',
       type: '소득공제',
       name: '사회보험료',
-      status: insuranceTotal > 0 ? '확인 필요' : '미적용',
-      reason: `국민연금 ${money(data.nationalPension ?? 0)}원 / 건강·고용보험료 ${money(data.healthEmploymentInsurance ?? 0)}원 (합계 ${money(insuranceTotal)}원). 법정 인정액·공제 산식은 미연동입니다.`,
+      status: insuranceTotal > 0 ? REVIEW : '미적용',
+      reason: `국민연금 ${money(data.nationalPension ?? 0)}원 / 건강·고용보험료 ${money(data.healthEmploymentInsurance ?? 0)}원 (합계 ${money(insuranceTotal)}원). ${isDemo ? '법정 인정액·공제 산식은 미연동입니다.' : '본인 부담분이 소득공제로 계산에 반영됩니다. 납부액은 급여명세서로 확인하세요.'}`,
     },
     {
       id: 'housingSaving',
       type: '소득공제',
       name: '주택청약',
-      status: (data.housingSaving ?? 0) > 0 ? '확인 필요' : '미적용',
+      status: (data.housingSaving ?? 0) > 0 ? REVIEW : '미적용',
       reason: `연간 납입액 ${money(data.housingSaving ?? 0)}원. 무주택 세대주·급여·납입 증빙 및 한도 확인 필요.`,
     },
     {
       id: 'pension',
       type: '세액공제',
       name: '연금저축·IRP',
-      status: (data.pensionSaving ?? 0) + (data.irp ?? 0) > 0 ? '확인 필요' : '미적용',
-      reason: `연금저축 ${money(data.pensionSaving ?? 0)}원 / IRP ${money(data.irp ?? 0)}원 입력. 실제 세액공제율·한도는 미연동입니다.`,
+      status: (data.pensionSaving ?? 0) + (data.irp ?? 0) > 0 ? REVIEW : '미적용',
+      reason: `연금저축 ${money(data.pensionSaving ?? 0)}원 / IRP ${money(data.irp ?? 0)}원 입력. ${isDemo ? '실제 세액공제율·한도는 미연동입니다.' : '세액공제율·한도는 서버 계산 결과입니다.'}`,
     },
     {
       id: 'sme',
       type: '세액감면',
       name: '중소기업 취업 청년 감면',
-      status: m.youth.status,
+      status: reviewLabel(m.youth.status),
       reason: m.youth.reason,
     },
   ];
@@ -335,12 +346,27 @@ export default function Dashboard({
                             </tr>
                           </thead>
                           <tbody>
-                            {m.types.map((row) => (
+                            {/* [수정 11/19 TT-124] 서버 계산 결과일 때는 유형별 공제 칸을 줄마다 「계산 연동 필요」로 두지 않고 설명 한 칸으로
+                                이유: 카드 공제는 문턱을 공제율 낮은 항목부터 빼고 한도 초과분을 한 줄로 차감해서 소비 유형별로 나눌 수 없음
+                                  (API_INTEGRATION.md · details를 소비 유형으로 재분류하지 않음) · 실제 공제액은 「공제·감면 상세 내역」 */}
+                            {m.types.map((row, i) => (
                               <tr key={row.category}>
                                 <th scope="row">{row.category}</th>
                                 <td>{money(row.spent)}원</td>
-                                <td>{pending}</td>
-                                <td>{pending}</td>
+                                {isDemo ? (
+                                  <>
+                                    <td>{pending}</td>
+                                    <td>{pending}</td>
+                                  </>
+                                ) : (
+                                  i === 0 && (
+                                    <td colSpan={2} rowSpan={m.types.length}>
+                                      카드 공제는 문턱 · 한도가 결제수단 · 공제율 순서로 적용돼 소비
+                                      유형별로 나누지 않아요. 실제 공제액은 아래 「공제·감면 상세
+                                      내역」에 서버 계산 그대로 있어요.
+                                    </td>
+                                  )
+                                )}
                               </tr>
                             ))}
                           </tbody>
@@ -357,16 +383,20 @@ export default function Dashboard({
                         <div>
                           <b>최저사용기준</b>
                           <p>
-                            총급여 {money(data.salary)}원 × 25% = {money(m.minimum)}원. 참고 기준만
-                            표시하며, 초과분 배분 계산은 미연동입니다.
+                            총급여 {money(data.salary)}원 × 25% = {money(m.minimum)}원.{' '}
+                            {isDemo
+                              ? '참고 기준만 표시하며, 초과분 배분 계산은 미연동입니다.'
+                              : '이 금액을 넘은 사용분부터 공제되며, 공제율이 낮은 항목부터 차감해 서버가 계산합니다.'}
                           </p>
                         </div>
                         <div>
                           <b>결제수단 확인 필요</b>
                           <p>
                             일반 사용분은 신용카드 15%, 체크·직불·선불카드 및 현금영수증 30%가 안내
-                            기준입니다. 업로드 결제수단을 표시하며 누락 값은 확인 필요로 구분합니다.
-                            실제 공제율·한도 계산이 미연동이므로 공제 적용액은 산출하지 않습니다.
+                            기준입니다. 업로드 결제수단을 표시하며 누락 값은 확인 필요로 구분합니다.{' '}
+                            {isDemo
+                              ? '실제 공제율·한도 계산이 미연동이므로 공제 적용액은 산출하지 않습니다.'
+                              : '공제율·한도 적용액은 서버 계산 결과(공제·감면 상세 내역)에 있습니다.'}
                           </p>
                         </div>
                         <div>
@@ -382,17 +412,20 @@ export default function Dashboard({
                         <div>
                           <b>추가공제·한도</b>
                           <p>
-                            최저사용기준 차감 순서, 급여별 기본한도·추가공제·중복 제외와 유형별 배분
-                            로직은 모두 미연동입니다. ‘공제 대상 아님’도 현재 분류 결과이며 증빙
-                            검증 전입니다.
+                            {isDemo
+                              ? '최저사용기준 차감 순서, 급여별 기본한도·추가공제·중복 제외와 유형별 배분 로직은 모두 미연동입니다.'
+                              : '최저사용기준 차감 순서와 급여별 기본한도 · 추가한도(전통시장 · 대중교통 · 문화체육) · 자녀 수별 한도는 서버가 계산합니다.'}{' '}
+                            ‘공제 대상 아님’도 현재 분류 결과이며 증빙 검증 전입니다.
                           </p>
                         </div>
                       </div>
                       <div className="dash-note">
                         <b>지출액 ≠ 소득공제액 ≠ 실제 세금 감소액</b>
                         <br />
-                        실제 지출액을 최종 카드 공제액으로 확정하지 않습니다. 유형별 최종 반영액과
-                        합계는 계산 서비스 연동 후 함께 표시합니다.
+                        실제 지출액을 최종 카드 공제액으로 확정하지 않습니다.{' '}
+                        {isDemo
+                          ? '유형별 최종 반영액과 합계는 계산 서비스 연동 후 함께 표시합니다.'
+                          : '최종 카드 공제 합계는 위 표 아래와 「공제·감면 상세 내역」에 있습니다.'}
                       </div>
                       <a
                         className="dash-source"
@@ -468,7 +501,9 @@ export default function Dashboard({
               <h3>
                 <Leaf size={18} /> 청년 혜택 자격진단
               </h3>
-              <Badge tone={m.youth.status === '미적용' ? 'gray' : 'amber'}>{m.youth.status}</Badge>
+              <Badge tone={m.youth.status === '미적용' ? 'gray' : 'amber'}>
+                {reviewLabel(m.youth.status)}
+              </Badge>
             </div>
             <h4>중소기업 취업자 소득세 감면</h4>
             <p>{m.youth.reason}</p>

@@ -92,7 +92,9 @@ export default function SimulationPage({
                 과세표준{' '}
                 <b>
                   {sr.taxableIncome === null
-                    ? '계산 API 연동 후 제공'
+                    ? isDemo
+                      ? '계산 API 연동 후 제공'
+                      : '제공되지 않음'
                     : `${money(sr.taxableIncome)}원`}
                 </b>
               </div>

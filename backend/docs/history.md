@@ -68,6 +68,22 @@
 - **변경 사유**: F-01-02 구현. 리프레시 토큰 없음 · 로그아웃 메모리 목록 · 화면 localStorage 보관안 확정 (11/16). 새 파일은 README · AGENTS.md 폴더 구조 안에서 최소로 만듦
 - **검증 결과**: `./mvnw test` 79건 통과 (신규 `SecurityConfigTest` 6 · `TokenServiceTest` 6 · `LoginServiceTest` 12 · `MemberControllerTest` 로그인 3건 추가)
 - **미검증**: 실제 Oracle DB에서 로그인 · 잠금 · ACCESS_LOG 저장 (SQL은 Mapper 대역으로만 테스트) · 화면 연결 안 함
+### [2026-11-16] 거래내역 조회·삭제 API (F-02-04 · TT-111)
+- **작업 내용**:
+  - `GET /api/card-uploads`: 본인의 업로드 이력 (번호 · 파일 이름 · 건수 · 업로드일 · 최신순)
+  - `GET /api/expenses?year=` 또는 `?uploadId=`: 본인의 거래 목록 + 분류 근거 (`MERCHANT_LIST` LEFT JOIN → 일치 방식 `matchType` · 목록 상호명 `matchedName` · 출처 `sourceName` · 일반 거래는 근거가 null) · 둘 다 없으면 400
+  - `GET /api/expense-totals?year=`: 분류 + 결제수단별 합계 (`categoryId` · `payMethod` · `totalAmount` · `count` · 취소 음수 포함)
+  - `DELETE /api/card-uploads/{uploadId}`: 본인 업로드 삭제 → 204 · 거래(`EXPENSE`)는 `ON DELETE CASCADE`로 같이 삭제
+  - 새 `ExpenseController` · `ExpenseService(Impl)` · `ExpenseMapper`(+ XML) · DTO 3개(`UploadHistoryDTO` · `ExpenseItemDTO` · `ExpenseTotalDTO`) · 업로드(POST)는 기존 `CardUploadController` 그대로
+- **변경 사유**:
+  - 기능명세서 F-02-04 · 남의 업로드 번호는 403이 아니라 404 (팀 규칙 · `GlobalExceptionHandler` · 없는 것과 같은 문구로 존재 여부를 숨김)
+  - 합계를 분류만이 아니라 결제수단까지 나눈 이유: 계산 서버 `POST /calculate`의 `cardSpends`가 `{categoryId, payMethod, amount}` 단위 (결제수단마다 공제율이 다름) → 계산 요청에 그대로 옮겨 쓸 수 있게
+  - 연도는 2000 ~ 2100만 받음 (오타 연도로 날짜를 만들다 500이 나는 것을 400으로 막음)
+- **검증 결과**:
+  - 테스트 20개 추가 (Service 10 · Controller 10)
+  - `mvnw spotless:check` · `mvnw -B verify` 통과
+  - curl (학원 DB · 회원 1): 업로드 이력 200 · `uploadId=1` 거래 137건 200(분류 근거 표시 확인) · 합계 2026 200(10줄 · 건수 합 137) · 남의 업로드(`uploadId` 2 · 10) 조회 404 · 남의 업로드 삭제 404
+  - 본인 업로드 삭제 (2026-11-17 · 화면에서 올린 업로드 101번): `DELETE` 204 → `CARD_UPLOAD` · `EXPENSE` 둘 다 0건 (CASCADE 확인)
 
 ### [2026-11-16] 결과 이력 조회 API (F-04-02)
 - **작업 내용**:
@@ -91,6 +107,19 @@
   - 테스트 4개 추가 · curl mock 모드 200 · 404 · 400
   - 학원 PC에서 계산 서버(http) + 저장: 회원 81 기준 결과 3번 → 시나리오 6번 · `PREDICTION_INPUT` 월세 60만 · `INCOME` 월세는 그대로
 
+### [2026-11-13] 계산 서버 카드 파일 해석 · 지출 분류 (F-02-02 · F-02-03 · TT-109 · TT-110)
+- **작업 내용** (계산 서버 `calc/` · 백엔드가 호출):
+  - `POST /card/parse`: 백엔드가 보낸 카드사 · 홈택스 파일(csv · xlsx · xls)을 공통 4칸(사용일 · 가맹점명 · 금액 · 결제수단)으로 바꾸고 행마다 분류 결과(`categoryCode` · `listId`)를 붙여 돌려줌 · 저장은 하지 않음 · `X-Calc-Token` 검사
+  - 파일 오류는 400 `{"error", "message", "errorRows"}` (`UNSUPPORTED_FORMAT` · `PAY_METHOD_REQUIRED` · `ROW_LIMIT` · `VALIDATION`) · `main.py`에 처리기 추가
+  - `app/card/merchant_repo.py`: `MERCHANT_LIST` · `SPEND_CATEGORY`에서 사용 중(`USE_YN='Y'`)인 목록을 읽어 분류기(`MerchantMatcher`)를 만듦 · 첫 요청 때 한 번만 읽고 재사용 (목록을 고치면 계산 서버 재시작)
+  - `scripts/compare_card_classify.py`: 파이썬 분류 결과와 SQL(`04_분류쿼리.sql`) 결과를 건마다 비교하는 검증 도구 (읽기만)
+- **변경 사유**:
+  - 기능명세서 F-02-02 · F-02-03 · 파일 해석과 분류를 계산 서버 한 곳에서 하기로 함 (백엔드는 결과를 받아 저장만)
+- **검증 결과**:
+  - 가상 카드 내역 10,453건: 파이썬 분류 = SQL 분류 (전부 일치 · 목록 EXACT 79,727개 이름 · CONTAINS 697개)
+  - pytest 130개 · `ruff check` 통과 (카드 API 7 · 목록 읽기 5 추가)
+  - 배포 시 필요: 계산 서버 읽기 계정에 `MERCHANT_LIST` · `SPEND_CATEGORY` SELECT 권한 + 동의어 (`database/README.md`) · 로컬은 테이블 주인 계정이라 해당 없음
+
 ### [2026-11-13] 그룹 비교 통계 조회 API (F-06-02)
 - **작업 내용**:
   - `GET /api/group-stats/{taxYear}`: 본인의 성별·연령대 그룹과 총급여 구간 그룹의 국세통계 평균(인원 · 1인당 총급여 · 결정세액 · 환급세액) · 못 찾은 그룹은 그 칸만 null(200)
@@ -113,6 +142,20 @@
   - 프로젝트에 `@EnableWebSecurity` · `SecurityFilterChain` 없음 → `SecurityConfig` 새로 만들어야 함 (`common/` 수정 · 라이브러리 추가 승인 필요)
   - 기능명세서 원본은 저장소에 없음 → 로그인 기능 ID · 요구사항은 시트 확인 필요
 - **변경 사유**: 로그인 · 로그아웃 구현 전 방식 결정과 팀 공지 내용 기록
+### [2026-11-12] 카드내역 업로드 저장 API (F-02-02 · TT-109)
+- **작업 내용**:
+  - `POST /api/card-uploads` (multipart: `file` · 선택 `payMethod` · `allowDuplicate`): 파일 확인(빈 파일 · 확장자 csv · xlsx · xls · 결제수단) → 계산 서버 `POST /card/parse` 호출 → 중복 확인 → 저장 → 분류별 건수 응답
+  - 저장: 업로드 1행(`CARD_UPLOAD`) + 지출 N행(`EXPENSE`) + 분류 반영을 한 트랜잭션으로 (`CardUploadSaveService`) · 계산 서버 호출은 트랜잭션 밖
+  - 중복: 같은 사용일 · 가맹점 · 금액 · 결제수단이 이미 있으면 409 `DUPLICATE_WARNING`(겹친 건수) · 사용자가 「계속」하면 `allowDuplicate=true`로 다시 보내 저장
+  - 사용구분 칸이 없는 파일은 400 `PAY_METHOD_REQUIRED` → 화면에서 신용/체크를 골라 다시 보냄
+  - 계산 서버 연결 실패 · 토큰 오류는 503 (`CardParseClient`) · 원본 파일과 카드번호는 저장하지 않음 (기능명세서 S-02)
+  - 새 패키지 `expense` (controller · service · client · mapper · dto · exception)
+- **변경 사유**:
+  - 기능명세서 F-02-02 · 파일 해석과 분류는 계산 서버에서 하고 백엔드는 저장 · 중복 경고만
+- **검증 결과**:
+  - 테스트 22개 추가 (Service 11 · 저장 4 · Controller 7 · 계산 서버는 가짜 응답)
+  - 실제 연결 업로드 (2026-11-17 · 화면 TT-112): `card_a.xlsx` → 업로드 101번 · 14건 저장 · 계산 서버 토큰이 비면 503 + 오류 번호 확인
+  - 미검증: 실제 홈택스 파일 형식(칸 이름은 추측값)
 
 ### [2026-11-12] 저장된 계산 결과 조회 API (F-06-01 결과 대시보드)
 - **작업 내용**:
