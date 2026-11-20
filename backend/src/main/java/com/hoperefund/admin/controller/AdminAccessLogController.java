@@ -15,10 +15,10 @@ public class AdminAccessLogController {
     private final AdminAccessLogService adminAccessLogService;
 
     /**
-     * 
+     *
      * F-21: 접근 기록 및 로그인 실패 모니터링 조회 (GET /api/admin/access-logs)
      * - 쿼리 파라미터(선택): startDate, endDate, ipAddress, page, size
-     * 
+     *
      */
     @GetMapping
     public ResponseEntity<List<AccessLogResponseDto>> getAccessLogs(

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    문의(INQUIRY) SQL · 값은 #{}로만 넣는다 (${} 금지 · SQL 삽입 방지)
+    [수정 11/20] 첫 줄에 <?xml ...?> 선언 추가 · 이유: 다른 매퍼 XML(common/AccessLogMapper.xml)과 모양을 맞추고 한글 주석 인코딩을 분명히
+    [수정 11/20] F-18(관리자 답변) SQL은 F-18 PR에서 추가 · 이유: 기능명세서 한 행당 PR 하나 규칙
+-->
+<mapper namespace="com.hoperefund.admin.mapper.AdminInquiryMapper">
+
+    <!--
+        [추가 11/20] F-17: 문의 작성
+        - 번호는 시퀀스 SEQ_INQUIRY (01_schema.sql)
+        - STATUS(WAITING) · CREATED_AT(SYSDATE)은 DB 기본값이 있어 INSERT에서 뺀다 (백엔드 규칙: NULL을 넣으면 오류)
+        - 답변 3칸(ANSWER · ANSWERED_AT · ANSWERED_BY)도 빼서 비워 둔다 (CK_INQUIRY_ANSWER: WAITING이면 셋 다 비어야 함)
+    -->
+    <insert id="insertInquiry">
+        INSERT INTO INQUIRY (
+            INQUIRY_ID,
+            MEMBER_ID,
+            TITLE,
+            CONTENT,
+            INQUIRY_TYPE
+        ) VALUES (
+            SEQ_INQUIRY.NEXTVAL,
+            #{memberId},
+            #{dto.title},
+            #{dto.content},
+            #{dto.inquiryType}
+        )
+    </insert>
+
+    <!--
+        F-17 : 내 문의 목록 (최신순)
+        [수정 11/20] <where><if test="status ..."> → WHERE MEMBER_ID = #{memberId}
+          이유(PR #44 리뷰): ① memberId 조건이 없어 모든 회원 문의가 조회됨
+                             ② 매퍼 메서드가 status를 넘기지 않아 'Parameter status not found' 오류가 남
+        [수정 11/20] MEMBER_ID 조회 칸 삭제 · 이유: 본인 목록이라 필요 없음
+    -->
+    <select id="selectInquiryList" resultType="com.hoperefund.admin.dto.AdminInquiryResponseDto">
+        SELECT
+            INQUIRY_ID AS inquiryId,
+            INQUIRY_TYPE AS inquiryType,
+            TITLE AS title,
+            CONTENT AS content,
+            STATUS AS status,
+            ANSWER AS answer,
+            CREATED_AT AS createdAt,
+            ANSWERED_AT AS answeredAt
+        FROM INQUIRY
+        WHERE MEMBER_ID = #{memberId}
+        ORDER BY INQUIRY_ID DESC
+    </select>
+
+    <!--
+        F-17 : 내 문의 상세 조회
+        [수정 11/20] WHERE INQUIRY_ID = #{inquiryId} 뒤에 AND MEMBER_ID = #{memberId} 추가
+          이유(PR #44 리뷰): 문의 번호만 맞으면 남의 문의도 보였음 → 남의 문의는 결과가 없어 Service가 404로 숨김
+        [수정 11/20] MEMBER_ID 조회 칸 삭제 · 이유: 본인 문의라 필요 없음
+    -->
+    <select id="selectInquiryById" resultType="com.hoperefund.admin.dto.AdminInquiryResponseDto">
+        SELECT
+            INQUIRY_ID AS inquiryId,
+            INQUIRY_TYPE AS inquiryType,
+            TITLE AS title,
+            CONTENT AS content,
+            STATUS AS status,
+            ANSWER AS answer,
+            CREATED_AT AS createdAt,
+            ANSWERED_AT AS answeredAt
+        FROM INQUIRY
+        WHERE INQUIRY_ID = #{inquiryId}
+          AND MEMBER_ID = #{memberId}
+    </select>
+
+</mapper>

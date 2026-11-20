@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hoperefund.admin.mapper.AdminAccessLogMapper">
+
+    <!-- F-21: 접근 기록 및 로그인 실패 모니터링 조회 -->
+    <select id="selectAccessLogs" resultType="com.hoperefund.admin.dto.AccessLogResponseDto">
+        SELECT 
+            ACCESS_ID AS LOG_ID,
+            MEMBER_ID AS memberId,
+            ACCESSED_AT AS accessedAt,
+            IP_ADDRESS AS ipAddress,
+            RESULT AS result,
+			NVL(M.LOGIN_FAIL_COUNT, 0) AS failCount        
+			FROM ACCESS_LOG
+
+        <where>
+            <if test="startDate != null and startDate != ''">
+                AND ACCESSED_AT >= TO_DATE(#{startDate}, 'YYYY-MM-DD')
+            </if>
+            <if test="endDate != null and endDate != ''">
+                AND ACCESSED_AT &lt; TO_DATE(#{endDate}, 'YYYY-MM-DD') + 1
+            </if>
+            <if test="ipAddress != null and ipAddress != ''">
+                AND IP_ADDRESS LIKE '%' || #{ipAddress} || '%'
+            </if>
+        </where>
+        ORDER BY LOG_ID DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+    </select>
+
+</mapper>

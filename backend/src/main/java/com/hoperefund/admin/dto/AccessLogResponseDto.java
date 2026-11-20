@@ -7,7 +7,7 @@ import lombok.Setter;
 @Setter
 public class AccessLogResponseDto {
     /* F-21 (접근 기록 및 failCount) */
-	
+
     private Long accessId; // 접근 기록 고유 ID
     private Long memberId; // 회원 고유 ID
     private String accessedAt; // 접근 시각
