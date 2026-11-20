@@ -8,6 +8,7 @@ import { initial, normalizeTaxData, userService, taxService } from '@/api/servic
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
 import { AUTH_EXPIRED_EVENT, canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
+import { calculationMessage, openNotificationStream } from '@/api/notification-stream.js';
 import { cardTotalsByMethod, fetchCardTotals, simulate } from '@/api/prediction-service.js';
 import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
@@ -96,6 +97,18 @@ export default function App() {
       window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
     };
   }, []);
+  // 서버 알림(SSE · TT-151): 로그인한 동안 연결해 두고, 계산 완료 알림이 오면 토스트로 보여 줘요
+  // 다른 탭에서 계산해도 이 탭에 알림이 와요 · 로그아웃 · 계정 바뀜 · 화면 닫힘이면 연결을 끊어요
+  useEffect(() => {
+    if (!session?.server) return undefined; // 체험(브라우저 저장) 계정은 서버 토큰이 없음
+    return openNotificationStream({
+      onEvent: (event, data) => {
+        if (event !== 'calculation') return;
+        const message = calculationMessage(data);
+        if (message) setToast(message);
+      },
+    });
+  }, [session?.id, session?.server]);
   // 로그인한 계정에 해당하는 입력·거래·이력을 불러옵니다.
   useEffect(() => {
     const fallback = {
