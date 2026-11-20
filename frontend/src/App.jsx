@@ -8,7 +8,11 @@ import { initial, normalizeTaxData, userService, taxService } from '@/api/servic
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
 import { AUTH_EXPIRED_EVENT, canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
-import { calculationMessage, openNotificationStream } from '@/api/notification-stream.js';
+import {
+  calculationMessage,
+  deadlineMessage,
+  openNotificationStream,
+} from '@/api/notification-stream.js';
 import { cardTotalsByMethod, fetchCardTotals, simulate } from '@/api/prediction-service.js';
 import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
@@ -106,8 +110,13 @@ export default function App() {
     if (!session?.server) return undefined; // 체험(브라우저 저장) 계정은 서버 토큰이 없음
     return openNotificationStream({
       onEvent: (event, data) => {
-        if (event !== 'calculation') return;
-        const message = calculationMessage(data);
+        // [수정 11/20 · 이우진 · TT-152] 마감 안내(deadline) 알림도 같은 토스트 · 종 목록에 표시
+        const message =
+          event === 'calculation'
+            ? calculationMessage(data)
+            : event === 'deadline'
+              ? deadlineMessage(data)
+              : null;
         if (!message) return;
         setToast(message);
         setAlerts((prev) =>
