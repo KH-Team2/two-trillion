@@ -29,18 +29,24 @@ export function splitSseBuffer(buffer) {
   return { blocks: parts.filter((p) => p.trim()), rest };
 }
 
-/** 계산 완료 알림(data JSON) → 토스트 문구 · 환급 / 추가 납부를 글자로 구분 (TT-126) · 모양이 다르면 null */
+/**
+ * 계산 완료 알림(data JSON) → 토스트 문구 · 모양이 다르면 null
+ * [수정 11/20 · 이우진 · TT-151] 금액은 문구에 넣지 않음 (강사님 SSE 자료: 알림 문구에 금융 정보 X)
+ * → 알림 목록 · 로그에 금액이 남지 않게 하고, 금액은 눌러서 이동한 대시보드에서 봄
+ */
 export function calculationMessage(data) {
   try {
-    const { taxYear, expectedRefund } = JSON.parse(data);
-    if (!Number.isInteger(taxYear) || typeof expectedRefund !== 'number') return null;
-    const won = Math.abs(expectedRefund).toLocaleString('ko-KR');
-    return expectedRefund >= 0
-      ? `${taxYear}년 계산이 끝났어요. 예상 환급액 ${won}원이에요.`
-      : `${taxYear}년 계산이 끝났어요. 예상 추가 납부액 ${won}원이에요.`;
+    const { taxYear } = JSON.parse(data);
+    if (!Number.isInteger(taxYear)) return null;
+    return `${taxYear}년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.`;
   } catch {
     return null;
   }
+}
+
+/** 마감 안내 알림(TT-152) → 서버가 보낸 글을 그대로 씀 · 비어 있으면 null */
+export function deadlineMessage(data) {
+  return typeof data === 'string' && data.trim() ? data.trim() : null;
 }
 
 /**
