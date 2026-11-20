@@ -217,7 +217,18 @@ export function ExpenseUpload({ rows, meta, onChange }) {
               let nextRows = [...rows],
                 nextFiles = [...files];
               const messages = [];
+              // [추가 11/19 고은] 지원하지 않는 형식 파일 이름을 모아 두는 곳
+              // 이유: 전에는 pdf 등도 파일 목록에 「처리 실패」로 올라가서 업로드된 것처럼 보였음
+              //   → 이제 목록에 넣지 않고, 다 끝난 뒤 alert 창으로 한 번만 알려 줌
+              const rejected = [];
               for (const file of selected) {
+                // [추가 11/19 고은] 확장자(파일 이름 끝 .csv 등) 검사 → 서버에 보내지 않고 건너뜀
+                // /\.(csv|xlsx|xls)$/i : 이름이 .csv · .xlsx · .xls로 끝나는지 (i = 대소문자 구분 안 함)
+                // continue : 이 파일은 여기서 끝내고 다음 파일로 넘어감
+                if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {
+                  rejected.push(file.name);
+                  continue;
+                }
                 const id = Array.from(crypto.getRandomValues(new Uint8Array(16)))
                     .map((n) => n.toString(16).padStart(2, '0'))
                     .join(''),
@@ -260,6 +271,12 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     messages.push(`${file.name}: ${err.message}`);
                     continue;
                   }
+                  // [추가 11/19 고은] 확장자는 맞지만 서버가 읽을 수 없는 양식(UNSUPPORTED_FORMAT)도 목록에 넣지 않음
+                  // 예: 이름만 .csv로 바꾼 파일, 거래일자 · 가맹점명 · 금액 칸을 못 찾는 파일
+                  if (err.code === 'UNSUPPORTED_FORMAT') {
+                    rejected.push(file.name);
+                    continue;
+                  }
                   nextFiles.push({
                     id,
                     name: file.name,
@@ -287,6 +304,12 @@ export function ExpenseUpload({ rows, meta, onChange }) {
               setError(messages.join('\n'));
               input.value = '';
               setBusy(false);
+              // [추가 11/19 고은] 지원하지 않는 파일이 있었으면 알림 창 (여러 개면 이름을 줄바꿈으로 나열)
+              if (rejected.length) {
+                alert(
+                  `지원하지 않는 형식입니다.\nCSV · XLSX · XLS 파일만 올릴 수 있어요.\n\n${rejected.join('\n')}`,
+                );
+              }
             }}
           />
         </label>
