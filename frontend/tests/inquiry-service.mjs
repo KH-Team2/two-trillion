@@ -23,6 +23,9 @@ try {
     answerText,
     formatDateTime,
     CHECKING_MESSAGE,
+    fetchAdminInquiries,
+    answerRequest,
+    updateInquiryAnswer,
   } = await import(pathToFileURL(`${dir}/inquiry.mjs`));
 
   // back 공통 봉투(ApiResponse) 모양 응답을 돌려주는 가짜 fetch · 보낸 요청은 calls에 남겨요
@@ -139,7 +142,65 @@ try {
   assert.equal(formatDateTime('잘못된 값'), '');
   assert.match(formatDateTime('2026-11-20T17:30:00'), /2026/);
 
-  console.log('PASS: inquiry-service 문의 작성 · 목록 · 상세 · 입력 검사 · 401 · 404 · OFFLINE');
+  // ── [추가 11/20] F-18 관리자: 전체 목록 · 확인 중 · 답변 등록 ──
+  calls = [];
+  await fetchAdminInquiries('', { fetchImpl: fakeFetch(200, [], calls) });
+  await fetchAdminInquiries('WAITING', { fetchImpl: fakeFetch(200, [], calls) });
+  await fetchAdminInquiries('HACK', { fetchImpl: fakeFetch(200, [], calls) });
+  assert.deepEqual(
+    calls.map((c) => c.url),
+    ['/api/admin/inquiries', '/api/admin/inquiries?status=WAITING', '/api/admin/inquiries'],
+    '상태가 셋 중 하나일 때만 ?status= 를 붙여요',
+  );
+  // 관리자가 아니면 403 → 서버 문구 그대로
+  await assert.rejects(
+    fetchAdminInquiries('', {
+      fetchImpl: fakeFetch(403, { code: 'FORBIDDEN', message: '권한이 없어요' }, []),
+    }),
+    (e) => e.code === 'FORBIDDEN',
+  );
+
+  assert.deepEqual(answerRequest({ status: 'CHECKING', answer: '무시' }), { status: 'CHECKING' });
+  assert.deepEqual(answerRequest({ status: 'ANSWERED', answer: ' 답변 ' }), {
+    status: 'ANSWERED',
+    answer: '답변',
+  });
+  assert.throws(() => answerRequest({ status: 'ANSWERED', answer: '  ' }), /답변을 입력/);
+  assert.throws(() => answerRequest({ status: 'WAITING' }), /상태/);
+
+  calls = [];
+  await updateInquiryAnswer(
+    5,
+    { status: 'ANSWERED', answer: '처리했어요' },
+    {
+      fetchImpl: fakeFetch(200, null, calls),
+    },
+  );
+  assert.equal(calls[0].url, '/api/admin/inquiries/5/answer');
+  assert.equal(calls[0].init.method, 'PUT');
+  const answerBody = JSON.parse(calls[0].init.body);
+  assert.deepEqual(answerBody, { status: 'ANSWERED', answer: '처리했어요' });
+  assert.equal('adminId' in answerBody, false, '답변자는 토큰에서 정해요');
+  // 이미 답변 완료 → 409 코드 그대로 (화면이 목록을 다시 불러옴)
+  await assert.rejects(
+    updateInquiryAnswer(
+      5,
+      { status: 'CHECKING' },
+      {
+        fetchImpl: fakeFetch(
+          409,
+          { code: 'ALREADY_ANSWERED', message: '이미 답변이 완료된 문의예요' },
+          [],
+        ),
+      },
+    ),
+    (e) => e.code === 'ALREADY_ANSWERED',
+  );
+  assert.throws(() => updateInquiryAnswer('x', { status: 'CHECKING' }), /문의 번호/);
+
+  console.log(
+    'PASS: inquiry-service 문의 작성 · 목록 · 상세 · 입력 검사 · 401 · 404 · OFFLINE · 관리자 목록 · 확인 중 · 답변 · 403 · 409',
+  );
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }

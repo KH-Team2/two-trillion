@@ -3,7 +3,10 @@
 // - GET  /api/inquiries        : 내 문의 목록 (최신순 · 로그인한 회원 것만)
 // - GET  /api/inquiries/{id}   : 내 문의 하나 (남의 문의 · 없는 문의면 404 NOT_FOUND)
 // 회원번호는 보내지 않아요. 서버가 로그인 토큰(JWT)에서 꺼내요 (api-client.js가 토큰을 헤더에 붙임).
-// 관리자 답변(F-18)은 아직 브라우저 체험 데이터(prototype-records.js)를 써요 → F-18 PR에서 연결
+// [추가 11/20] 관리자 답변 (F-18 · F-07-02 · S-08 · D-22) · /api/admin/** 는 관리자(ROLE=ADMIN) 토큰만 통과 (아니면 403)
+// - GET /api/admin/inquiries?status=      : 전체 문의 목록 (최신순 · 상태로 거르기 · 비우면 전체)
+// - PUT /api/admin/inquiries/{id}/answer  : [확인 중] {status:'CHECKING'} · 답변 등록 {status:'ANSWERED', answer}
+//   이미 답변 완료된 문의를 다시 바꾸면 409 ALREADY_ANSWERED
 import { apiError, apiRequest } from './api-client.js';
 
 // 문의 유형 · 처리 상태 코드 → 화면 이름 (서버 · DB 코드값과 같음 · D-12 · D-22)
@@ -60,6 +63,45 @@ export function fetchInquiry(inquiryId, options = {}) {
   }
   return apiRequest(`/api/inquiries/${encodeURIComponent(inquiryId)}`, {
     ...options,
+    offlineMessage: OFFLINE_MESSAGE,
+  });
+}
+
+// ── F-18 관리자 ──
+
+/** [추가 11/20] 관리자용 전체 문의 목록 · status가 비면 전체 */
+export async function fetchAdminInquiries(status = '', options = {}) {
+  // 상태 코드가 셋 중 하나가 아니면 조건 없이(전체) 불러와요
+  const query = INQUIRY_STATUS_LABEL[status] ? `?status=${encodeURIComponent(status)}` : '';
+  const rows = await apiRequest(`/api/admin/inquiries${query}`, {
+    ...options,
+    offlineMessage: OFFLINE_MESSAGE,
+  });
+  return Array.isArray(rows) ? rows : [];
+}
+
+/**
+ * [추가 11/20] 관리자 [확인 중] 처리 · 답변 등록 (서버 InquiryAnswerRequestDto 이름: status · answer)
+ * - CHECKING: 답변 없이 상태만 바꿔요 (문의자 화면에는 「확인 후 답변 드리겠습니다.」)
+ * - ANSWERED: 답변이 꼭 있어야 해요 (서버도 같은 검사 · DB CK_INQUIRY_ANSWER)
+ * 답변자(관리자 번호)는 보내지 않아요. 서버가 로그인 토큰에서 꺼내요.
+ */
+export function answerRequest({ status, answer } = {}) {
+  if (status === 'CHECKING') return { status };
+  if (status !== 'ANSWERED') throw apiError('VALIDATION', '바꿀 상태를 확인해 주세요');
+  const cleanAnswer = String(answer ?? '').trim();
+  if (!cleanAnswer) throw apiError('VALIDATION', '답변을 입력해 주세요');
+  return { status, answer: cleanAnswer };
+}
+
+export function updateInquiryAnswer(inquiryId, form, options = {}) {
+  if (!Number.isInteger(Number(inquiryId)) || Number(inquiryId) <= 0) {
+    throw apiError('VALIDATION', '문의 번호를 확인해 주세요');
+  }
+  return apiRequest(`/api/admin/inquiries/${encodeURIComponent(inquiryId)}/answer`, {
+    ...options,
+    method: 'PUT',
+    body: answerRequest(form),
     offlineMessage: OFFLINE_MESSAGE,
   });
 }
