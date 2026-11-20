@@ -103,10 +103,13 @@ export default function SupportPage({
           <h1>무엇을 도와드릴까요?</h1>
           <p>자주 묻는 질문부터 나의 문의까지, 편하게 확인하세요.</p>
         </div>
-        <Btn onClick={() => setSupportTab('문의 작성')}>
-          <Plus size={16} />
-          문의하기
-        </Btn>
+        {/* [수정 11/20] 문의 작성 탭에서는 버튼을 숨김 · 이유: 이미 작성 화면이라 누를 필요가 없음 */}
+        {supportTab !== '문의 작성' && (
+          <Btn onClick={() => setSupportTab('문의 작성')}>
+            <Plus size={16} />
+            문의하기
+          </Btn>
+        )}
       </div>
       <div className="tabs">
         {['자주 묻는 질문', '문의 내역', '문의 작성'].map((t) => (
