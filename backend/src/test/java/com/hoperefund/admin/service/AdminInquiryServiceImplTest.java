@@ -2,19 +2,27 @@ package com.hoperefund.admin.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.hoperefund.admin.dto.AdminInquiryResponseDto;
+import com.hoperefund.admin.dto.InquiryAnswerRequestDto;
 import com.hoperefund.admin.dto.InquiryCreateRequestDto;
 import com.hoperefund.admin.mapper.AdminInquiryMapper;
+import com.hoperefund.common.exception.BadRequestException;
+import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.common.exception.NotFoundException;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 
 /**
  * AdminInquiryServiceImpl 테스트 (DB 없이) · [신규 11/20]
@@ -71,5 +79,72 @@ class AdminInquiryServiceImplTest {
 
         assertThatThrownBy(() -> adminInquiryService.getInquiryDetail(8L, 10L))
                 .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("관리자 목록: 상태 조건을 매퍼에 그대로 넘긴다")
+    void adminListPassesStatus() {
+        when(adminInquiryMapper.selectAdminInquiryList("WAITING"))
+                .thenReturn(List.of(new AdminInquiryResponseDto()));
+
+        assertThat(adminInquiryService.getAdminInquiryList("WAITING")).hasSize(1);
+    }
+
+    // ── F-18 확인 중 · 답변 등록 ──
+
+    @Test
+    @DisplayName("확인 중: 답변 없이도 상태를 바꾸고 로그인한 관리자 번호를 넘긴다")
+    void checkingUpdatesWithoutAnswer() {
+        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("CHECKING", null);
+        when(adminInquiryMapper.selectInquiryStatus(10L)).thenReturn("WAITING");
+        when(adminInquiryMapper.updateInquiryAnswer(10L, dto, 1L)).thenReturn(1);
+
+        adminInquiryService.updateInquiryAnswer(10L, dto, 1L);
+
+        verify(adminInquiryMapper).updateInquiryAnswer(10L, dto, 1L);
+    }
+
+    @Test
+    @DisplayName("답변 완료: 답변이 비어 있으면 400이고 DB를 건드리지 않는다")
+    void answeredWithoutAnswerThrowsBadRequest() {
+        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("ANSWERED", "  ");
+
+        assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(10L, dto, 1L))
+                .isInstanceOf(BadRequestException.class);
+        verify(adminInquiryMapper, never()).updateInquiryAnswer(anyLong(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("답변: 없는 문의면 404")
+    void answerThrowsNotFoundWhenMissing() {
+        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("ANSWERED", "답변");
+        when(adminInquiryMapper.selectInquiryStatus(99L)).thenReturn(null);
+
+        assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(99L, dto, 1L))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("답변: 이미 답변 완료된 문의면 409")
+    void answerThrowsConflictWhenAlreadyAnswered() {
+        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("CHECKING", null);
+        when(adminInquiryMapper.selectInquiryStatus(10L)).thenReturn("ANSWERED");
+
+        assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(10L, dto, 1L))
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getStatus())
+                .isEqualTo(HttpStatus.CONFLICT);
+        verify(adminInquiryMapper, never()).updateInquiryAnswer(anyLong(), any(), anyLong());
+    }
+
+    @Test
+    @DisplayName("답변: 확인 뒤 다른 관리자가 먼저 답변해 바뀐 행이 0이면 409")
+    void answerThrowsConflictWhenNoRowUpdated() {
+        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("ANSWERED", "답변");
+        when(adminInquiryMapper.selectInquiryStatus(10L)).thenReturn("CHECKING");
+        when(adminInquiryMapper.updateInquiryAnswer(10L, dto, 1L)).thenReturn(0);
+
+        assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(10L, dto, 1L))
+                .isInstanceOf(BusinessException.class);
     }
 }
