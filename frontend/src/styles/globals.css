@@ -962,6 +962,38 @@ footer > span:last-child {
   color: var(--blue);
   font-size: 12px;
 }
+/* [추가 11/20 · TT-151] 실시간 알림 목록 */
+.notification p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.notification-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.notification-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.notification-list button:hover {
+  background: var(--bg);
+}
+.notification-list small {
+  color: var(--muted);
+  font-size: 12px;
+}
 .content {
   padding: 29px 30px 20px;
   max-width: 1600px;
