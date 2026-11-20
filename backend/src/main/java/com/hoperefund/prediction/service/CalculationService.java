@@ -5,6 +5,8 @@ import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.service.IncomeService;
+import com.hoperefund.notification.dto.CalculationNotificationDTO;
+import com.hoperefund.notification.service.NotificationService;
 import com.hoperefund.prediction.client.CalcClient;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
 import com.hoperefund.prediction.dto.CalculationResponseDTO;
@@ -40,6 +42,7 @@ public class CalculationService {
     private final CalcClient calcClient;
     private final PredictionSaveService predictionSaveService;
     private final PredictionMapper predictionMapper;
+    private final NotificationService notificationService; // TT-150 계산 완료 알림
     private final boolean saveEnabled;
 
     // 생성자 주입: @Value는 application.yml의 설정 값을 읽어 넣어 줘요
@@ -48,12 +51,14 @@ public class CalculationService {
             CalcClient calcClient,
             PredictionSaveService predictionSaveService,
             PredictionMapper predictionMapper,
+            NotificationService notificationService,
             @Value("${prediction.save-enabled:false}") boolean saveEnabled,
             @Value("${calc.mode:mock}") String calcMode) {
         this.incomeService = incomeService;
         this.calcClient = calcClient;
         this.predictionSaveService = predictionSaveService;
         this.predictionMapper = predictionMapper;
+        this.notificationService = notificationService;
         boolean realCalc = "http".equals(calcMode);
         if (saveEnabled && !realCalc) {
             log.warn("CALC_MODE가 http가 아니라서(현재 {}) SAVE_ENABLED=true여도 계산 결과를 저장하지 않아요", calcMode);
@@ -92,6 +97,13 @@ public class CalculationService {
                 taxYear,
                 result.getPredictionId(),
                 System.currentTimeMillis() - started);
+
+        // 4. 열려 있는 화면에 계산 완료 알림 (연결이 없으면 아무 일도 안 해요 · 실패해도 계산 결과에는 영향 없음)
+        notificationService.sendToMember(
+                memberId,
+                "calculation",
+                new CalculationNotificationDTO(
+                        taxYear, result.getPredictionId(), result.getExpectedRefund()));
         return result;
     }
 
