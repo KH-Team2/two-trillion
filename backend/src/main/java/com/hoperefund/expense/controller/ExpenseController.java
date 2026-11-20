@@ -8,10 +8,10 @@ import com.hoperefund.expense.service.ExpenseService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,7 +30,10 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>남의 업로드 번호 → 404 NOT_FOUND (없는 것과 같은 응답 · 팀 규칙)
  *
- * <p>회원번호: 로그인 기능이 붙기 전까지는 개발용 헤더 X-Member-Id로 받는다 (업로드 · 소득 API와 같음)
+ * <p>회원번호: 로그인 토큰(JWT)에서 꺼낸다 (@AuthenticationPrincipal · 주소 · 헤더로 받지 않음)
+ *
+ * <p>[수정 11/19 고은] X-Member-Id 헤더 → 로그인 토큰 · 이유: 헤더 숫자만 바꾸면 남의 거래를 보고 지울 수 있었음 (회원
+ * 기능 F-01-02 · 소득 · 계산 API와 같은 방식)
  */
 @RestController
 @RequiredArgsConstructor
@@ -41,7 +44,8 @@ public class ExpenseController {
     /** 업로드 이력 */
     @GetMapping("/api/card-uploads")
     public ApiResponse<List<UploadHistoryDTO>> getUploads(
-            @RequestHeader("X-Member-Id") long memberId) {
+            // [수정 11/19 고은] 로그인 토큰에서 꺼낸 회원번호 (SecurityConfig의 JWT 필터가 넣어 줌)
+            @AuthenticationPrincipal Long memberId) {
         return ApiResponse.ok(expenseService.getUploads(memberId));
     }
 
@@ -52,7 +56,7 @@ public class ExpenseController {
      */
     @GetMapping("/api/expenses")
     public ApiResponse<List<ExpenseItemDTO>> getExpenses(
-            @RequestHeader("X-Member-Id") long memberId,
+            @AuthenticationPrincipal Long memberId,
             @RequestParam(value = "year", required = false) Integer year,
             @RequestParam(value = "uploadId", required = false) Long uploadId) {
         return ApiResponse.ok(expenseService.getExpenses(memberId, year, uploadId));
@@ -61,7 +65,7 @@ public class ExpenseController {
     /** 분류 · 결제수단별 합계 (year 필수 · 없으면 공통 처리기가 400) */
     @GetMapping("/api/expense-totals")
     public ApiResponse<List<ExpenseTotalDTO>> getTotals(
-            @RequestHeader("X-Member-Id") long memberId, @RequestParam("year") int year) {
+            @AuthenticationPrincipal Long memberId, @RequestParam("year") int year) {
         return ApiResponse.ok(expenseService.getTotals(memberId, year));
     }
 
@@ -74,7 +78,7 @@ public class ExpenseController {
      */
     @DeleteMapping("/api/card-uploads/{uploadId}")
     public ResponseEntity<Void> deleteUpload(
-            @RequestHeader("X-Member-Id") long memberId, @PathVariable("uploadId") long uploadId) {
+            @AuthenticationPrincipal Long memberId, @PathVariable("uploadId") long uploadId) {
         expenseService.deleteUpload(memberId, uploadId);
         return ResponseEntity.noContent().build();
     }
