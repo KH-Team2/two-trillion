@@ -38,12 +38,12 @@ export default function Topbar({
       <div>
         <span className="year">{taxYear ?? getTaxYear(data)}년 귀속</span>
         <button
-          className="bell"
+          className={unread > 0 ? 'bell has-unread' : 'bell'}
           aria-label={unread ? `알림 (안 읽은 알림 ${unread}개)` : '알림'}
           onClick={toggle}
         >
           <Bell size={19} />
-          {unread > 0 && <i />}
+          {unread > 0 && <i aria-hidden="true">{unread > 9 ? '9+' : unread}</i>}
         </button>
         <button className="top-profile" onClick={() => go('profile')}>
           <span className="avatar">희</span>
