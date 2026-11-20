@@ -19,6 +19,7 @@ try {
     parseSseBlock,
     splitSseBuffer,
     calculationMessage,
+    deadlineMessage,
     openNotificationStream,
     NOTIFICATION_STREAM_PATH,
   } = await import(pathToFileURL(`${dir}/notification.mjs`));
@@ -35,17 +36,18 @@ try {
   });
   assert.deepEqual(splitSseBuffer('event:a\r\ndata:1\r\n\r\n').blocks, ['event:a\r\ndata:1']);
 
-  // 3. 토스트 문구 · 환급 / 추가 납부 구분
+  // 3. 토스트 문구 · 금액은 넣지 않음 (금융 정보 X)
   assert.equal(
     calculationMessage('{"taxYear":2026,"predictionId":75,"expectedRefund":446240}'),
-    '2026년 계산이 끝났어요. 예상 환급액 446,240원이에요.',
+    '2026년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.',
   );
-  assert.equal(
-    calculationMessage('{"taxYear":2026,"expectedRefund":-12000}'),
-    '2026년 계산이 끝났어요. 예상 추가 납부액 12,000원이에요.',
-  );
+  assert.ok(!calculationMessage('{"taxYear":2026,"expectedRefund":-12000}').includes('12,000'));
   assert.equal(calculationMessage('not json'), null);
-  assert.equal(calculationMessage('{"taxYear":2026}'), null);
+  assert.equal(calculationMessage('{"expectedRefund":1000}'), null);
+
+  // 3-1. 마감 안내 문구 · 빈 글이면 null
+  assert.equal(deadlineMessage(' 마감 7일 전이에요. '), '마감 7일 전이에요.');
+  assert.equal(deadlineMessage(''), null);
 
   // 가짜 저장소 · 가짜 fetch
   const store = new Map();
