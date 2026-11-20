@@ -3,9 +3,50 @@
 //   성공: {"success": true,  "data": {...}, "meta": null, "error": null}        → data만 돌려줘요
 //   실패: {"success": false, "data": null, "error": {"code", "message", "errorId"?}} → code · message를 가진 Error로 바꿔요
 const env = import.meta.env || {};
-// 개발용 회원번호는 개발 서버(npm run dev)에서만 써요.
-// 빌드한 파일에서는 보내지 않아요 → 배포 화면이 모두 같은 회원으로 요청하는 사고 방지
-const devMemberId = env.DEV ? env.VITE_DEV_MEMBER_ID : undefined;
+
+// 로그인 토큰(JWT) 보관 이름 (localStorage · backend/docs/decisions/0004)
+// 로그인 화면 연결 때 로그인 응답의 accessToken을 이 이름으로 저장 · 로그아웃 때 지워요
+// [수정 11/17] 개발용 X-Member-Id 헤더(VITE_DEV_MEMBER_ID) → 로그인 토큰 · 서버가 토큰에서 회원번호를 꺼내요
+export const ACCESS_TOKEN_KEY = 'hope-refund.accessToken';
+
+// 로그인한 회원 정보 보관 이름 (로그인 응답의 loginId · role · expiresAt · 비밀번호 등은 넣지 않음)
+export const LOGIN_MEMBER_KEY = 'hope-refund.loginMember';
+// 토큰이 만료 · 로그아웃되어 서버가 401을 주면 보내는 화면 알림 (App이 로그인 화면으로 이동)
+export const AUTH_EXPIRED_EVENT = 'hope-refund:auth-expired';
+
+/** 저장된 로그인 토큰 (없거나 저장소를 못 쓰면 null) */
+export function readAccessToken() {
+  try {
+    return globalThis.localStorage?.getItem(ACCESS_TOKEN_KEY) || null;
+  } catch {
+    return null; // 사생활 보호 모드 등 저장소를 막은 브라우저
+  }
+}
+
+/** 토큰을 Authorization 헤더 모양으로 (토큰이 없거나 공백 · 줄바꿈이 있으면 빈 객체 → 헤더 끼워넣기 방지) */
+export function bearerHeader(token = readAccessToken()) {
+  return typeof token === 'string' && /^[\w.~+/=-]+$/.test(token)
+    ? { Authorization: `Bearer ${token}` }
+    : {};
+}
+
+/** 저장된 로그인 정보(토큰 · 회원 정보) 지우기 */
+export function clearLogin() {
+  try {
+    globalThis.localStorage?.removeItem(ACCESS_TOKEN_KEY);
+    globalThis.localStorage?.removeItem(LOGIN_MEMBER_KEY);
+  } catch {
+    // 저장소를 못 쓰는 브라우저 → 지울 것도 없음
+  }
+}
+
+/** 보낸 토큰이 거절됨(401) → 로그인 정보를 지우고 화면에 알림 */
+export function expireLogin() {
+  clearLogin();
+  if (typeof globalThis.dispatchEvent === 'function') {
+    globalThis.dispatchEvent(new Event(AUTH_EXPIRED_EVENT));
+  }
+}
 
 // 서버에 연결할 수 없을 때(OFFLINE) 체험용 계산으로 대신 보여 줘도 되는지.
 // 개발 서버(npm run dev)에서만 허용해요 → 백엔드 없이 화면만 띄워 개발할 수 있게.
@@ -30,15 +71,19 @@ export function apiError(code, message, errorId) {
  * - 서버에 연결할 수 없거나 응답이 JSON이 아니면 code 'OFFLINE' 오류를 던져요.
  * - 성공이면 봉투 안의 data만 돌려줘요.
  * - 오류 응답이면 서버가 준 error.code · error.message를 그대로 써요 (스택 트레이스 등은 화면에 띄우지 않아요).
+ * - 로그인 토큰이 있으면 Authorization: Bearer 헤더로 보내요 (없으면 서버가 401 UNAUTHORIZED).
  */
 export async function apiRequest(
   path,
-  { method = 'GET', body, fetchImpl = globalThis.fetch, memberId, offlineMessage } = {},
+  { method = 'GET', body, fetchImpl = globalThis.fetch, accessToken, offlineMessage } = {},
 ) {
-  const id = memberId ?? devMemberId;
-  const headers = { Accept: 'application/json' };
-  if (id && /^\d+$/.test(String(id))) headers['X-Member-Id'] = String(id);
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  // 토큰에 공백 · 줄바꿈이 있으면 헤더에 넣지 않아요 (깨진 값 · 헤더 끼워넣기 방지) → 서버가 401
+  const headers = { Accept: 'application/json', ...bearerHeader(accessToken ?? readAccessToken()) };
+  // [수정 11/17 고은] 파일(FormData)이면 JSON으로 바꾸지 않고 그대로 보냄
+  // 이유: 카드 파일 업로드(POST /api/card-uploads)는 multipart 요청이라 JSON으로 보낼 수 없음
+  //   · FormData일 때는 Content-Type을 직접 넣지 않음 → 브라우저가 파일 경계값(boundary)까지 넣어 줌
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body !== undefined && !isForm) headers['Content-Type'] = 'application/json';
   const offline = offlineMessage || '서버에 연결할 수 없어요.';
 
   let response;
@@ -47,11 +92,16 @@ export async function apiRequest(
       method,
       headers,
       credentials: 'same-origin',
-      body: body === undefined ? undefined : JSON.stringify(body),
+      // [수정 11/17 고은] FormData는 그대로 · 나머지는 지금처럼 JSON 글자로 바꿈
+      body: body === undefined ? undefined : isForm ? body : JSON.stringify(body),
     });
   } catch {
     throw apiError('OFFLINE', offline);
   }
+  // [수정 11/17 고은] 204(성공 · 본문 없음)면 JSON을 읽지 않고 바로 null을 돌려줌
+  // 이유: 업로드 삭제(DELETE /api/card-uploads/{id})는 성공하면 204로 빈 응답을 줌
+  //   → 그대로 JSON을 읽으면 실패해서 아래에서 「서버에 연결할 수 없어요(OFFLINE)」로 잘못 처리됨
+  if (response.status === 204) return null;
   let json = null;
   try {
     json = await response.json();
@@ -65,6 +115,8 @@ export async function apiRequest(
   }
   if (!response.ok || !json.success) {
     const err = json.error || {};
+    // 토큰을 보냈는데 401 → 만료 · 로그아웃된 토큰 → 로그인 화면으로 (토큰 없이 보낸 체험 요청은 그대로 오류만)
+    if (response.status === 401 && headers.Authorization) expireLogin();
     throw apiError(
       err.code || `HTTP_${response.status}`,
       err.message || '잠시 후 다시 시도해 주세요.',

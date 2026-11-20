@@ -63,11 +63,10 @@ export default function Sidebar({
           <span>
             <b>{data.name}</b>
             <small>
-              {admin
-                ? '관리자 · 브라우저 시연'
-                : session
-                  ? '일반 회원 · 브라우저 시연'
-                  : '비로그인 체험'}
+              {/* [수정 11/17] 서버 로그인 회원은 「브라우저 시연」 표시 안 함 (빠른 체험만 표시) */}
+              {session
+                ? `${admin ? '관리자' : '일반 회원'}${accountService.isDemo() ? ' · 체험' : ''}`
+                : '비로그인 체험'}
             </small>
           </span>
           <ChevronDown size={15} />

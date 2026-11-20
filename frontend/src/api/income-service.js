@@ -39,6 +39,31 @@ export function incomeRequest(d) {
   };
 }
 
+/**
+ * 서버에 저장된 소득(IncomeResponseDTO) → 화면 입력값 이름 (incomeRequest의 반대).
+ * 시뮬레이션을 서버에 저장된 값에서 시작하게 할 때 써요 (브라우저 입력값과 다를 수 있음).
+ * 서버 값이 숫자가 아니면 그 칸은 넣지 않아요 (화면 값 유지).
+ */
+export function incomeToInput(saved) {
+  const out = {};
+  const put = (key, value) => {
+    if (Number.isFinite(value)) out[key] = value;
+  };
+  put('salary', saved?.totalSalary);
+  put('paid', saved?.withheldTax);
+  put('nationalPension', saved?.nationalPension);
+  put('healthEmploymentInsurance', saved?.healthInsurance);
+  put('family', saved?.dependents);
+  put('children', saved?.children);
+  put('rent', saved?.monthlyRent);
+  put('housingSaving', saved?.housingSaving);
+  put('pensionSaving', saved?.pensionSaving);
+  put('irp', saved?.irpSaving);
+  const sme = { Y: '예', N: '아니요' }[saved?.smeReductionYn];
+  if (sme) out.sme = sme;
+  return out;
+}
+
 /** 소득 저장 (PUT) */
 export function saveIncome(d, options = {}) {
   const taxYear = getTaxYear(d);

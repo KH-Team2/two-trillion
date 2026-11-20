@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 회원(MEMBER) SQL · 값은 #{}로만 넣는다 -->
+<mapper namespace="com.hoperefund.member.mapper.MemberMapper">
+
+    <!-- 아이디 중복 확인 -->
+    <select id="countByLoginId" resultType="int">
+        SELECT COUNT(*)
+          FROM MEMBER
+         WHERE LOGIN_ID = #{loginId}
+    </select>
+
+    <!-- 이메일 중복 확인 -->
+    <select id="countByEmail" resultType="int">
+        SELECT COUNT(*)
+          FROM MEMBER
+         WHERE EMAIL = #{email}
+    </select>
+
+    <!--
+        회원 저장
+        - 기본값이 있는 칸(MILITARY_MONTHS · HOMELESS_HEAD_YN · ROLE · STATUS · CREATED_AT · LOGIN_FAIL_COUNT)은 넣지 않는다.
+        - 동의 시각 · 수정일은 서버 시각(SYSDATE)으로 기록한다.
+        - TODO: Schema.sql에 MEMBER_ID 시퀀스가 없어 MAX + 1로 번호를 정한다. 시퀀스가 생기면 교체한다.
+    -->
+    <insert id="insertMember" parameterType="com.hoperefund.member.dto.MemberInsertDTO">
+        <selectKey keyProperty="memberId" resultType="long" order="BEFORE">
+            SELECT NVL(MAX(MEMBER_ID), 0) + 1 FROM MEMBER
+        </selectKey>
+        INSERT INTO MEMBER (
+            MEMBER_ID,
+            LOGIN_ID,
+            EMAIL,
+            PASSWORD,
+            BIRTH_DATE,
+            GENDER,
+            UPDATED_AT,
+            TERMS_AGREED_AT,
+            PRIVACY_AGREED_AT,
+            FINANCE_AGREED_AT,
+            TERMS_VERSION,
+            PRIVACY_VERSION,
+            FINANCE_VERSION,
+            EMAIL_VERIFIED_YN,
+            DATA_ORIGIN
+        ) VALUES (
+            #{memberId},
+            #{loginId},
+            #{email},
+            #{password},
+            #{birthDate},
+            #{gender},
+            SYSDATE,
+            SYSDATE,
+            SYSDATE,
+            SYSDATE,
+            #{termsVersion},
+            #{privacyVersion},
+            #{financeVersion},
+            #{emailVerifiedYn},
+            #{dataOrigin}
+        )
+    </insert>
+
+    <!--
+        로그인: 아이디로 회원 조회 (아이디는 소문자로 바꾼 값)
+        - 잠금 여부는 DB 시각(SYSDATE)으로 계산한다 (잠금 시각도 DB 시각으로 저장 → 서버 · DB 시간이 달라도 어긋나지 않음)
+    -->
+    <select id="selectLoginMember" resultType="com.hoperefund.member.dto.LoginMemberDTO">
+        SELECT MEMBER_ID,
+               LOGIN_ID,
+               PASSWORD,
+               ROLE,
+               STATUS,
+               LOGIN_FAIL_COUNT,
+               CASE WHEN LOCKED_UNTIL > SYSDATE THEN 'Y' ELSE 'N' END AS LOCKED_YN
+          FROM MEMBER
+         WHERE LOGIN_ID = #{loginId}
+    </select>
+
+    <!--
+        로그인 실패: 한 문장으로 처리해 동시에 틀려도 횟수가 빠지지 않게 한다
+        - SET의 오른쪽은 모두 바꾸기 전 값을 쓴다 (Oracle)
+        - maxFailCount번째 실패: LOCKED_UNTIL = 지금 + lockMinutes분 · 횟수 0
+    -->
+    <update id="increaseLoginFail">
+        UPDATE MEMBER
+           SET LOCKED_UNTIL = CASE WHEN LOGIN_FAIL_COUNT + 1 >= #{maxFailCount}
+                                   THEN SYSDATE + NUMTODSINTERVAL(#{lockMinutes}, 'MINUTE')
+                                   ELSE LOCKED_UNTIL END,
+               LOGIN_FAIL_COUNT = CASE WHEN LOGIN_FAIL_COUNT + 1 >= #{maxFailCount}
+                                       THEN 0
+                                       ELSE LOGIN_FAIL_COUNT + 1 END
+         WHERE MEMBER_ID = #{memberId}
+    </update>
+
+    <!-- 로그인 성공: 실패 횟수 · 잠금 초기화 -->
+    <update id="resetLoginFail">
+        UPDATE MEMBER
+           SET LOGIN_FAIL_COUNT = 0,
+               LOCKED_UNTIL = NULL
+         WHERE MEMBER_ID = #{memberId}
+    </update>
+
+</mapper>

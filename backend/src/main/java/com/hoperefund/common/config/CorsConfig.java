@@ -19,8 +19,9 @@ public class CorsConfig implements WebMvcConfigurer {
         registry.addMapping("/api/**") // /api/로 시작하는 API에 적용
                 .allowedOrigins("http://localhost:5173") // 요청을 허용할 React 주소
                 .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS") // 허용할 HTTP 요청 방식
-                .allowedHeaders(
-                        "Content-Type", "Authorization", "X-Member-Id") // 	브라우저에서 전송할 수 있는 요청 헤더
+                // 브라우저에서 전송할 수 있는 요청 헤더 (Authorization: 로그인 토큰)
+                // [수정 11/17] X-Member-Id 삭제 · 회원번호는 로그인 토큰에서 꺼냄
+                .allowedHeaders("Content-Type", "Authorization")
                 .allowCredentials(true) // 	쿠키 등 인증 정보가 포함된 요청 허용
                 .maxAge(3600); // 	CORS 사전 요청 결과를 일정 시간 캐시
     }

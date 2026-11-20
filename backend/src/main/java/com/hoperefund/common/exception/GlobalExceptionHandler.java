@@ -34,7 +34,8 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
  *
  * <p>남의 데이터 요청은 403이 아니라 404(없는 것과 같은 응답)로 보낸다 — 번호를 바꿔 가며 남의 데이터가 있는지 알아낼 수 없게.
  *
- * <p>TODO: 인증·권한(Spring Security) 적용 후 401 · 403 처리 정리
+ * <p>토큰 검사(401 UNAUTHORIZED) · 권한(403 FORBIDDEN) 오류는 Controller 앞 필터에서 나서 여기로 오지 않는다 →
+ * common/config/SecurityConfig가 같은 봉투로 응답한다.
  */
 @RestControllerAdvice // 여러 Controller에서 발생한 예외를 공통 처리
 public class GlobalExceptionHandler {
@@ -42,6 +43,21 @@ public class GlobalExceptionHandler {
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
     // ---------- 업무 오류 (service에서 던지는 예외) ----------
+
+    // 상태 · 코드를 직접 정해 던지는 업무 오류 (예: 회원가입 DUPLICATE_LOGIN_ID 409 · UNDER_AGE 400)
+    // 서버 쪽 상태(5xx)면 문구는 숨기고 SERVER_ERROR + errorId (ResponseStatusException과 같은 기준)
+    @ExceptionHandler(BusinessException.class)
+    public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e) {
+        HttpStatus status = e.getStatus();
+        if (status.is5xxServerError()) {
+            String errorId = newErrorId();
+            log.error("[errorId={}] 업무 처리 서버 오류 ({})", errorId, e.getCode(), e);
+            return ResponseEntity.status(status)
+                    .body(ApiResponse.fail("SERVER_ERROR", "잠시 후 다시 시도해 주세요.", errorId));
+        }
+        log.warn("업무 규칙 오류: {} ({})", e.getCode(), status.value());
+        return ResponseEntity.status(status).body(ApiResponse.fail(e.getCode(), e.getMessage()));
+    }
 
     // 입력값 규칙 위반 (예: 자녀 수 > 부양가족 수) — @Valid 실패와 같은 코드 VALIDATION
     @ExceptionHandler(BadRequestException.class)
@@ -124,12 +140,14 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.fail("VALIDATION", "요청 값 형식이 올바르지 않아요"));
     }
 
-    // 회원번호 헤더(X-Member-Id)가 없는 요청 — 로그인 적용 전까지의 처리
+    // 꼭 필요한 요청 헤더가 없는 요청 → 400
+    // [수정 11/17] 회원번호를 X-Member-Id 헤더 대신 로그인 토큰에서 꺼내게 되어 401 → 400
+    //   (로그인 안 한 요청의 401은 SecurityConfig가 Controller 전에 응답)
     @ExceptionHandler(MissingRequestHeaderException.class)
     public ResponseEntity<ApiResponse<Void>> handleMissingHeader(MissingRequestHeaderException e) {
-        log.warn("회원 정보 없는 요청 (헤더 {} 없음)", e.getHeaderName());
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED) // 401
-                .body(ApiResponse.fail("UNAUTHORIZED", "로그인이 필요해요"));
+        log.warn("필요한 요청 헤더 없음 ({})", e.getHeaderName());
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST) // 400
+                .body(ApiResponse.fail("VALIDATION", "요청 값 형식이 올바르지 않아요"));
     }
 
     // 존재하지 않는 정적 리소스 또는 API 경로

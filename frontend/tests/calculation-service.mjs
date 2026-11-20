@@ -26,7 +26,9 @@ try {
     bundle: true,
     logLevel: 'silent',
   });
-  const { incomeRequest, fetchIncome } = await import(pathToFileURL(`${dir}/income.mjs`));
+  const { incomeRequest, fetchIncome, incomeToInput } = await import(
+    pathToFileURL(`${dir}/income.mjs`)
+  );
   await build({
     entryPoints: ['src/api/api-client.js'],
     outfile: `${dir}/client.mjs`,
@@ -131,7 +133,7 @@ try {
       ],
       calls,
     ),
-    memberId: '1',
+    accessToken: 'header.payload.sig',
   });
   assert.equal(calls.length, 2);
   assert.equal(calls[0].url, '/api/incomes/2025');
@@ -141,7 +143,7 @@ try {
   assert.equal(calls[1].url, '/api/calculations/2025');
   assert.equal(calls[1].method, 'POST');
   assert.equal(calls[1].body, undefined);
-  assert.equal(calls[1].headers['X-Member-Id'], '1');
+  assert.equal(calls[1].headers.Authorization, 'Bearer header.payload.sig'); // [수정 11/17] X-Member-Id → 로그인 토큰
   assert.equal(result.expectedRefund, 435500);
   assert.equal(result.predictionId, 7); // 저장된 결과 번호를 버리지 않음 (결과 이력 · 다시 열기용)
   assert.equal(result.details[0].typeCode, 'EARNED_DEDUCTION');
@@ -220,16 +222,44 @@ try {
     requestCalculation(2025, { fetchImpl: fakeSeq([[200, { ...ok, decidedTax: null }]]) }),
     /decidedTax/,
   );
-  // 잘못된 연도 · 숫자 아닌 회원번호
+  // 잘못된 연도 · 깨진 토큰(공백 · 줄바꿈)
   await assert.rejects(requestCalculation(1999), (e) => e.code === 'VALIDATION');
   const seenBad = [];
-  await requestCalculation(2025, { fetchImpl: fakeSeq([[200, ok]], seenBad), memberId: '1; DROP' });
-  assert.equal(seenBad[0].headers['X-Member-Id'], undefined);
+  await requestCalculation(2025, {
+    fetchImpl: fakeSeq([[200, ok]], seenBad),
+    accessToken: 'a b\r\nX-Admin: 1',
+  });
+  assert.equal(seenBad[0].headers.Authorization, undefined);
   // 소득 조회 (GET)
   const getCalls = [];
   await fetchIncome(2025, { fetchImpl: fakeSeq([[200, { taxYear: 2025 }]], getCalls) });
   assert.equal(getCalls[0].method, 'GET');
   assert.equal(getCalls[0].url, '/api/incomes/2025');
+
+  // 서버 소득 → 화면 입력값 (시뮬레이션 출발값) · incomeRequest와 왕복하면 같은 값
+  const saved = {
+    taxYear: 2025,
+    totalSalary: 36000000,
+    withheldTax: 1523000,
+    nationalPension: 1620000,
+    healthInsurance: 1400000,
+    dependents: 2,
+    children: 1,
+    monthlyRent: 500000,
+    housingSaving: 1200000,
+    pensionSaving: 3000000,
+    irpSaving: 1000000,
+    smeReductionYn: 'N',
+  };
+  const back = incomeToInput(saved);
+  assert.equal(back.nationalPension, 1620000);
+  assert.equal(back.healthEmploymentInsurance, 1400000);
+  assert.equal(back.sme, '아니요');
+  assert.equal(incomeToInput({ smeReductionYn: 'Y' }).sme, '예');
+  const { taxYear, ...savedFields } = saved;
+  assert.deepEqual(incomeRequest(back), savedFields);
+  // 숫자가 아닌 칸은 넣지 않음 (화면 값 유지)
+  assert.deepEqual(incomeToInput({ totalSalary: null, smeReductionYn: '확인 필요' }), {});
 
   console.log(
     'PASS: 소득 저장 · 세액 계산 API 연결 · 저장 후 계산 순서 · 오류 코드 · 연결 실패 · 응답 검사',

@@ -8,8 +8,7 @@ function mergeCardLimitRows(details) {
 
   for (const item of details) {
     const isNegativeCardLimit =
-      item.typeCode?.startsWith('CARD_LIMIT_') &&
-      item.deductionAmount < 0;
+      item.typeCode?.startsWith('CARD_LIMIT_') && item.deductionAmount < 0;
 
     // 일반 공제 항목은 원래 순서대로 유지
     if (!isNegativeCardLimit) {
@@ -35,9 +34,7 @@ function mergeCardLimitRows(details) {
     // 각 항목의 계산 근거도 보존
     if (item.sourceNote) {
       mergedRow.sourceNote = [
-        ...new Set(
-          [mergedRow.sourceNote, item.sourceNote].filter(Boolean),
-        ),
+        ...new Set([mergedRow.sourceNote, item.sourceNote].filter(Boolean)),
       ].join(' / ');
     }
   }
@@ -90,16 +87,19 @@ export default function DeductionDetails({ details = [], calculationConnected = 
 
                 // 카드 공제 한도 초과분은 음수일 때 이름 변경
                 const displayName =
-                  item.typeCode?.startsWith('CARD_LIMIT_') &&
-                  item.deductionAmount < 0
+                  item.typeCode?.startsWith('CARD_LIMIT_') && item.deductionAmount < 0
                     ? '카드 공제 한도 초과분'
                     : item.typeName;
 
                 return (
-                    <tr key={`${item.typeCode}-${index}`}>
-                      <th scope="row">{displayName}</th>
+                  <tr key={`${item.typeCode}-${index}`}>
+                    <th scope="row">{displayName}</th>
                     <td>
-                      {calculationConnected ? item.isMergedCardLimit ? '—' : `${money(item.baseAmount)}원` : '계산 연동 필요'}
+                      {calculationConnected
+                        ? item.isMergedCardLimit
+                          ? '—'
+                          : `${money(item.baseAmount)}원`
+                        : '계산 연동 필요'}
                     </td>
                     <td>
                       <b className={calculationConnected && negative ? 'negative-amount' : ''}>
@@ -114,7 +114,7 @@ export default function DeductionDetails({ details = [], calculationConnected = 
                         <div
                           className="deduction-signed-track"
                           role="img"
-                          aria-label={`${displayName} 공제액 ${item.deductionAmount}원`}
+                          aria-label={`${displayName} 공제액 ${money(item.deductionAmount)}원`}
                         >
                           <span
                             style={{

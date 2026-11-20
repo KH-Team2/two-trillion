@@ -1,5 +1,5 @@
--- 계정_2_계산서버_권한.sql · 계산 서버 계정에 기준값 3개 읽기 권한 (DB 관리자 계정으로 · 02까지 끝난 뒤 실행)
--- 계산 서버는 DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION만 읽어요 → 이 3개만 SELECT
+-- 계정_2_계산서버_권한.sql · 계산 서버 계정에 기준값 3개 · 분류 목록 2개 읽기 권한 (DB 관리자 계정으로 · 02까지 끝난 뒤 실행)
+-- 계산 서버는 DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION · MERCHANT_LIST · SPEND_CATEGORY만 읽어요 → 이 5개만 SELECT
 -- 계산 서버 코드가 테이블 이름만 쓰기 때문에 동의어로 주인 계정 테이블에 연결 (코드 수정 없음)
 -- 나중에 계산 서버가 다른 테이블을 읽게 되면 그 테이블도 GRANT SELECT + CREATE SYNONYM 추가 (안 하면 ORA-00942)
 
@@ -11,10 +11,15 @@ ACCEPT calc_user  CHAR PROMPT 'Calc account name: '
 GRANT SELECT ON &owner_user..DEDUCTION_TYPE    TO &calc_user;
 GRANT SELECT ON &owner_user..TAX_BRACKET       TO &calc_user;
 GRANT SELECT ON &owner_user..BENEFIT_CONDITION TO &calc_user;
+-- 카드 파일 분류 (POST /card/parse · 11/17 추가)
+GRANT SELECT ON &owner_user..MERCHANT_LIST     TO &calc_user;
+GRANT SELECT ON &owner_user..SPEND_CATEGORY    TO &calc_user;
 
 CREATE SYNONYM &calc_user..DEDUCTION_TYPE    FOR &owner_user..DEDUCTION_TYPE;
 CREATE SYNONYM &calc_user..TAX_BRACKET       FOR &owner_user..TAX_BRACKET;
 CREATE SYNONYM &calc_user..BENEFIT_CONDITION FOR &owner_user..BENEFIT_CONDITION;
+CREATE SYNONYM &calc_user..MERCHANT_LIST     FOR &owner_user..MERCHANT_LIST;
+CREATE SYNONYM &calc_user..SPEND_CATEGORY    FOR &owner_user..SPEND_CATEGORY;
 
 -- 확인 (계산 서버 계정으로 새로 접속):
 --   SELECT COUNT(*) FROM TAX_BRACKET;          → 숫자

@@ -1,12 +1,14 @@
 """FastAPI 시작 · 계산 서버 (Spring 서버만 부름).
 
 실행: python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000 (calc/.env를 읽음)
+CALC_API_TOKEN이 비어 있으면 서버가 시작되지 않는다 (lifespan)
 /docs(자동 API 문서)는 꺼 둔다 (Spring 서버만 부르는 내부 서버라 밖에 요청 모양을 보이지 않게)
 오류 응답은 {"error", "message"} 모양 · 원인(스택 트레이스·DB 정보)은 서버 로그에만.
 """
 
 import logging
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
@@ -14,8 +16,12 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException
 
-from app.api import benefit, calculate
+# [수정 11/13 고은] card 추가 · 이유: 카드 파일 해석 API(POST /card/parse)를 서버에 연결하려고
+from app.api import benefit, calculate, card
 from app.api.health import router as health_router
+
+# [수정 11/13 고은] CardParseError 추가 · 이유: 파일 오류를 400 응답으로 바꾸는 처리기(아래)에서 씀
+from app.card.parser import CardParseError
 from app.services.errors import NoCriteriaError
 
 load_dotenv()
@@ -29,14 +35,25 @@ if not log.handlers:
     )
     log.addHandler(_handler)
     log.setLevel(logging.INFO)
-if not os.environ.get("CALC_API_TOKEN"):
-    log.error(
-        "CALC_API_TOKEN이 비어 있어요. .env에 넣기 전까지 모든 계산 요청을 막아요"
-    )
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    """서버 시작 때 토큰 확인 · 비어 있으면 시작하지 않는다 (backend의 CALC_MODE=http와 같은 규칙).
+
+    기본 토큰 값을 두지 않는 이유: 저장소가 공개라 기본값은 누구나 알 수 있음.
+    요청마다 하는 확인(deps.check_token)도 그대로 둔다 (실행 중에 값이 빠져도 닫힌 쪽으로 실패).
+    """
+    if not os.environ.get("CALC_API_TOKEN"):
+        log.error("CALC_API_TOKEN이 비어 있어 서버를 시작하지 않아요 (calc/.env 확인)")
+        raise RuntimeError("CALC_API_TOKEN is not set")
+    yield
+
 
 app = FastAPI(
     title="희망환급 Calc API",
     version="0.1.0",
+    lifespan=lifespan,
     docs_url=None,
     redoc_url=None,
     openapi_url=None,
@@ -45,6 +62,8 @@ app = FastAPI(
 app.include_router(health_router)
 app.include_router(calculate.router)
 app.include_router(benefit.router)
+# [수정 11/13 고은] 카드 파일 해석 API 연결 (F-07 · F-08)
+app.include_router(card.router)
 
 
 def _error(status: int, error: str, message: str) -> JSONResponse:
@@ -56,6 +75,20 @@ def _error(status: int, error: str, message: str) -> JSONResponse:
 @app.exception_handler(NoCriteriaError)
 def no_criteria(_: Request, e: NoCriteriaError) -> JSONResponse:
     return _error(400, "NO_CRITERIA", e.message)
+
+
+# [수정 11/13 고은] 카드 파일 오류 처리기 추가
+# 이유: 파일 오류는 백엔드가 화면에 보여 줄 「문제 있는 행 번호(errorRows)」까지 필요해서
+#       공통 _error()({"error", "message"})에 errorRows 칸을 하나 더 붙여 보냄
+#       (백엔드 CardParseClient.CalcError가 이 모양을 읽음)
+@app.exception_handler(CardParseError)
+def card_parse_error(_: Request, e: CardParseError) -> JSONResponse:
+    # 오류 코드 · 행 수만 남기고 파일 내용은 남기지 않음
+    log.warning("카드 파일 오류 %s rows=%s", e.code, len(e.error_rows))
+    return JSONResponse(
+        status_code=400,
+        content={"error": e.code, "message": e.message, "errorRows": e.error_rows},
+    )
 
 
 @app.exception_handler(RequestValidationError)

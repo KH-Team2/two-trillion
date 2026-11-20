@@ -56,7 +56,7 @@
 
 ## 소비 유형 표 복구 후 표시 경계
 
-대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 향후 시뮬레이션 API 연결 시에도 해당 컴포넌트에 실제 연결 상태를 전달해야 합니다.
+대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 시뮬레이션 비교 화면도 서버 결과일 때 같은 방식으로 실제 연결 상태를 전달합니다 (TT-105).
 
 ## 백엔드 API 연결 흐름 — 세액 계산·진단 파트 (F-02-01 · F-03-01 · F-03-02)
 
@@ -65,6 +65,7 @@
 - 이 파트의 상세 기록: [`api_integ_logs/TT-11_소득입력_계산_혜택진단.md`](api_integ_logs/TT-11_소득입력_계산_혜택진단.md)
 - 결과 대시보드(F-06-01)의 상세 기록: [`api_integ_logs/TT-14_대시보드_저장결과조회.md`](api_integ_logs/TT-14_대시보드_저장결과조회.md)
 - 그룹 비교 통계(F-06-02)의 상세 기록: [`api_integ_logs/TT-14_그룹비교통계.md`](api_integ_logs/TT-14_그룹비교통계.md)
+- 조건 변경 시뮬레이션 · 결과 이력(F-04-01 · F-04-02)의 상세 기록: [`api_integ_logs/TT-105_시뮬레이션_결과이력.md`](api_integ_logs/TT-105_시뮬레이션_결과이력.md)
 
 그 밖의 세부 사항은 아래 원본을 봅니다.
 
@@ -73,13 +74,15 @@
 | 응답 봉투 · 오류 코드 | `backend/docs/api-rules.md` |
 | 화면 값 → 서버 이름 (소득 저장) | `src/api/income-service.js`의 `incomeRequest()` |
 | 계산 결과 응답 검사 | `src/api/calculation-contract.js`의 `parseCalculationResult()` |
-| 개발용 설정 (`VITE_API_PROXY` · `VITE_DEV_MEMBER_ID`) | `.env.example` · `vite.config.js` |
+| 개발용 설정 (`VITE_API_PROXY`) | `.env.example` · `vite.config.js` |
+| 로그인 토큰 보관 이름 (`ACCESS_TOKEN_KEY`) | `src/api/api-client.js` |
 
 ### 공통
 
 - 모든 호출은 `src/api/api-client.js`의 `apiRequest()`를 거칩니다. 성공이면 응답 봉투의 `data`만 돌려주고, 실패면 서버의 `error.code` · `error.message`를 가진 오류를 던집니다.
 - 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 체험용 계산 · 판정으로 대신하는 것은 개발 서버(`npm run dev`)에서만이고(`canUseDemo`), 빌드한 파일(배포본)은 연결 실패 안내만 보여 줍니다.
-- 로그인(Spring Security) 연결 전까지 개발 서버에서만 `X-Member-Id` 헤더를 보냅니다.
+- 회원 구분: localStorage의 로그인 토큰(`hope-refund.accessToken`)을 `Authorization: Bearer` 헤더로 보냅니다. 서버가 토큰에서 회원번호를 꺼냅니다. 토큰이 없으면 서버가 401 `UNAUTHORIZED`를 줍니다 (2026-11-17 · `X-Member-Id` 헤더 없앰).
+- 로그인(`accountService.login` → `POST /api/auth/login`)이 토큰을 저장합니다 (2026-11-17). 보낸 토큰이 401이면 `expireLogin()`이 토큰을 지우고 `App`이 로그인 화면으로 보냅니다. 빠른 체험은 토큰이 없어 회원 API가 401입니다.
 
 ### 소득 저장 · 세액 계산 (F-02-01 · F-03-01)
 
@@ -115,7 +118,18 @@
 - 응답의 `eligible`은 `true`(해당) · `false`(비해당) · `null`(정보 부족) 세 값을 그대로 보여 주고, 화면에서 다른 값으로 바꾸지 않습니다.
 - 판정은 서버에 저장된 회원 정보로 합니다. 화면의 「나의 자격 정보」는 아직 브라우저 입력값이라, 두 값이 다를 수 있다는 안내를 함께 보여 줍니다.
 
+### 조건 변경 시뮬레이션 · 결과 이력 (F-04-01 · F-04-02)
+
+가상 입력 화면에서 계산 → `src/api/prediction-service.js`의 `simulate()` → `POST /api/simulations/{taxYear}` → 비교 화면
+
+- 출발값은 서버에 저장된 소득(`GET /api/incomes/{taxYear}`)입니다. 없거나 연결이 안 되면 브라우저 입력값으로 시작합니다.
+- 기준 결과는 시뮬레이션을 시작할 때 대시보드에 보이던 서버 계산 결과(`predictionId`)입니다. 없으면 요청하지 않고 「먼저 기존 정보로 계산해 주세요」를 띄웁니다 (개발 서버에서만 체험용 비교).
+- 요청 본문은 바꾼 값만이 아니라 입력값 전부입니다: 소득(`incomeRequest()` 재사용) · 무주택 세대주(`homelessHeadYn()`) · 카드 사용액(`cardSpends()`, 분류 × 결제수단 합계).
+- 비교 화면은 서버 결과가 있으면 기존 · 변경 후 모두 서버 값, 없으면 모두 체험용 계산입니다. 두 쪽을 섞지 않습니다.
+- 비교 화면 아래 결과 이력: `fetchPredictions(taxYear)` → `GET /api/predictions?year=` · 「열기」 → `fetchPrediction(id)` → `GET /api/predictions/{id}`.
+
 ### 아직 연결 안 된 부분
 
-- 시뮬레이션(비교 화면): 체험 계산 그대로입니다. 계산 API가 저장된 소득으로만 계산하므로 「저장하지 않는 계산 API」가 따로 필요합니다.
 - 카드 사용액: 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다.
+- 시뮬레이션의 무주택 세대주: 기존 결과는 회원 정보(`MEMBER`), 시뮬레이션은 화면 입력값이라 두 값이 다르면 월세 · 청약 공제가 다르게 나올 수 있습니다.
+- 시뮬레이션의 카드 사용액: 기존 결과는 서버 `EXPENSE`로, 시뮬레이션은 화면의 업로드 거래 + 가상 추가액으로 계산합니다. 업로드가 `EXPENSE`에 저장되기 전에는 조건을 안 바꿔도 카드 공제가 다르게 나올 수 있습니다.

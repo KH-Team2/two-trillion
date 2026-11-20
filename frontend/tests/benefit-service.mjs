@@ -68,9 +68,14 @@ try {
 
   // 정상 응답: 상태 3가지를 그대로 유지
   const seen = {};
-  const result = await fetchBenefits(2026, { fetchImpl: fake(200, ok, seen), memberId: '1' });
+  const result = await fetchBenefits(2026, {
+    fetchImpl: fake(200, ok, seen),
+    accessToken: 'header.payload.sig-1',
+  });
   assert.equal(seen.url, '/api/benefits/2026');
-  assert.equal(seen.headers['X-Member-Id'], '1');
+  // [수정 11/17] 회원 구분: X-Member-Id 헤더 → 로그인 토큰 (서버가 토큰에서 회원번호를 꺼냄)
+  assert.equal(seen.headers.Authorization, 'Bearer header.payload.sig-1');
+  assert.equal(seen.headers['X-Member-Id'], undefined);
   assert.deepEqual(
     result.results.map((r) => r.eligible),
     [null, false, true],
@@ -79,30 +84,28 @@ try {
   assert.equal(benefitStatus(false).label, '비해당');
   assert.equal(benefitStatus(true).label, '해당');
 
-  // 회원 번호가 숫자가 아니면 헤더에 넣지 않음
+  // 토큰에 공백 · 줄바꿈이 있으면 헤더에 넣지 않음 (헤더 끼워넣기 방지 → 서버가 401)
   const seen2 = {};
-  await fetchBenefits(2026, { fetchImpl: fake(200, ok, seen2), memberId: '1; DROP' });
-  assert.equal(seen2.headers['X-Member-Id'], undefined);
+  await fetchBenefits(2026, { fetchImpl: fake(200, ok, seen2), accessToken: 'a b\r\nX-Admin: 1' });
+  assert.equal(seen2.headers.Authorization, undefined);
 
-  // 개발용 회원번호(.env)는 개발 서버(DEV)에서만 보냄 · 빌드 파일에서는 보내지 않음
-  for (const [dev, expected] of [
-    [true, '7'],
-    [false, undefined],
-  ]) {
-    const out = `${dir}/benefit-${dev}.mjs`;
-    await build({
-      entryPoints: ['src/api/benefit-service.js'],
-      outfile: out,
-      platform: 'node',
-      format: 'esm',
-      bundle: true,
-      logLevel: 'silent',
-      define: { 'import.meta.env': JSON.stringify({ DEV: dev, VITE_DEV_MEMBER_ID: '7' }) },
-    });
-    const mod = await import(pathToFileURL(out));
-    const seenDev = {};
-    await mod.fetchBenefits(2026, { fetchImpl: fake(200, ok, seenDev) });
-    assert.equal(seenDev.headers['X-Member-Id'], expected);
+  // 토큰을 따로 안 주면 localStorage에 저장된 로그인 토큰을 씀 · 없으면 헤더 없음
+  const stored = {};
+  Object.defineProperty(globalThis, 'localStorage', {
+    configurable: true,
+    value: { getItem: (key) => stored[key] ?? null },
+  });
+  try {
+    const seenNone = {};
+    await fetchBenefits(2026, { fetchImpl: fake(200, ok, seenNone) });
+    assert.equal(seenNone.headers.Authorization, undefined);
+
+    stored['hope-refund.accessToken'] = 'stored.token.value';
+    const seenStored = {};
+    await fetchBenefits(2026, { fetchImpl: fake(200, ok, seenStored) });
+    assert.equal(seenStored.headers.Authorization, 'Bearer stored.token.value');
+  } finally {
+    delete globalThis.localStorage;
   }
 
   // 서버 오류 {error, message}는 code·message 그대로

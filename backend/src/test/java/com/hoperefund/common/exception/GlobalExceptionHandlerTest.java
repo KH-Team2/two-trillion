@@ -17,7 +17,7 @@ import org.springframework.test.web.servlet.MockMvc;
 /**
  * 공통 API 오류 응답 테스트
  * 400, 404, 500 오류가 공통 봉투(ApiResponse) 형식으로 반환되는지 확인한다. errorId는 500에만 있다.
- * TODO: 인증·권한 및 업무 오류 처리 구현 후 테스트 추가
+ * TODO: 인증·권한(Spring Security) 구현 후 401 · 403 테스트 추가
  */
 @WebMvcTest(TestErrorController.class)
 @AutoConfigureMockMvc(addFilters = false)
@@ -50,6 +50,29 @@ class GlobalExceptionHandlerTest {
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.error.message").exists())
                 .andExpect(jsonPath("$.error.errorId").doesNotExist());
+    }
+
+    // 업무 오류 테스트 (서비스가 정한 상태 코드 · 오류 코드 · 문구)
+    @Test
+    void businessErrorReturnsGivenStatus() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/business"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.error.code").value("TEST_CONFLICT"))
+                .andExpect(jsonPath("$.error.message").value("테스트 업무 오류"))
+                .andExpect(jsonPath("$.error.errorId").doesNotExist());
+    }
+
+    // 업무 오류가 서버 쪽 상태(500)면 원인 문구는 숨기고 SERVER_ERROR + errorId
+    @Test
+    void businessError5xxHidesMessage() throws Exception {
+
+        mockMvc.perform(get("/api/test-errors/business-server"))
+                .andExpect(status().isInternalServerError())
+                .andExpect(jsonPath("$.error.code").value("SERVER_ERROR"))
+                .andExpect(jsonPath("$.error.message").value("잠시 후 다시 시도해 주세요."))
+                .andExpect(jsonPath("$.error.errorId").isString());
     }
 
     // 예상하지 못한 서버 오류 테스트

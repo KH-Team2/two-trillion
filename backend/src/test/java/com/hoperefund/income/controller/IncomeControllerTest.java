@@ -16,14 +16,19 @@ import com.hoperefund.common.exception.ConflictException;
 import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.service.IncomeService;
+import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
  * 소득 API 테스트 (요청 · 응답 · 오류 코드)
@@ -49,6 +54,25 @@ class IncomeControllerTest {
 
     @MockitoBean private IncomeService incomeService;
 
+    /**
+     * 로그인한 회원으로 요청 (JWT 필터가 하는 일을 대신: principal = 회원번호)
+     * [수정 11/17] X-Member-Id 헤더 → 로그인 정보 · 토큰 검사와 401은 SecurityConfigTest에서 확인
+     */
+    private static RequestPostProcessor loginAs(long memberId) {
+        return request -> {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(
+                            new UsernamePasswordAuthenticationToken(memberId, null, List.of()));
+            return request;
+        };
+    }
+
+    // 로그인 정보가 다음 테스트로 넘어가지 않게 지움
+    @AfterEach
+    void clearLogin() {
+        SecurityContextHolder.clearContext();
+    }
+
     // 필수 칸만 있는 정상 본문 (텍스트 블록 """ """: 여러 줄 문자열)
     private static final String VALID_BODY =
             """
@@ -67,7 +91,7 @@ class IncomeControllerTest {
         income.setSmeReductionYn("N");
         when(incomeService.getIncome(1L, 2026)).thenReturn(income);
 
-        mockMvc.perform(get("/api/incomes/2026").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/incomes/2026").with(loginAs(1L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.incomeId").value(5)) // [수정 11/12] 추가
                 .andExpect(jsonPath("$.data.taxYear").value(2026)) // [수정 11/12] 추가
@@ -80,23 +104,15 @@ class IncomeControllerTest {
     void getReturns404WhenIncomeMissing() throws Exception {
         when(incomeService.getIncome(1L, 2026)).thenThrow(new NotFoundException("없음"));
 
-        mockMvc.perform(get("/api/incomes/2026").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/incomes/2026").with(loginAs(1L)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
     }
 
     @Test
-    @DisplayName("조회: 회원번호 헤더가 없으면 401")
-    void getReturns401WhenMemberHeaderMissing() throws Exception {
-        mockMvc.perform(get("/api/incomes/2026"))
-                .andExpect(status().isUnauthorized())
-                .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
-    }
-
-    @Test
     @DisplayName("조회: 연도가 숫자가 아니면 400")
     void getReturns400WhenTaxYearNotNumber() throws Exception {
-        mockMvc.perform(get("/api/incomes/abc").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/incomes/abc").with(loginAs(1L)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"));
     }
@@ -112,7 +128,7 @@ class IncomeControllerTest {
 
         mockMvc.perform(
                         put("/api/incomes/2026")
-                                .header("X-Member-Id", "1")
+                                .with(loginAs(1L))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(VALID_BODY))
                 .andExpect(status().isOk())
@@ -124,7 +140,7 @@ class IncomeControllerTest {
     void putReturns400WithMessageWhenTotalSalaryMissing() throws Exception {
         mockMvc.perform(
                         put("/api/incomes/2026")
-                                .header("X-Member-Id", "1")
+                                .with(loginAs(1L))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content("{\"withheldTax\": 1000000}"))
                 .andExpect(status().isBadRequest())
@@ -139,7 +155,7 @@ class IncomeControllerTest {
     void putReturns400WhenAmountNegative() throws Exception {
         mockMvc.perform(
                         put("/api/incomes/2026")
-                                .header("X-Member-Id", "1")
+                                .with(loginAs(1L))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         "{\"totalSalary\": 30000000, \"withheldTax\": 1000000,"
@@ -153,7 +169,7 @@ class IncomeControllerTest {
     void putReturns400WhenSmeReductionYnInvalid() throws Exception {
         mockMvc.perform(
                         put("/api/incomes/2026")
-                                .header("X-Member-Id", "1")
+                                .with(loginAs(1L))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(
                                         "{\"totalSalary\": 30000000, \"withheldTax\": 1000000,"
@@ -171,7 +187,7 @@ class IncomeControllerTest {
 
         mockMvc.perform(
                         put("/api/incomes/2026")
-                                .header("X-Member-Id", "1")
+                                .with(loginAs(1L))
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(VALID_BODY))
                 .andExpect(status().isConflict())

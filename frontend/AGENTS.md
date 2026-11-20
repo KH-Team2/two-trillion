@@ -58,7 +58,7 @@ src/
 - PUT은 보낸 값으로 전체를 덮어쓴다 → GET으로 불러온 값에 고친 칸을 합쳐 **모든 칸**을 보낸다.
 - 응답은 성공 · 실패 모두 공통 봉투 `{"success", "data", "meta", "error"}`다 (11/09 팀 합의). back API는 `src/api/api-client.js`의 `apiRequest()`로 부른다 → 성공이면 `data`만 돌려주고, 실패면 `error.code` · `error.message`(서버 오류 500 · 503에는 `errorId`)를 가진 Error로 바꿔 준다. `code`로 분기하고 `message`를 화면에 띄운다.
 - 서버 연결 실패(응답이 봉투가 아님 · code `OFFLINE`)는 따로 처리한다. 체험용 계산으로 대신 보여 주는 건 개발 서버에서만 한다 (`api-client.js`의 `canUseDemo`). 빌드한 파일(배포본)에서는 연결 실패 안내만 띄운다.
-- 회원번호는 주소·본문에 넣지 않는다. 로그인 정보는 back이 정한다. 개발 중에만 `.env`의 `VITE_DEV_MEMBER_ID`를 `X-Member-Id` 헤더로 보내고, **개발 서버(`import.meta.env.DEV`)에서만** 보낸다.
+- 회원번호는 주소·본문·헤더에 넣지 않는다. back이 로그인 토큰(JWT)에서 꺼낸다. `api-client.js`가 localStorage(`hope-refund.accessToken`)의 토큰을 `Authorization: Bearer` 헤더로 보낸다 (2026-11-17 · 개발용 `X-Member-Id` · `VITE_DEV_MEMBER_ID` 없앰).
 - back 연동 전 데모 데이터는 실제 데이터와 구분되게 둔다. 구현되지 않은 기능을 실제 연동된 것처럼 보여주지 않는다. 화면에 있다고 실제 연결된 것으로 판단하지 않는다 (UI만 / 데모 데이터 / back 연결 상태를 구분).
 - API 명세 · 기능명세서 링크가 로그인 문제로 열리지 않으면 내용을 추측하지 말고, 사용자에게 필요한 부분(복사본 · 캡처)을 요청한다.
 

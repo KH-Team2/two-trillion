@@ -2,6 +2,89 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-17] 로그인 성공 알림 문구에서 「시연」 삭제
+- **작업 내용**: `frontend/src/pages/auth/AuthPage.jsx` 서버 로그인 성공 알림 「이 브라우저의 시연 계정으로 로그인했습니다.」 → 「로그인했습니다.」 (빠른 체험 문구는 그대로)
+- **변경 사유**: 실제 서버 계정으로 로그인하는데 「시연 · 이 브라우저의」로 보여 사용자가 가짜 로그인으로 오해할 수 있었음
+- **검증 결과**: `npm test` · `npm run build` 통과 · `npm run format:check`는 이 파일과 무관한 기존 문제(CRLF 줄바꿈 · 기존 8개 파일)로 실패 → tasks.md 「팀 확인 필요」에 기록 (`prettier --check --end-of-line auto`로 이 파일은 통과)
+  - 미검증: 브라우저에서 알림 문구 확인
+
+### [2026-11-17] 회원(로그인 · 회원가입) 코드 스타일 정리 (선생님 샘플 기준)
+- **작업 내용**
+  - 범위: `member/` 전체 + 이 브랜치에서 만든 공통 파일(`TokenService` · `AccessLogMapper` · `BusinessException` · `PasswordConfig` · `SecurityConfig` 주석 1곳). 다른 도메인 · develop에 있던 공통 파일은 건드리지 않음
+  - 주석: 클래스 `/** 역할 2~3줄 */` · 메서드 `// 방식 주소 — 설명` · 줄 끝은 "왜"만 · 말투 "~한다" · `[수정 11/17]` 이력 주석은 이유만 남기고 삭제
+  - Lombok: Controller 생성자 → `@RequiredArgsConstructor` · `LoggerFactory` → `@Slf4j` · `BusinessException` getter → `@Getter` (설정 값 `@Value` · 테스트용 생성자가 있는 Service는 생성자 그대로)
+  - DTO: record 8개 → 클래스 (요청 `@Getter @Setter @NoArgsConstructor @AllArgsConstructor` · 응답 `@Getter @AllArgsConstructor`) · 비밀번호 · 인증번호는 `@ToString(exclude)`로 로그에서 제외 (`LoginRequestDTO`는 원래 record 기본 toString에 비밀번호가 찍혔음)
+  - 테스트: 응답 값 꺼내는 코드만 `x()` → `getX()` (`MemberServiceTest` · `LoginServiceTest` · `EmailVerificationServiceTest`)
+  - `TokenService`의 `IssuedToken` · `TokenInfo`는 record 그대로 (DTO가 아닌 내부 값 · `SecurityConfig`가 사용)
+- **변경 사유**: 초보자도 읽기 쉽게 선생님 샘플(final_project_sample/back)과 같은 주석 · 코드 모양으로 맞춤. API 주소 · 요청 · 응답 JSON · 동작은 바뀌지 않음
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 155건 통과
+  - 미검증: 실제 서버 실행 후 화면에서 가입 · 로그인 (JSON 칸 이름은 테스트로만 확인)
+
+### [2026-11-17] 이메일 인증 끄기 (설정 스위치 · 화면 UI 숨김)
+- **작업 내용**
+  - 백엔드: `application.yml`에 `member.email-verification.required`(`EMAIL_VERIFICATION_REQUIRED`, 기본 false) · `MemberService`가 켰을 때만 인증 확인 · 끄면 `EMAIL_VERIFIED_YN = 'N'` · `MemberSignupRequestDTO.verificationId`의 `@NotBlank` 제거 (빈 값 검사는 Service가 설정에 따라)
+  - 화면: `member-api.js`에 `EMAIL_VERIFICATION_REQUIRED = false` · `AccountForms.jsx` 인증 UI를 이 값으로 숨김 (코드는 그대로) · `signupFormError`는 끈 동안 인증 확인 생략 · 요청의 `verificationId`는 null
+  - 테스트: `MemberServiceTest` 2개 추가(켰을 때 빈 번호표 400 · 껐을 때 인증 없이 가입 N) · `MemberControllerTest` 번호표 누락 400 삭제(Service로 옮김) · `member-api.test.js` · `render-pages.mjs`(가입 화면에 인증 UI 없음)
+- **변경 사유**: 실제 메일 발송이 없어 형식만 맞는 이메일이면 누구나 인증되던 상태 → 메일 발송이 붙을 때까지 꺼 둠
+- **검증 결과**: `./mvnw test` 155건 통과 · 프론트 `npm test` · `npm run build` 통과
+  - 미검증: 브라우저에서 인증 없이 가입 → 로그인
+
+### [2026-11-17] 로그인 · 로그아웃 화면 연결 (F-01-02)
+- **작업 내용**
+  - `frontend/src/api/member-api.js`: `login`(POST /api/auth/login) · `logout`(POST /api/auth/logout) 추가
+  - `account-service.js`의 `accountService`: 로그인 · 로그아웃 · `current()`를 서버 로그인으로 교체 (토큰 `hope-refund.accessToken` · 회원 정보 `hope-refund.loginMember` · 만료 시각 지나면 삭제) · 체험용 `createAccountService`는 그대로
+  - `api-client.js`: `bearerHeader` · `clearLogin` · `expireLogin` (토큰을 보냈는데 401 → 삭제 + 알림) · `http.js`: `auth: true` 요청만 토큰 전송
+  - `App.jsx`: 만료 알림 → 로그인 화면 + 안내 · `AccountForms.jsx`: 칸 이름 「아이디」 · 서버 연동 표시 · 「최초 관리자 초기 설정(시연)」 버튼 숨김 · `Sidebar.jsx`: 「브라우저 시연」 표시는 빠른 체험만
+  - 테스트: `http.test.js`(토큰 헤더 · 로그인 실패 401은 토큰 유지 · 401 만료 삭제) · `member-api.test.js`(로그인 · 로그아웃 주소 · 본문)
+  - 버그 수정: 서버 로그인 직후 대시보드가 빈 화면 → 로그인 응답에 생년월일 · 이메일이 없어 `yearOf(date.trim)` · `groupComparison(d.birth.slice)` · 프로필 `email.replace`가 오류 · 값이 없어도 버티게 수정 + `App`은 빈 값('')으로 채움 · `render-pages.mjs`에 서버 로그인 회원 화면 3개 추가 (수정 전 실패 · 수정 후 통과 확인)
+- **변경 사유**: 로그인이 브라우저 가짜 계정이라 서버로 가입한 회원이 로그인할 수 없었고, 토큰이 없어 회원 API가 모두 401
+- **검증 결과**: 프론트 `npm test` · `npm run build` 통과 · 고친 파일 `prettier --check` 통과 (전체 `format:check`는 이 PC의 CRLF 줄바꿈으로 전부터 실패)
+  - 미검증: 실제 서버 · 브라우저에서 로그인 → 계산 → 로그아웃 ([tasks.md](tasks.md) 「브라우저 확인 순서」)
+
+### [2026-11-17] 회원번호를 X-Member-Id 헤더 대신 로그인 토큰에서 꺼내기
+- **작업 내용**
+  - Controller 6개 (`IncomeController` · `CalculationController` · `BenefitController` · `SimulationController` · `PredictionController` · `GroupStatController`): `@RequestHeader("X-Member-Id") long memberId` → `@AuthenticationPrincipal Long memberId` (Service · Mapper 변경 없음)
+  - `GlobalExceptionHandler`: 필수 헤더 없음 401 `UNAUTHORIZED` → 400 `VALIDATION` (401은 SecurityConfig가 응답) · `CorsConfig`: 허용 헤더에서 `X-Member-Id` 삭제
+  - 테스트: Controller 테스트가 헤더 대신 로그인 정보(SecurityContext)를 넣음 · 헤더 전용 테스트 4개 삭제 → `SecurityConfigTest`에 「토큰 → Controller가 회원번호 받음」 · 「회원 API 7곳 헤더만 보내면 401」 추가
+  - 화면: `api-client.js`가 localStorage `hope-refund.accessToken`을 `Authorization: Bearer`로 보냄 · `VITE_DEV_MEMBER_ID` 삭제 · 테스트 2개 수정
+  - 문서: [tasks.md](tasks.md) · [api-rules.md](api-rules.md) · frontend `AGENTS.md` · `API_INTEGRATION.md`
+- **변경 사유**: 헤더 값만 바꾸면 남의 데이터를 볼 수 있음 (IDOR) · 로그인(Security) 적용으로 헤더만으로는 401이 됨
+- **검증 결과**: `./mvnw test` 154건 통과 (157 − 헤더 전용 4 + 1) · 프론트 `npm test` · `npm run build` 통과
+  - `npm run format:check`: 이 PC에서 전부터 114개 파일 실패 (CRLF 줄바꿈) · 고친 파일은 통과
+  - 미검증: 실제 서버 실행 후 호출 · 로그인 화면 연결 전이라 화면에서는 401
+
+### [2026-11-16] 로그인 · 로그아웃 백엔드 구현 (F-01-02 · JWT)
+- **작업 내용**
+  - `pom.xml`: `spring-boot-starter-security` · `jjwt` 0.12.6 추가 (`spring-security-crypto`는 starter에 포함되어 뺌)
+  - `common/config/SecurityConfig`(신규): 주소별 로그인 규칙 · JWT 필터(안쪽 클래스) · 401 `UNAUTHORIZED` · 403 `FORBIDDEN`을 공통 봉투로 응답
+  - `common/service/TokenService`(신규): 토큰 발급 · 검사 · 로그아웃 무효 목록(메모리) · `JWT_SECRET` 32바이트 미만이면 서버 시작 실패
+  - `common/mapper/AccessLogMapper`(신규 · XML 포함): 로그인 성공 · 실패 기록 (`LOG_ID` MAX + 1)
+  - `member/service/LoginService`(신규) · `member/dto/Login{Request,Response,Member}DTO`(신규)
+  - `MemberController`: 주소 앞부분을 `/api/auth`로 바꾸고 `POST /login` · `POST /logout` 추가 (기존 가입 · 중복확인 주소는 그대로)
+  - `MemberMapper`: `selectLoginMember` · `increaseLoginFail` · `resetLoginFail` 추가
+  - `application.yml` · `.env.example` · README: `JWT_SECRET` · `JWT_EXPIRATION` · `LOGIN_LOCK_ENABLED`
+  - `GlobalExceptionHandler` · `EmailVerificationService`: 주석만 수정 (401/403 위치 안내 · 없는 decisions/0004 참조 → tasks.md)
+  - 문서: [decisions/0004](decisions/0004-login-jwt.md) 신규 · [tasks.md](tasks.md) 로그인 절 갱신 · [api-rules](api-rules.md) 2번 "미정" → JWT · 오류 코드 표
+- **변경 사유**: F-01-02 구현. 리프레시 토큰 없음 · 로그아웃 메모리 목록 · 화면 localStorage 보관안 확정 (11/16). 새 파일은 README · AGENTS.md 폴더 구조 안에서 최소로 만듦
+- **검증 결과**: `./mvnw test` 79건 통과 (신규 `SecurityConfigTest` 6 · `TokenServiceTest` 6 · `LoginServiceTest` 12 · `MemberControllerTest` 로그인 3건 추가)
+- **미검증**: 실제 Oracle DB에서 로그인 · 잠금 · ACCESS_LOG 저장 (SQL은 Mapper 대역으로만 테스트) · 화면 연결 안 함
+### [2026-11-16] 거래내역 조회·삭제 API (F-02-04 · TT-111)
+- **작업 내용**:
+  - `GET /api/card-uploads`: 본인의 업로드 이력 (번호 · 파일 이름 · 건수 · 업로드일 · 최신순)
+  - `GET /api/expenses?year=` 또는 `?uploadId=`: 본인의 거래 목록 + 분류 근거 (`MERCHANT_LIST` LEFT JOIN → 일치 방식 `matchType` · 목록 상호명 `matchedName` · 출처 `sourceName` · 일반 거래는 근거가 null) · 둘 다 없으면 400
+  - `GET /api/expense-totals?year=`: 분류 + 결제수단별 합계 (`categoryId` · `payMethod` · `totalAmount` · `count` · 취소 음수 포함)
+  - `DELETE /api/card-uploads/{uploadId}`: 본인 업로드 삭제 → 204 · 거래(`EXPENSE`)는 `ON DELETE CASCADE`로 같이 삭제
+  - 새 `ExpenseController` · `ExpenseService(Impl)` · `ExpenseMapper`(+ XML) · DTO 3개(`UploadHistoryDTO` · `ExpenseItemDTO` · `ExpenseTotalDTO`) · 업로드(POST)는 기존 `CardUploadController` 그대로
+- **변경 사유**:
+  - 기능명세서 F-02-04 · 남의 업로드 번호는 403이 아니라 404 (팀 규칙 · `GlobalExceptionHandler` · 없는 것과 같은 문구로 존재 여부를 숨김)
+  - 합계를 분류만이 아니라 결제수단까지 나눈 이유: 계산 서버 `POST /calculate`의 `cardSpends`가 `{categoryId, payMethod, amount}` 단위 (결제수단마다 공제율이 다름) → 계산 요청에 그대로 옮겨 쓸 수 있게
+  - 연도는 2000 ~ 2100만 받음 (오타 연도로 날짜를 만들다 500이 나는 것을 400으로 막음)
+- **검증 결과**:
+  - 테스트 20개 추가 (Service 10 · Controller 10)
+  - `mvnw spotless:check` · `mvnw -B verify` 통과
+  - curl (학원 DB · 회원 1): 업로드 이력 200 · `uploadId=1` 거래 137건 200(분류 근거 표시 확인) · 합계 2026 200(10줄 · 건수 합 137) · 남의 업로드(`uploadId` 2 · 10) 조회 404 · 남의 업로드 삭제 404
+  - 본인 업로드 삭제 (2026-11-17 · 화면에서 올린 업로드 101번): `DELETE` 204 → `CARD_UPLOAD` · `EXPENSE` 둘 다 0건 (CASCADE 확인)
+
 ### [2026-11-16] 결과 이력 조회 API (F-04-02)
 - **작업 내용**:
   - `GET /api/predictions?year=2026`: 본인의 그 연도 결과 전부(현재 · 시나리오) 최신순 · 없으면 빈 목록(오류 아님)
@@ -24,6 +107,19 @@
   - 테스트 4개 추가 · curl mock 모드 200 · 404 · 400
   - 학원 PC에서 계산 서버(http) + 저장: 회원 81 기준 결과 3번 → 시나리오 6번 · `PREDICTION_INPUT` 월세 60만 · `INCOME` 월세는 그대로
 
+### [2026-11-13] 계산 서버 카드 파일 해석 · 지출 분류 (F-02-02 · F-02-03 · TT-109 · TT-110)
+- **작업 내용** (계산 서버 `calc/` · 백엔드가 호출):
+  - `POST /card/parse`: 백엔드가 보낸 카드사 · 홈택스 파일(csv · xlsx · xls)을 공통 4칸(사용일 · 가맹점명 · 금액 · 결제수단)으로 바꾸고 행마다 분류 결과(`categoryCode` · `listId`)를 붙여 돌려줌 · 저장은 하지 않음 · `X-Calc-Token` 검사
+  - 파일 오류는 400 `{"error", "message", "errorRows"}` (`UNSUPPORTED_FORMAT` · `PAY_METHOD_REQUIRED` · `ROW_LIMIT` · `VALIDATION`) · `main.py`에 처리기 추가
+  - `app/card/merchant_repo.py`: `MERCHANT_LIST` · `SPEND_CATEGORY`에서 사용 중(`USE_YN='Y'`)인 목록을 읽어 분류기(`MerchantMatcher`)를 만듦 · 첫 요청 때 한 번만 읽고 재사용 (목록을 고치면 계산 서버 재시작)
+  - `scripts/compare_card_classify.py`: 파이썬 분류 결과와 SQL(`04_분류쿼리.sql`) 결과를 건마다 비교하는 검증 도구 (읽기만)
+- **변경 사유**:
+  - 기능명세서 F-02-02 · F-02-03 · 파일 해석과 분류를 계산 서버 한 곳에서 하기로 함 (백엔드는 결과를 받아 저장만)
+- **검증 결과**:
+  - 가상 카드 내역 10,453건: 파이썬 분류 = SQL 분류 (전부 일치 · 목록 EXACT 79,727개 이름 · CONTAINS 697개)
+  - pytest 130개 · `ruff check` 통과 (카드 API 7 · 목록 읽기 5 추가)
+  - 배포 시 필요: 계산 서버 읽기 계정에 `MERCHANT_LIST` · `SPEND_CATEGORY` SELECT 권한 + 동의어 (`database/README.md`) · 로컬은 테이블 주인 계정이라 해당 없음
+
 ### [2026-11-13] 그룹 비교 통계 조회 API (F-06-02)
 - **작업 내용**:
   - `GET /api/group-stats/{taxYear}`: 본인의 성별·연령대 그룹과 총급여 구간 그룹의 국세통계 평균(인원 · 1인당 총급여 · 결정세액 · 환급세액) · 못 찾은 그룹은 그 칸만 null(200)
@@ -35,6 +131,31 @@
   - 테스트 6개 추가 (Service 3 · Controller 3)
   - 학원 DB: 회원 81 → 여성 40대 · 4천만 이하 · 82 → 여성 50대 · 2천만 이하 · 없는 회원 → 200에 둘 다 null
   - 화면 스냅샷과 평균이 조금 다름: 나누는 인원 칸이 다름 (DB는 「과세대상근로소득」 인원 · 스냅샷은 「급여총계」 인원) · DB는 고칠 것 없음
+
+### [2026-11-13] 로그인 방식 토큰(JWT)으로 결정 · Security 401/403 공지 정리
+- **작업 내용** (문서만 수정 · 코드 변경 없음)
+  - [tasks.md](tasks.md) 「로그인 · 로그아웃」: 로그인 방식을 토큰(JWT)으로 정함 · 세부안(리프레시 토큰 안 씀 · 로그아웃은 서버 메모리 무효 목록 · localStorage + Bearer 헤더)은 승인 대기로 적음
+  - 처리 흐름(로그인 → 필터 토큰 검사 → 401/403 → 로그아웃) 추가
+  - 팀 공지의 `SecurityConfig` 401(`authenticationEntryPoint`) · 403(`accessDeniedHandler`) 응답 정리 · 공지 예시 JSON이 팀 봉투와 달라 봉투 모양으로 맞춰야 함을 적음
+  - 계산 서버 `X-Calc-Token`(서버끼리 인증)과 로그인 토큰(JWT)의 차이 정리
+- **확인한 내용**
+  - 프로젝트에 `@EnableWebSecurity` · `SecurityFilterChain` 없음 → `SecurityConfig` 새로 만들어야 함 (`common/` 수정 · 라이브러리 추가 승인 필요)
+  - 기능명세서 원본은 저장소에 없음 → 로그인 기능 ID · 요구사항은 시트 확인 필요
+- **변경 사유**: 로그인 · 로그아웃 구현 전 방식 결정과 팀 공지 내용 기록
+### [2026-11-12] 카드내역 업로드 저장 API (F-02-02 · TT-109)
+- **작업 내용**:
+  - `POST /api/card-uploads` (multipart: `file` · 선택 `payMethod` · `allowDuplicate`): 파일 확인(빈 파일 · 확장자 csv · xlsx · xls · 결제수단) → 계산 서버 `POST /card/parse` 호출 → 중복 확인 → 저장 → 분류별 건수 응답
+  - 저장: 업로드 1행(`CARD_UPLOAD`) + 지출 N행(`EXPENSE`) + 분류 반영을 한 트랜잭션으로 (`CardUploadSaveService`) · 계산 서버 호출은 트랜잭션 밖
+  - 중복: 같은 사용일 · 가맹점 · 금액 · 결제수단이 이미 있으면 409 `DUPLICATE_WARNING`(겹친 건수) · 사용자가 「계속」하면 `allowDuplicate=true`로 다시 보내 저장
+  - 사용구분 칸이 없는 파일은 400 `PAY_METHOD_REQUIRED` → 화면에서 신용/체크를 골라 다시 보냄
+  - 계산 서버 연결 실패 · 토큰 오류는 503 (`CardParseClient`) · 원본 파일과 카드번호는 저장하지 않음 (기능명세서 S-02)
+  - 새 패키지 `expense` (controller · service · client · mapper · dto · exception)
+- **변경 사유**:
+  - 기능명세서 F-02-02 · 파일 해석과 분류는 계산 서버에서 하고 백엔드는 저장 · 중복 경고만
+- **검증 결과**:
+  - 테스트 22개 추가 (Service 11 · 저장 4 · Controller 7 · 계산 서버는 가짜 응답)
+  - 실제 연결 업로드 (2026-11-17 · 화면 TT-112): `card_a.xlsx` → 업로드 101번 · 14건 저장 · 계산 서버 토큰이 비면 503 + 오류 번호 확인
+  - 미검증: 실제 홈택스 파일 형식(칸 이름은 추측값)
 
 ### [2026-11-12] 저장된 계산 결과 조회 API (F-06-01 결과 대시보드)
 - **작업 내용**:
@@ -77,3 +198,52 @@
 - **검증 결과**:
   - `mvnw spotless:check` · `mvnw -B verify` 통과
   - Thunder Client로 실제 DB 확인: PUT 200 · GET 200
+
+### [2026-11-12] 회원가입 남은 확인 사항 정리 · 로그인 준비
+- **작업 내용** (문서만 수정 · 코드 변경 없음)
+  - [tasks.md](tasks.md) 「남은 확인 사항」 정리: "새 API 주소 5개"와 "회원 전용 오류 코드"를 팀 API 명세 추가 한 항목으로 묶음
+  - 약관 동의 버전을 임시가 아닌 정한 값 `v1.0`으로 확정 → 「정한 값」으로 옮김 (마케팅 동의 제거도 함께)
+  - "서버 가입 회원 로그인 불가" 항목 삭제 → 다음 기능(로그인 · 로그아웃)으로 이어감
+- **확인한 내용**
+  - 약관 동의 버전은 `MEMBER`에 컬럼이 있어 저장됨: `TERMS_VERSION` · `PRIVACY_VERSION` · `FINANCE_VERSION` (`VARCHAR2(10)` · NOT NULL · 기본값 없음) + 동의 시각 `*_AGREED_AT`
+  - 컬럼이 없는 값은 저장 불가 (INSERT 시 `ORA-00904`) → 마케팅 동의는 ERD에 칸이 없어 화면에서 제거한 것
+  - 로그인 방식(세션 / JWT)은 api-rules에 "미정" · 팀 브랜치(develop · admin · project-base · dashboard)에도 Spring Security 설정 · 로그인 API 없음
+  - ERD 로그인 관련 컬럼: `LOGIN_FAIL_COUNT`(5번째 실패 시 10분 잠금) · `LOCKED_UNTIL` · 토큰 저장 테이블은 없음
+- **변경 사유**: 회원가입 마무리 · 다음 기능(로그인 · 로그아웃) 시작 전 정리
+
+### [2026-11-11] 팀 브랜치 병합 · 응답 형식을 공통 규칙(api-rules)에 맞춤
+- **작업 내용**
+  - `feature/member-signup` → 팀 `feature/member` 병합 (팀 공통 예외 처리기 · `ApiResponse` 봉투 유지)
+  - 병합 때 빠진 `BusinessException` 처리를 `GlobalExceptionHandler`에 다시 추가 (봉투 형식 · 5xx는 `SERVER_ERROR` + `errorId`)
+  - `MemberController` · `EmailVerificationController`: 성공 201 → 200 · `ApiResponse.ok(...)`로 감쌈
+  - `frontend/src/api/http.js`: 봉투에서 `data`를 꺼내 반환 · 오류는 `error.code` / `error.message` 사용
+  - 테스트: 회원 Controller 테스트를 새 형식으로 수정 · `TestErrorController`에 업무 오류 주소 복구 · 5xx 업무 오류 테스트 1건 추가
+- **변경 사유**: 병합 후 중복 아이디 등 업무 오류가 500으로 나가는 문제(테스트 13건 실패) · [api-rules.md](api-rules.md)(성공 200 · 공통 봉투) 미반영
+- **검증 결과**: `./mvnw test` 52건 통과 · `npm test` · `npm run build` 통과
+  - 병합 전 브라우저 가입 · Oracle 저장 · 로그인 화면 이동 확인 (2026-11-11)
+  - 미검증: 병합 후 브라우저 재확인 · 실제 메일 발송(미구현)
+
+### [2026-11-10] F-01-01 회원가입 React 연결 · 중복확인 · 이메일 인증
+- **작업 내용**: 중복확인 API · 이메일 인증 API(서버 메모리 · 메일 미발송) 추가, 가입 주소 `/api/auth/members`로 변경, 응답 필드 변경, React 화면을 실제 API에 연결
+- **변경 사유**: F-01-01 지침 (React → Spring Boot → Oracle 끝까지 연결)
+- **검증 결과**: `./mvnw -B verify` → BUILD SUCCESS · Tests 45 · `npm test` · `npm run build` 통과
+  - 미검증(당시): 서버 실행 후 API 호출 · 브라우저 가입 · Oracle 저장 → 2026-11-11 확인
+
+### [2026-11-08] 회원가입 API 구현 · 공통 업무 오류 처리 추가
+- **작업 내용**
+  - 추가: `member/controller/MemberController.java` · `member/service/MemberService.java` · `member/mapper/MemberMapper.java` · `member/dto/MemberSignupRequestDTO.java` · `member/dto/MemberSignupResponseDTO.java` · `member/dto/MemberInsertDTO.java` · `resources/mapper/member/MemberMapper.xml`
+  - 추가: `common/config/PasswordConfig.java`(BCrypt `PasswordEncoder` 빈) · `common/exception/BusinessException.java`(상태 코드 · 오류 코드 · 문구)
+  - 수정: `common/exception/GlobalExceptionHandler.java` — `BusinessException` 처리(`handleBusiness`) 추가
+  - 수정: `pom.xml` — `spring-security-crypto` 추가 (암호화 기능만 · 인증 필터 미사용)
+  - 수정: `README.md` — ERD 링크 추가
+  - 추가: `db/Schema.sql`(ERD v4.1 내보내기) · `docs/` 문서
+  - 테스트: `member/controller/MemberControllerTest.java`(5건) · `member/service/MemberServiceTest.java`(7건) 추가 · `GlobalExceptionHandlerTest`에 업무 오류 테스트 1건 · `TestErrorController`에 `/api/test-errors/business` 추가
+- **주요 변경 사항**
+  - `POST /api/members` → 201 `{memberId, loginId, message}` · 오류는 `{"error","message"}`
+  - 아이디·이메일 소문자 저장 · 비밀번호 BCrypt 저장 · 만 14세 이상 · `withdrawn_` 아이디 차단 · 중복 시 409
+  - `MEMBER_ID`는 시퀀스가 없어 `MAX + 1` 임시 사용
+- **변경 사유**: 회원가입 기능의 API · DB 저장 구현, 서비스 업무 오류를 공통 오류 형식으로 응답
+- **검증 결과**
+  - `./mvnw spotless:check` → 통과
+  - `./mvnw -B verify` → BUILD SUCCESS · Tests run: 20, Failures: 0, Errors: 0
+  - 미검증: Oracle 실제 INSERT(테스트는 Mapper Mock) · React 연동(화면은 아직 localStorage 사용)

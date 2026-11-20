@@ -22,7 +22,10 @@ function serverRow(group) {
 // demo: 「나의 계산 결과」가 체험용 계산이면 true, 서버 계산 결과면 false (막대 아래 설명 문구만 달라져요)
 export function groupComparison(d, result = taxService.calculate(d), server = null, demo = true) {
   const taxYear = getTaxYear(d);
-  const age = taxYear - Number(d.birth.slice(0, 4));
+  // 생년월일이 없으면(서버 로그인 응답에는 아이디 · 권한만 있음) 연령대 그룹은 못 찾음 → null
+  // [수정 11/17] d.birth가 없을 때 .slice 오류로 대시보드가 빈 화면이 되던 것 수정
+  const birthYear = Number(String(d.birth || '').slice(0, 4));
+  const age = birthYear ? taxYear - birthYear : null;
   const gender = d.gender === '여성' ? 'F' : d.gender === '남성' ? 'M' : null;
   const localAge = stats.find(
     (r) =>
