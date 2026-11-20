@@ -1,5 +1,6 @@
 // 일반 입력과 시뮬레이션이 함께 사용하는 6단계 폼입니다. 입력은 임시 상태에 두고 완료 시 상위로 전달합니다.
-import React, { useState, useEffect } from 'react';
+// [수정 11/20 고은] useRef 추가 (아래 formRef에서 씀)
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ArrowRight,
   ChevronLeft,
@@ -43,6 +44,11 @@ export default function TaxInfoForm({
   const [d, setD] = useState(() => normalizeTaxData(data)),
     [step, setStep] = useState(0),
     [err, setErr] = useState('');
+  // [추가 11/20 고은] 입력 폼(<form>)을 가리키는 손잡이
+  // 이유: 위쪽 단계 버튼은 폼 바깥에 있어서, 눌러도 브라우저의 「이 입력란을 작성하세요」 검사가 돌지 않음
+  //   → 단계 버튼을 누를 때 이 손잡이로 폼을 찾아 검사를 직접 시킴
+  // useRef: 화면이 다시 그려져도 바뀌지 않는 상자 · .current에 실제 <form> 요소가 들어감
+  const formRef = useRef(null);
   const [tx, setTx] = useState(() => structuredClone(transactions)),
     [uploadMeta, setUploadMeta] = useState(() => structuredClone(upload));
   // 파일 추가·삭제 또는 귀속 연도 변경 시 업로드 거래에서만 실제 지출 합계를 갱신합니다.
@@ -56,6 +62,10 @@ export default function TaxInfoForm({
       : '';
   const move = (next) => {
     if (next > step) {
+      // [추가 11/20 고은] 앞으로 넘어갈 때 지금 단계 입력칸을 브라우저 규칙(필수 · 정수 · 0 이상)으로 검사
+      // reportValidity(): 틀린 칸이 있으면 그 칸에 말풍선을 띄우고 false를 돌려줌 → 넘어가지 않음
+      // formRef.current가 아직 없으면(null) 검사를 건너뜀 (오류 방지)
+      if (formRef.current && !formRef.current.reportValidity()) return;
       const error =
         validateTaxData(d) || (step >= 2 && mode !== 'simulation' ? uploadBlocker(tx) : '');
       if (error) {
@@ -89,7 +99,19 @@ export default function TaxInfoForm({
           (mode === 'simulation' && key === 'employed')
         }
         value={typeof d[key] === 'number' && !Number.isFinite(d[key]) ? '' : String(d[key] ?? '')}
-        onChange={(e) =>
+        // [추가 11/20 고은] 소수를 넣었을 때 브라우저 기본 문구 대신 우리 문구로 안내
+        // 이유: 기본 문구 「유효한 값을 입력해 주세요. 가장 근접한 유효 값 2개는…」가 어렵고 길어서
+        // onInvalid: 입력값이 규칙(step=1 → 정수만)에 안 맞을 때 브라우저가 부르는 함수
+        // validity.stepMismatch: 「step 간격에 안 맞음」 = 정수 칸에 소수를 넣었다는 뜻
+        // setCustomValidity(문구): 브라우저 말풍선에 띄울 문구를 바꿈
+        onInvalid={(e) => {
+          if (e.target.validity.stepMismatch)
+            e.target.setCustomValidity('소수는 입력할 수 없어요.');
+        }}
+        onChange={(e) => {
+          // [추가 11/20 고은] 다시 입력하면 바꿔 둔 문구를 지움
+          // 이유: 지우지 않으면 정수로 고쳐도 브라우저가 계속 「틀린 값」으로 보고 넘어가지 못함
+          e.target.setCustomValidity('');
           setD({
             ...d,
             ...(key === 'rent' ? { legacyRentNeedsReview: false } : {}),
@@ -102,8 +124,8 @@ export default function TaxInfoForm({
                   ? NaN
                   : Number(e.target.value)
                 : e.target.value,
-          })
-        }
+          });
+        }}
       />
       {type === 'number' && <span className="input-unit">{unit}</span>}
     </Field>
@@ -138,6 +160,8 @@ export default function TaxInfoForm({
         ))}
       </div>
       <form
+        // [추가 11/20 고은] 위 formRef가 이 폼을 가리키게 연결
+        ref={formRef}
         className="card form-card"
         onSubmit={(e) => {
           e.preventDefault();
