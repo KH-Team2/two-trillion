@@ -59,8 +59,8 @@ public class SecurityConfig {
                 .authorizeHttpRequests(
                         auth ->
                                 auth
-                                        // [추가 11/20 · 이우진 · TT-150] SSE 알림 연결이 끝날 때의 비동기(ASYNC) 처리는 통과
-                                        //   이유: 첫 요청에서 이미 JWT 검사를 통과했는데, 연결 종료 시 다시 검사하면 Access Denied 오류 로그가 남음
+                                        // [추가 11/20 · 이우진 · TT-150] SSE 연결 종료(ASYNC)는 통과
+                                        // 이유: 첫 요청에서 JWT 검사를 이미 통과함 · 다시 검사하면 Access Denied 로그
                                         .dispatcherTypeMatchers(DispatcherType.ASYNC)
                                         .permitAll()
                                         // CORS 사전 요청(OPTIONS)은 토큰 없이 보냄

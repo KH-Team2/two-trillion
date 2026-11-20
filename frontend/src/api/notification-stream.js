@@ -7,6 +7,9 @@ import { bearerHeader, expireLogin, readAccessToken } from './api-client.js';
 
 export const NOTIFICATION_STREAM_PATH = '/api/notifications/stream';
 const RETRY_MS = 5000; // 연결이 끊기면 5초 뒤 다시 연결 (서버 재시작 · 30분 시간 초과)
+// 서버는 25초마다 하트비트(": ping")를 보내요 → 60초 동안 아무것도 안 오면 연결이 죽은 걸로 보고 다시 연결
+// (서버가 꺼져도 중간 프록시가 연결을 안 닫아 주면 브라우저는 끊긴 걸 모르기 때문)
+const IDLE_MS = 60000;
 
 /** SSE 덩어리 하나("event:이름\ndata:내용") → { event, data } · data 가 없으면 null */
 export function parseSseBlock(block) {
@@ -48,15 +51,18 @@ export function calculationMessage(data) {
  * - 401: 토큰 만료 · 로그아웃 → 다른 API 와 같이 로그인 정보를 지우고 멈춰요.
  * - 그 밖의 4xx: 서버에 알림 기능이 없음 등 → 다시 시도하지 않아요.
  * - 연결 끊김 · 5xx · 네트워크 오류: retryMs 뒤 다시 연결해요.
+ * - idleMs 동안 아무것도 안 오면(하트비트도 없음) 연결이 죽은 걸로 보고 끊은 뒤 다시 연결해요.
  */
 export function openNotificationStream({
   onEvent,
   fetchImpl = globalThis.fetch,
   retryMs = RETRY_MS,
+  idleMs = IDLE_MS,
 } = {}) {
   let closed = false;
   let controller = null;
   let timer = null;
+  let idleTimer = null;
 
   const retry = () => {
     if (!closed) timer = setTimeout(connect, retryMs);
@@ -66,6 +72,13 @@ export function openNotificationStream({
     const headers = { Accept: 'text/event-stream', ...bearerHeader(readAccessToken()) };
     if (!headers.Authorization) return;
     controller = new AbortController();
+    const current = controller;
+    // 받은 게 있을 때마다 다시 잼 · idleMs 넘게 조용하면 이 연결을 끊음 → 아래 catch → 다시 연결
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => current.abort(), idleMs);
+    };
+    resetIdle();
     try {
       const response = await fetchImpl(NOTIFICATION_STREAM_PATH, {
         headers,
@@ -86,6 +99,7 @@ export function openNotificationStream({
       while (!closed) {
         const { value, done } = await reader.read();
         if (done) break;
+        resetIdle();
         buffer += decoder.decode(value, { stream: true });
         const { blocks, rest } = splitSseBuffer(buffer);
         buffer = rest;
@@ -95,8 +109,9 @@ export function openNotificationStream({
         }
       }
     } catch {
-      // 끊음(abort) · 네트워크 오류 → 아래에서 다시 연결 (끊은 경우는 closed 라서 안 함)
+      // 끊음(abort · 조용함) · 네트워크 오류 → 아래에서 다시 연결 (직접 끊은 경우는 closed 라서 안 함)
     }
+    clearTimeout(idleTimer);
     retry();
   }
 
@@ -104,6 +119,7 @@ export function openNotificationStream({
   return () => {
     closed = true;
     clearTimeout(timer);
+    clearTimeout(idleTimer);
     controller?.abort();
   };
 }

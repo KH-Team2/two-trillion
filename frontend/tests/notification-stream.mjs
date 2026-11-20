@@ -119,7 +119,44 @@ try {
   await new Promise((r) => setTimeout(r, 30));
   assert.equal(calls, after);
 
-  console.log('notification-stream: 7개 검사 통과');
+  // 8. 하트비트(": ping")는 이벤트로 넘기지 않고, 연결은 살아 있는 걸로 봄
+  const seen8 = [];
+  calls = 0;
+  const close4 = openNotificationStream({
+    retryMs: 100000,
+    idleMs: 1000,
+    fetchImpl: async () => (
+      calls++,
+      new Response(streamOf([': ping\n\n', 'event:connected\ndata:ok\n\n']))
+    ),
+    onEvent: (event, data) => seen8.push([event, data]),
+  });
+  await new Promise((r) => setTimeout(r, 30));
+  close4();
+  assert.deepEqual(seen8, [['connected', 'ok']]);
+
+  // 9. 열린 채로 아무것도 안 오면(서버가 죽었는데 프록시가 안 닫아 줌) idleMs 뒤 끊고 다시 연결
+  calls = 0;
+  const close5 = openNotificationStream({
+    retryMs: 5,
+    idleMs: 20,
+    fetchImpl: async (url, init) => {
+      calls++;
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(encoder.encode('event:connected\ndata:ok\n\n'));
+            init.signal.addEventListener('abort', () => c.error(new Error('aborted')));
+          },
+        }),
+      );
+    },
+  });
+  await new Promise((r) => setTimeout(r, 120));
+  close5();
+  assert.ok(calls >= 2, `조용하면 다시 연결해야 함 (${calls}번)`);
+
+  console.log('notification-stream: 9개 검사 통과');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }

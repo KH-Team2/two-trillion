@@ -6,6 +6,7 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -20,6 +21,7 @@ public class NotificationService {
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private static final long TIMEOUT_MS = 30L * 60 * 1000; // 30분 지나면 연결을 닫음 → 화면이 다시 연결
+    private static final long HEARTBEAT_MS = 25_000; // 할 말이 없어도 25초마다 신호 (화면은 60초 조용하면 다시 연결)
 
     // 여러 요청이 동시에 넣고 빼도 안전한 Map · Set
     private final Map<Long, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
@@ -50,6 +52,26 @@ public class NotificationService {
         for (SseEmitter emitter : set) {
             send(memberId, emitter, eventName, data);
         }
+    }
+
+    /**
+     * 하트비트: 연결된 모든 화면에 25초마다 주석 줄(": ping")을 보내요.
+     *
+     * <p>① 화면은 신호가 60초 동안 안 오면 연결이 죽은 걸로 보고 다시 연결해요 (중간 프록시가 끊김을 안 알려 줄 때 대비). ② 서버도 보내기가 실패하면
+     * 끊긴 화면을 알아채서 목록에서 빼요. 주석 줄은 이벤트가 아니라서 화면 코드는 무시해요.
+     */
+    @Scheduled(fixedRate = HEARTBEAT_MS, initialDelay = HEARTBEAT_MS)
+    public void heartbeat() {
+        emitters.forEach(
+                (memberId, set) -> {
+                    for (SseEmitter emitter : set) {
+                        try {
+                            emitter.send(SseEmitter.event().comment("ping"));
+                        } catch (IOException | IllegalStateException e) {
+                            removeEmitter(memberId, emitter);
+                        }
+                    }
+                });
     }
 
     private void send(long memberId, SseEmitter emitter, String eventName, Object data) {
