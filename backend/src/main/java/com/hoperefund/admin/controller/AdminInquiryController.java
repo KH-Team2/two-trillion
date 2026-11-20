@@ -42,7 +42,8 @@ public class AdminInquiryController {
     @PostMapping("/inquiries")
     public ApiResponse<Void> createInquiry(
             @AuthenticationPrincipal Long memberId, // 로그인 토큰에서 꺼낸 회원번호
-            // @Valid: InquiryCreateRequestDto의 검사(@NotBlank · @Pattern · @Size)를 실행 · 어기면 여기 들어오기 전에 400
+            // @Valid: InquiryCreateRequestDto의 검사(@NotBlank · @Pattern · @Size)를 실행 · 어기면 여기 들어오기
+            // 전에 400
             @Valid @RequestBody InquiryCreateRequestDto dto) {
         adminInquiryService.createInquiry(memberId, dto);
         return ApiResponse.ok(null);

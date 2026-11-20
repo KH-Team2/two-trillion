@@ -13,8 +13,7 @@ public interface AdminInquiryMapper {
 
     // [추가 11/20] F-17: 문의 작성 · 이유: 문의 작성 API가 없어서
     //   memberId는 로그인 토큰에서 꺼낸 값 · dto는 유형 · 제목 · 내용
-    int insertInquiry(
-            @Param("memberId") Long memberId, @Param("dto") InquiryCreateRequestDto dto);
+    int insertInquiry(@Param("memberId") Long memberId, @Param("dto") InquiryCreateRequestDto dto);
 
     /* F-17, F-18: 고객센터 문의/답변 */
     // [수정 11/20] 주석 추가 · SQL에 WHERE MEMBER_ID = #{memberId} 조건을 넣음 (PR #44 리뷰: 모든 회원 문의가 조회됨)
@@ -36,7 +35,8 @@ public interface AdminInquiryMapper {
     String selectInquiryStatus(@Param("inquiryId") Long inquiryId);
 
     /* F-18: 문의 답변 등록 및 상태 변경 쿼리 매핑 */
-    // [수정 11/20] adminId 파라미터 추가 · 이유(PR #44 리뷰): ANSWERED면 ANSWERED_BY(답변자)가 꼭 있어야 함 (CK_INQUIRY_ANSWER)
+    // [수정 11/20] adminId 파라미터 추가 · 이유(PR #44 리뷰): ANSWERED면 ANSWERED_BY(답변자)가 꼭 있어야 함
+    // (CK_INQUIRY_ANSWER)
     //   답변자는 요청 본문이 아니라 로그인 토큰에서 꺼낸 관리자 번호
     int updateInquiryAnswer(
             @Param("inquiryId") Long inquiryId,

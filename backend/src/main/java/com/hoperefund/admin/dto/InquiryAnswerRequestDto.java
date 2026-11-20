@@ -14,7 +14,8 @@ import lombok.Setter;
 public class InquiryAnswerRequestDto {
     /* F-18: 관리자 [확인 중] 버튼 · 답변 등록 요청 DTO (PUT /api/admin/inquiries/{id}/answer) */
 
-    // [수정 11/20] 상태값을 한글(접수/확인 중/답변 완료) → DB 코드(WAITING/CHECKING/ANSWERED)로 · @NotBlank · @Pattern 추가
+    // [수정 11/20] 상태값을 한글(접수/확인 중/답변 완료) → DB 코드(WAITING/CHECKING/ANSWERED)로 · @NotBlank · @Pattern
+    // 추가
     //   이유(PR #44 리뷰): DB CK_INQUIRY_STATUS는 영문 코드만 받아서 한글이 오면 DB가 거부함
     //   @Pattern: 셋 중 하나가 아니면 Service까지 오기 전에 400으로 막음 (컨트롤러의 @Valid가 실행)
     @NotBlank(message = "변경할 상태를 선택해 주세요")

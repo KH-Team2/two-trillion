@@ -50,7 +50,8 @@ public class AdminInquiryServiceImpl implements AdminInquiryService {
     public AdminInquiryResponseDto getInquiryDetail(Long memberId, Long inquiryId) {
         AdminInquiryResponseDto detail = adminInquiryMapper.selectInquiryById(inquiryId, memberId);
         if (detail == null) {
-            // [수정 11/20] IllegalArgumentException("존재하지 않는 문의 내역입니다.") → NotFoundException (500 → 404)
+            // [수정 11/20] IllegalArgumentException("존재하지 않는 문의 내역입니다.") → NotFoundException (500 →
+            // 404)
             throw new NotFoundException("문의를 찾을 수 없어요");
         }
         return detail;
@@ -65,10 +66,12 @@ public class AdminInquiryServiceImpl implements AdminInquiryService {
     @Override
     @Transactional
     public void updateInquiryAnswer(Long inquiryId, InquiryAnswerRequestDto dto, Long adminId) {
-        // [삭제 11/20] 상태 빈칸 검사(if dto.getStatus() == null ...) · 이유: DTO의 @NotBlank · @Pattern이 같은 검사를 먼저 함
+        // [삭제 11/20] 상태 빈칸 검사(if dto.getStatus() == null ...) · 이유: DTO의 @NotBlank · @Pattern이 같은
+        // 검사를 먼저 함
 
         // [추가 11/20] 답변 완료로 바꿀 때는 답변 내용이 꼭 있어야 함
-        //   이유: DB CK_INQUIRY_ANSWER 규칙(ANSWERED면 답변 필수)에 걸려 DB 오류(500)가 나기 전에 400으로 안내 (기능명세서 F-07-02 문구)
+        //   이유: DB CK_INQUIRY_ANSWER 규칙(ANSWERED면 답변 필수)에 걸려 DB 오류(500)가 나기 전에 400으로 안내 (기능명세서
+        // F-07-02 문구)
         if (STATUS_ANSWERED.equals(dto.getStatus())
                 && (dto.getAnswer() == null || dto.getAnswer().isBlank())) {
             throw new BadRequestException("답변을 입력해 주세요");
