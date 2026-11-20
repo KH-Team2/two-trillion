@@ -2,7 +2,9 @@ import { apiRequest } from "./api-client.js";
 // FAQ 원본 데이터는 FastAPI 관리. React에는 별도 JSON을 저장하지 않음.
 // Spring Boot API 호출과 FAQ 목록 가공
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
-const FAQ_URL = `${API_BASE_URL}/api/chatbot/faq`;
+const FAQ_URL = `${API_BASE_URL}/api/faqs`;
+const FAQ_CATEGORIES_URL = `${API_BASE_URL}/api/faq-categories`;
+const FAQ_MATCHES_URL = `${API_BASE_URL}/api/faq-matches`;
 
 const normalize = (text) =>
   String(text ?? "")
@@ -16,18 +18,16 @@ export const FAQ_FALLBACK =
 let faqCache = null;
 let loadingPromise = null;
 
-// Spring Boot에 fetch() 요청
+// Spring Boot 공통 API 클라이언트를 통한 FAQ 조회
 async function requestFaq(url) {
-  const response = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!response.ok) {
-    if (response.status === 404) return null;
-    throw new Error(`FAQ API 오류 (${response.status})`);
+  try {
+    return await apiRequest(url);
+  } catch (error) {
+    if (error.code === "NOT_FOUND") {
+      return null;
+    }
+    throw error;
   }
-  const result = await response.json();
-  if (!result || result.success !== true) {
-    throw new Error("FAQ API 응답 형식이 올바르지 않습니다.");
-  }
-  return result.data;
 }
 
 // FastAPI GET /faq 응답: { total: 36, items: [...] }
@@ -70,26 +70,13 @@ export async function getFaqById(id) {
 // 자유 입력 질문을 Spring Boot → FastAPI → Gemma 3로 전달
 export async function askFaq(question) {
   const trimmed = String(question ?? "").trim();
+
   if (!trimmed) return null;
 
-  const response = await fetch(`${FAQ_URL}/ask`, {
+  const data = await apiRequest(FAQ_MATCHES_URL, {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-    },
-    body: JSON.stringify({ question: trimmed }),
+    body: { question: trimmed },
   });
 
-  if (!response.ok) {
-    throw new Error(`FAQ 질문 분류 API 오류 (${response.status})`);
-  }
-
-  const result = await response.json();
-
-  if (!result || result.success !== true || !result.data) {
-    throw new Error("FAQ 질문 분류 API 응답 형식이 올바르지 않습니다.");
-  }
-
-  return result.data.matched ? result.data.faq ?? null : null;
+  return data?.matched ? data.faq ?? null : null;
 }

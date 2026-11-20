@@ -104,7 +104,6 @@ def classify_question(question: str, terms: list[dict]) -> str | None:
         with urlopen(request, timeout=60) as response:
             result = json.load(response)
         content = result['message']['content']
-        print("[Gemma 3 원본 응답]", content)
         parsed = json.loads(content)
     except (HTTPError, URLError, TimeoutError, OSError, ValueError, KeyError, TypeError) as exc:
         raise ClassifierError('Ollama 질문 분류에 실패했습니다.') from exc

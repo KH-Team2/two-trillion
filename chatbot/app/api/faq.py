@@ -1,13 +1,13 @@
 import json
 from pathlib import Path
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from app.services.classifier import classify_question, ClassifierError
+from app.api.deps import check_token
 # FAQ 목록, 카테고리, 상세 조회 구현
 
-router = APIRouter(prefix='/faq', tags=['FAQ'])
+router = APIRouter(prefix='/faq', tags=['FAQ'], dependencies=[Depends(check_token)],)
 DATA_PATH = Path(__file__).resolve().parents[1] / 'data' / 'tax_terms.json'
-
 
 def load_terms():
     with DATA_PATH.open(encoding='utf-8') as file:
@@ -39,7 +39,7 @@ def get_faq(faq_id: str):
 
 # 사용자 질문 데이터 형식
 class FaqAskRequest(BaseModel):
-    question: str = Field(min_length=1, max_length=200)
+    question: str = Field(min_length=1, max_length=100)
 
 
 # Gemma 3 질문 분류 API
@@ -54,6 +54,8 @@ def ask_faq(request: FaqAskRequest):
     except ClassifierError as exc:
         raise HTTPException(status_code=503, detail='AI 질문 분류 서비스를 이용할 수 없습니다.') from exc
     if faq_id is None:
-        return {'matched': False, 'faq_id': None, 'faq': None}
+        return {'matched': False, 'faqId': None, 'faq': None}
+
     faq = next((item for item in terms if item['id'] == faq_id), None)
-    return {'matched': faq is not None, 'faq_id': faq_id if faq is not None else None, 'faq': faq}
+
+    return {'matched': faq is not None, 'faqId': faq_id if faq is not None else None, 'faq': faq}

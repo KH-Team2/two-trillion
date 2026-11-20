@@ -11,6 +11,7 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.JsonNode;
+import com.hoperefund.common.exception.ChatbotUnavailableException;
 
 // FastAPI 서버에 실제 HTTP 요청
 @Component
@@ -57,8 +58,7 @@ public class FaqClient {
         } catch (HttpClientErrorException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 FAQ를 찾을 수 없습니다.");
         } catch (RestClientException | IllegalStateException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "챗봇 서버에 연결할 수 없습니다.", e);
+        	throw new ChatbotUnavailableException("챗봇 서버 연결 실패", e);
         }
     }
 
@@ -78,8 +78,7 @@ public class FaqClient {
 
             return result;
         } catch (RestClientException | IllegalStateException e) {
-            throw new ResponseStatusException(
-                    HttpStatus.SERVICE_UNAVAILABLE, "AI 질문 분류 서비스를 이용할 수 없습니다.", e);
+            throw new ChatbotUnavailableException("AI 질문 분류 서비스 오류", e);
         }
     }
 }
