@@ -238,6 +238,16 @@ const cases = [
       chart={() => null}
     />,
   ]),
+  // [추가 11/21] 회원정보 수정 (F-01-04): 서버 로그인 회원은 서버 조회 폼 · 비밀번호 변경도 서버 폼 (시연 문구 없음)
+  ...['개인정보', '비밀번호 변경'].map((tab) => [
+    'profile-server-' + tab,
+    <Profile
+      {...base}
+      profileTab={tab}
+      data={{ ...initial, name: 'hope_user', email: '', birth: '', gender: '' }}
+      session={{ id: 'member:hope_user', username: 'hope_user', role: 'USER', server: true }}
+    />,
+  ]),
   ['support', <Support {...base} />],
   ['admin-denied', <Admin {...base} admin={false} />],
 ];
@@ -259,6 +269,10 @@ for (const [name, node] of cases) {
     (!html.includes('아이디 찾기') || !html.includes('비밀번호 재설정') || /서버 미연동|미연동/.test(html))
   )
     throw Error('재설정 화면이 서버 연결 화면이 아님');
+  if (name === 'profile-server-개인정보' && (!html.includes('회원정보를 불러오는 중') || /시연/.test(html)))
+    throw Error('서버 회원 개인정보 탭이 서버 조회 화면이 아님');
+  if (name === 'profile-server-비밀번호 변경' && (!html.includes('현재 비밀번호') || /시연/.test(html)))
+    throw Error('서버 회원 비밀번호 변경 탭이 서버 화면이 아님');
   if (
     name === 'simulation-pay' &&
     (!html.includes('amount-refund') ||

@@ -2,8 +2,11 @@
 import assert from 'node:assert/strict';
 import {
   createMemberApi,
+  passwordChangeFormError,
   passwordResetFormError,
+  profileFormError,
   signupFormError,
+  toProfileRequest,
   toSignupRequest,
 } from './member-api.js';
 
@@ -148,6 +151,86 @@ assert.equal(toSignupRequest(noProof, versions).verificationId, null);
 // 만 14세 생일 당일(한국 시간)은 가입 가능
 assert.equal(signupFormError({ ...ready, birth: '2012-11-10' }, now), '');
 
+// 회원정보 · 자격 정보 수정 · 비밀번호 변경 (F-01-04): 모두 로그인 토큰(auth) 필요 · PUT은 모든 칸
+const profileForm = {
+  gender: 'M',
+  militaryMonths: '18',
+  hireDate: '',
+  companySize: '',
+  homelessHeadYn: 'Y',
+};
+const profileCalls = [];
+const profileApi = createMemberApi(async (path, options) => {
+  profileCalls.push([path, options]);
+  return {};
+});
+await profileApi.getMyProfile();
+await profileApi.updateMyProfile(profileForm);
+await profileApi.changeMyPassword({
+  currentPassword: 'oldPass1!',
+  newPassword: 'newPass1!',
+  newPasswordConfirm: 'newPass1!',
+});
+assert.deepEqual(profileCalls[0], ['/api/members/me', { auth: true }]);
+assert.deepEqual(profileCalls[1], [
+  '/api/members/me',
+  {
+    method: 'PUT',
+    body: {
+      gender: 'M',
+      militaryMonths: 18,
+      hireDate: null,
+      companySize: null,
+      homelessHeadYn: 'Y',
+    },
+    auth: true,
+  },
+]);
+assert.deepEqual(profileCalls[2], [
+  '/api/members/me/password',
+  {
+    method: 'PUT',
+    body: {
+      currentPassword: 'oldPass1!',
+      newPassword: 'newPass1!',
+      newPasswordConfirm: 'newPass1!',
+    },
+    auth: true,
+  },
+]);
+assert.equal(
+  toProfileRequest({ ...profileForm, hireDate: '2023-03-01', companySize: 'SME' }).companySize,
+  'SME',
+);
+assert.equal(profileFormError(profileForm), '');
+for (const [change, message] of [
+  [{ gender: '' }, '성별을 선택해 주세요'],
+  [{ militaryMonths: '' }, '군 복무 개월 수를 입력해 주세요'],
+  [{ militaryMonths: '-1' }, '0 이상으로 입력해 주세요'],
+  [{ militaryMonths: '1.5' }, '군 복무 개월 수를 확인해 주세요'],
+  [{ companySize: 'HUGE' }, '회사 규모를 선택해 주세요'],
+  [{ homelessHeadYn: '' }, '무주택 세대주 여부를 선택해 주세요'],
+]) {
+  assert.equal(profileFormError({ ...profileForm, ...change }), message);
+}
+const passwordForm = {
+  currentPassword: 'oldPass1!',
+  newPassword: 'newPass1!',
+  newPasswordConfirm: 'newPass1!',
+};
+assert.equal(passwordChangeFormError(passwordForm), '');
+for (const [change, message] of [
+  [{ currentPassword: '' }, '현재 비밀번호를 입력해 주세요'],
+  [{ newPassword: 'short', newPasswordConfirm: 'short' }, '비밀번호는 8자 이상 입력해 주세요'],
+  [{ newPasswordConfirm: 'different1' }, '비밀번호 확인이 일치하지 않아요'],
+  [
+    { newPassword: 'oldPass1!', newPasswordConfirm: 'oldPass1!' },
+    '현재 비밀번호와 다른 비밀번호를 입력해 주세요',
+  ],
+]) {
+  assert.equal(passwordChangeFormError({ ...passwordForm, ...change }), message);
+}
+
 console.log(
-  'PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사 · 아이디 찾기 · 비밀번호 재설정',
+  'PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정',
 );

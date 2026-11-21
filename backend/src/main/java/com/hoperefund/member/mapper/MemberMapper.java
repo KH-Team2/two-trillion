@@ -2,6 +2,8 @@ package com.hoperefund.member.mapper;
 
 import com.hoperefund.member.dto.LoginMemberDTO;
 import com.hoperefund.member.dto.MemberInsertDTO;
+import com.hoperefund.member.dto.MemberProfileDTO;
+import com.hoperefund.member.dto.MemberProfileRequestDTO;
 import com.hoperefund.member.dto.PasswordResetMemberDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -37,4 +39,14 @@ public interface MemberMapper {
 
     // 비밀번호 재설정 (F-01-03): 새 BCrypt 암호문 저장 · 수정일 갱신
     int updatePassword(@Param("memberId") long memberId, @Param("password") String password);
+
+    // 회원정보 조회 (F-01-04): 로그인한 본인 · 탈퇴하지 않은 회원만. 없으면 null
+    MemberProfileDTO selectProfile(long memberId);
+
+    // 회원정보 · 자격 정보 수정 (F-01-04): ROLE · STATUS 는 바꾸지 않는다. 고친 행 수 (0 = 없거나 탈퇴)
+    int updateProfile(
+            @Param("memberId") long memberId, @Param("profile") MemberProfileRequestDTO profile);
+
+    // 비밀번호 변경 (F-01-04): 현재 BCrypt 암호문. 없거나 탈퇴 회원이면 null
+    String selectPassword(long memberId);
 }

@@ -1,6 +1,6 @@
-// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) back API 호출 함수입니다.
+// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) · 회원정보 수정(F-01-04) back API 호출 함수입니다.
 // 화면 입력값 이름을 API 이름으로 바꾸는 일도 여기서 합니다 (화면 username → API loginId 등).
-// TODO: 중복확인 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
+// TODO: 중복확인 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
 import { apiRequest } from './http.js';
 import { consentVersions } from '../config/consent-versions.js';
 import { ageOn } from './account-service.js';
@@ -70,6 +70,49 @@ export function passwordResetFormError(form) {
   return '';
 }
 
+// 회원정보 · 자격 정보 수정(F-01-04): 화면 선택지 (값은 API·DB 값 그대로 · MEMBER 칸 제약조건과 같음)
+export const COMPANY_SIZE_OPTIONS = [
+  ['SME', '중소기업'],
+  ['MID', '중견기업'],
+  ['LARGE', '대기업'],
+];
+
+// 회원정보 저장 버튼을 누르기 전 화면 검사: 문제가 있으면 안내 문구, 없으면 ''
+// 서버도 같은 항목을 다시 검사합니다.
+export function profileFormError(form) {
+  if (!['M', 'F'].includes(form.gender)) return '성별을 선택해 주세요';
+  const months = String(form.militaryMonths ?? '').trim();
+  if (months === '') return '군 복무 개월 수를 입력해 주세요';
+  if (!/^-?\d+$/.test(months)) return '군 복무 개월 수를 확인해 주세요';
+  if (Number(months) < 0) return '0 이상으로 입력해 주세요';
+  if (Number(months) > 999) return '군 복무 개월 수를 확인해 주세요';
+  if (form.companySize && !COMPANY_SIZE_OPTIONS.some(([code]) => code === form.companySize))
+    return '회사 규모를 선택해 주세요';
+  if (!['Y', 'N'].includes(form.homelessHeadYn)) return '무주택 세대주 여부를 선택해 주세요';
+  return '';
+}
+
+// 화면 입력값 → 회원정보 수정 API 요청 본문 (PUT이라 모든 칸 · 비운 입사일 · 회사 규모는 null)
+export function toProfileRequest(form) {
+  return {
+    gender: form.gender,
+    militaryMonths: Number(form.militaryMonths),
+    hireDate: form.hireDate || null,
+    companySize: form.companySize || null,
+    homelessHeadYn: form.homelessHeadYn,
+  };
+}
+
+// 비밀번호 변경(F-01-04) 버튼을 누르기 전 화면 검사
+export function passwordChangeFormError(form) {
+  if (!form.currentPassword) return '현재 비밀번호를 입력해 주세요';
+  if (form.newPassword.length < 8) return '비밀번호는 8자 이상 입력해 주세요';
+  if (form.newPassword !== form.newPasswordConfirm) return '비밀번호 확인이 일치하지 않아요';
+  if (form.newPassword === form.currentPassword)
+    return '현재 비밀번호와 다른 비밀번호를 입력해 주세요';
+  return '';
+}
+
 export function createMemberApi(request = apiRequest) {
   return {
     // 아이디 중복확인 → {available, message}
@@ -113,6 +156,24 @@ export function createMemberApi(request = apiRequest) {
           newPassword: form.newPassword,
           newPasswordConfirm: form.newPasswordConfirm,
         },
+      }),
+    // 내 회원정보(F-01-04) → {loginId, maskedEmail, birthDate, gender, militaryMonths, hireDate,
+    //   companySize, homelessHeadYn, updatedAt} · 이메일은 서버가 가려서 보냄 (로그인 필요)
+    getMyProfile: () => request('/api/members/me', { auth: true }),
+    // 회원정보 · 자격 정보 저장(F-01-04) → 저장된 회원정보 (조회와 같은 모양)
+    // 실패: 400 VALIDATION (예: 군 복무 음수 「0 이상으로 입력해 주세요」)
+    updateMyProfile: (form) =>
+      request('/api/members/me', { method: 'PUT', body: toProfileRequest(form), auth: true }),
+    // 비밀번호 변경(F-01-04) → null · 실패: 400 CURRENT_PASSWORD_MISMATCH(현재 비밀번호 틀림) · VALIDATION
+    changeMyPassword: (form) =>
+      request('/api/members/me/password', {
+        method: 'PUT',
+        body: {
+          currentPassword: form.currentPassword,
+          newPassword: form.newPassword,
+          newPasswordConfirm: form.newPasswordConfirm,
+        },
+        auth: true,
       }),
   };
 }
