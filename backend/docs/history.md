@@ -2,6 +2,22 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-21] 회원 탈퇴 (F-01-05)
+- **작업 내용**:
+  - API `POST /api/members/me/withdrawal` (`MemberProfileController` · 로그인 필요 · 팀 명세에 없는 제안 주소) · 본문 `{password}` → `null`
+    - D-05: 비밀번호를 다시 확인한다 (토큰을 도용당해도 비밀번호를 모르면 탈퇴시킬 수 없게) · 틀림 400 `CURRENT_PASSWORD_MISMATCH` 「비밀번호가 맞지 않아요」 · 비움 400 `VALIDATION` · 없거나 이미 탈퇴 404
+    - DELETE 가 아닌 이유: 행을 지우지 않고 상태만 바꾸고(30일 유예), 비밀번호를 본문으로 받아야 해서
+  - `member/service/MemberWithdrawalService` (새 파일): 비밀번호 확인(BCrypt · 72바이트 초과는 틀림으로) → `withdrawMember` → 지금 토큰 로그아웃(`TokenService.logout`) · `@Transactional` · 로그는 회원번호만
+  - `MemberMapper.xml` `withdrawMember`: `STATUS='WITHDRAWN'` · `WITHDRAWN_AT=SYSDATE` · `ROLE='USER'` 를 한 문장으로 (따로 바꾸면 `CK_MEMBER_WITHDRAWN` ORA-02290) · `AND STATUS='ACTIVE'` (두 번 눌러도 탈퇴일 그대로) · 아이디 · 이메일은 유지 (D-21 30일 유예)
+  - `member/dto/MemberWithdrawalRequestDTO` (새 파일): `password` 하나 · `@ToString(exclude = "password")`
+  - 화면: `member-api.js` `withdrawMe()` · `account-service.js` 서버 로그인 회원이면 서버 탈퇴 후 저장된 토큰 삭제 (체험 계정은 브라우저 그대로) · `AccountForms.jsx` `WithdrawAccount` 안내 문구를 서버 / 체험으로 나눔 · `ProfilePage.jsx` 완료 알림 「탈퇴했어요. 30일 동안은 같은 아이디·이메일로 다시 가입할 수 없어요.」
+  - 이미 되어 있어 고치지 않은 부분: 탈퇴 회원 로그인 401 `WITHDRAWN_MEMBER` (`LoginService`) · 유예기간 중 같은 아이디 · 이메일 가입 막기 (중복확인이 탈퇴 회원도 셈) · 회원정보 조회 · 수정은 `STATUS='ACTIVE'` 만
+  - 이번에 안 한 것: 30일 지난 회원 식별 불가 처리 (97_데이터정리.sql 2-2 · 하루 한 번 · 저장소에 파일 없음) · 관리자 탈퇴 제한 (`tasks.md`)
+- **변경 사유**: 기능명세서 F-01-05 · D-05(비밀번호 재확인) · D-21(30일 유예) · 참고 저장소 sjlimiei26/final_project_sample(`@AuthenticationPrincipal` · `ApiResponse`) · secure-coding-lab-student(본인 조건을 SQL 에 · 식별자만 로그)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 261건 중 259건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · 변경 전과 같음) · 새 테스트: `MemberWithdrawalServiceTest` 6건 · `MemberProfileControllerTest` 탈퇴 4건 · 화면 `npm run format:check` · `npm test` · `npm run build` 통과
+  - 공용 DB 로 API 확인 (2026-11-21 · 테스트 회원 1005 `wdtest_1121210430` · 서버를 8081 로 따로 띄우고 `dev-code-enabled=true` 실행 옵션으로 이메일 인증): 가입 · 로그인 → 틀린 비밀번호 400 `CURRENT_PASSWORD_MISMATCH` · 빈 비밀번호 400 `VALIDATION` → 맞는 비밀번호 200 (ORA-02290 없음) → 같은 토큰 401 → 다시 로그인 401 `WITHDRAWN_MEMBER` → 중복확인 아이디 · 이메일 둘 다 사용 중 → 같은 아이디 재가입 409 `DUPLICATE_LOGIN_ID` · 같은 이메일 409 `DUPLICATE_EMAIL` · 서버 로그는 `memberId=1005` 만
+  - 미검증: `MEMBER` 칸을 SQL 로 직접 조회 (`WITHDRAWN_AT` · `ROLE`) · 브라우저에서 탈퇴 → 로그인 화면 이동 흐름
+
 ### [2026-11-21] 회원(member) 코드 줄바꿈 정리 (선생님 샘플 기준)
 - **작업 내용**:
   - 원인: Spotless(google-java-format AOSP)는 100자를 넘는 줄을 자동으로 꺾는다 → 긴 `throw new BusinessException(...)` · 람다 안의 람다 · 긴 요청 체인이 3 ~ 5단계로 들쭉날쭉하게 꺾여 있었음
