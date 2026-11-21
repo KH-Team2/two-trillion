@@ -249,8 +249,16 @@ for (const [name, node] of cases) {
     throw Error('가입 화면에 이메일 인증 UI가 보임');
   // [수정 11/17] 가입 · 로그인 화면에서 뺀 문구 (서버 연동 표시 · 검토용 초안 · 시연용 비밀번호 · 비밀번호 찾기 · 빠른 체험)
   if (name === 'signup' && /서버 연동|검토용 초안/.test(html)) throw Error('가입 화면에 뺀 문구가 보임');
-  if (name === 'login' && /서버 연동|시연용 비밀번호|잊으셨나요|로그인 없이 바로 체험|사용자 체험/.test(html))
+  if (name === 'login' && /서버 연동|시연용 비밀번호|로그인 없이 바로 체험|사용자 체험/.test(html))
     throw Error('로그인 화면에 뺀 문구가 보임');
+  // [추가 11/21] 아이디 찾기 · 비밀번호 재설정 (F-01-03): 로그인 화면에 링크 · 재설정 화면은 서버 연결 카드 (두 탭)
+  if (name === 'login' && !html.includes('아이디 · 비밀번호를 잊으셨나요?'))
+    throw Error('로그인 화면에 아이디 · 비밀번호 찾기 링크가 없음');
+  if (
+    name === 'reset' &&
+    (!html.includes('아이디 찾기') || !html.includes('비밀번호 재설정') || /서버 미연동|미연동/.test(html))
+  )
+    throw Error('재설정 화면이 서버 연결 화면이 아님');
   if (
     name === 'simulation-pay' &&
     (!html.includes('amount-refund') ||

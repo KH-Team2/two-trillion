@@ -1,6 +1,11 @@
 // member-api.js 테스트: 화면 값 → API 요청 이름 변환 · 호출 주소 · 방식
 import assert from 'node:assert/strict';
-import { createMemberApi, signupFormError, toSignupRequest } from './member-api.js';
+import {
+  createMemberApi,
+  passwordResetFormError,
+  signupFormError,
+  toSignupRequest,
+} from './member-api.js';
 
 const form = {
   username: ' Hope_User ',
@@ -71,6 +76,47 @@ assert.deepEqual(calls[5], [
 ]);
 assert.deepEqual(calls[6], ['/api/auth/logout', { method: 'POST', auth: true }]);
 
+// 아이디 찾기 · 비밀번호 재설정 (F-01-03): 이메일은 본문으로 · 앞뒤 공백 제거 · 비밀번호는 그대로
+const resetForm = {
+  email: ' hope@example.com ',
+  code: '123456',
+  newPassword: ' new pass1 ',
+  newPasswordConfirm: ' new pass1 ',
+};
+await api.findLoginId(' hope@example.com ');
+await api.sendPasswordResetCode(' hope@example.com ');
+await api.completePasswordReset(resetForm);
+assert.deepEqual(calls[7], [
+  '/api/auth/login-id-lookups',
+  { method: 'POST', body: { email: 'hope@example.com' } },
+]);
+assert.deepEqual(calls[8], [
+  '/api/auth/password-resets',
+  { method: 'POST', body: { email: 'hope@example.com' } },
+]);
+assert.deepEqual(calls[9], [
+  '/api/auth/password-resets/completion',
+  {
+    method: 'POST',
+    body: {
+      email: 'hope@example.com',
+      code: '123456',
+      newPassword: ' new pass1 ',
+      newPasswordConfirm: ' new pass1 ',
+    },
+  },
+]);
+// 재설정 화면 검사
+assert.equal(passwordResetFormError(resetForm), '');
+for (const [change, message] of [
+  [{ email: ' ' }, '이메일을 입력해 주세요'],
+  [{ code: '12ab' }, '6자리 인증 코드를 입력해 주세요'],
+  [{ newPassword: 'short', newPasswordConfirm: 'short' }, '비밀번호는 8자 이상 입력해 주세요'],
+  [{ newPasswordConfirm: 'different1' }, '비밀번호 확인이 일치하지 않아요'],
+]) {
+  assert.equal(passwordResetFormError({ ...resetForm, ...change }), message);
+}
+
 // 화면 검사: 정상 → '' · 항목별 안내 문구
 const now = new Date('2026-11-10T03:00:00Z');
 const ready = { ...form, checkedUsername: form.username, checkedEmail: form.email };
@@ -102,4 +148,6 @@ assert.equal(toSignupRequest(noProof, versions).verificationId, null);
 // 만 14세 생일 당일(한국 시간)은 가입 가능
 assert.equal(signupFormError({ ...ready, birth: '2012-11-10' }, now), '');
 
-console.log('PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사');
+console.log(
+  'PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사 · 아이디 찾기 · 비밀번호 재설정',
+);

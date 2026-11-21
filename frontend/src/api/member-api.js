@@ -1,6 +1,6 @@
-// 회원가입(F-01-01) back API 호출 함수입니다.
+// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) back API 호출 함수입니다.
 // 화면 입력값 이름을 API 이름으로 바꾸는 일도 여기서 합니다 (화면 username → API loginId 등).
-// TODO: 중복확인 · 이메일 인증 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
+// TODO: 중복확인 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
 import { apiRequest } from './http.js';
 import { consentVersions } from '../config/consent-versions.js';
 import { ageOn } from './account-service.js';
@@ -60,6 +60,16 @@ export function toSignupRequest(form, versions = consentVersions) {
   };
 }
 
+// 비밀번호 재설정(F-01-03) 버튼을 누르기 전 화면 검사: 문제가 있으면 안내 문구, 없으면 ''
+// 서버도 같은 항목을 다시 검사합니다.
+export function passwordResetFormError(form) {
+  if (!form.email.trim()) return '이메일을 입력해 주세요';
+  if (!/^\d{6}$/.test(form.code)) return '6자리 인증 코드를 입력해 주세요';
+  if (form.newPassword.length < 8) return '비밀번호는 8자 이상 입력해 주세요';
+  if (form.newPassword !== form.newPasswordConfirm) return '비밀번호 확인이 일치하지 않아요';
+  return '';
+}
+
 export function createMemberApi(request = apiRequest) {
   return {
     // 아이디 중복확인 → {available, message}
@@ -85,6 +95,25 @@ export function createMemberApi(request = apiRequest) {
       request('/api/auth/login', { method: 'POST', body: { loginId: loginId.trim(), password } }),
     // 로그아웃 → null · 지금 토큰을 서버에서 무효 처리 (토큰이 필요한 요청)
     logout: () => request('/api/auth/logout', { method: 'POST', auth: true }),
+    // 아이디 찾기(F-01-03) → {maskedLoginId} (예: te******) · 가입 정보가 없으면 404 NOT_FOUND
+    // 이메일은 주소에 남지 않게 본문으로 보냄
+    findLoginId: (email) =>
+      request('/api/auth/login-id-lookups', { method: 'POST', body: { email: email.trim() } }),
+    // 비밀번호 재설정 인증 코드 발송(F-01-03) → {expiresAt, devCode} · 코드는 10분 유효
+    sendPasswordResetCode: (email) =>
+      request('/api/auth/password-resets', { method: 'POST', body: { email: email.trim() } }),
+    // 코드 확인 + 새 비밀번호 저장(F-01-03) → null
+    // 실패: 400 RESET_CODE_FAILED(틀림) · RESET_CODE_EXPIRED · RESET_CODE_LIMIT(만료 · 5번 틀림 → 다시 받기)
+    completePasswordReset: (form) =>
+      request('/api/auth/password-resets/completion', {
+        method: 'POST',
+        body: {
+          email: form.email.trim(),
+          code: form.code,
+          newPassword: form.newPassword,
+          newPasswordConfirm: form.newPasswordConfirm,
+        },
+      }),
   };
 }
 
