@@ -898,19 +898,28 @@ export function MemberManagement({ onChange }) {
     </>
   );
 }
+// 회원 탈퇴(F-01-05) · 서버 로그인 회원은 back API · 체험 계정은 브라우저 저장
 export function WithdrawAccount({ onDone }) {
   const [open, setOpen] = useState(false),
     [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
+  const server = Boolean(accountService.current()?.server);
   return (
     <>
       <h3>회원 탈퇴</h3>
-      <p className="muted">
-        탈퇴 요청 시 계정 상태가 WITHDRAWN으로 변경되고 즉시 로그아웃되며 다시 로그인할 수 없습니다.
-        아이디·이메일은 30일 유예기간 동안 유지됩니다. 30일 경과 후 식별 정보를 식별 불가하게
-        처리하는 작업과 데이터 활용·보존 정책은 백엔드에서 구현·검토해야 합니다. 문의·접근 기록은
-        보존 대상입니다. 현재 브라우저 시연은 자동 정리 작업을 수행하지 않습니다.
-      </p>
+      {server ? (
+        <p className="muted">
+          탈퇴하면 바로 로그아웃되고 이 계정으로 다시 로그인할 수 없어요. 30일 유예기간 동안은
+          아이디·이메일을 그대로 보관하므로 같은 아이디·이메일로 다시 가입할 수 없어요. 30일이
+          지나면 아이디·이메일 등 회원을 알아볼 수 있는 정보를 식별할 수 없게 처리해요. 문의·접속
+          기록은 보존돼요.
+        </p>
+      ) : (
+        <p className="muted">
+          브라우저 체험 계정 탈퇴예요. 계정 상태가 WITHDRAWN으로 바뀌고 로그아웃돼요. 30일 뒤 식별
+          정보 처리는 브라우저 체험에서는 하지 않아요.
+        </p>
+      )}
       <button className="btn secondary danger" onClick={() => setOpen(!open)}>
         회원 탈퇴
       </button>
@@ -924,12 +933,7 @@ export function WithdrawAccount({ onDone }) {
               setError('탈퇴 및 30일 유예 안내를 확인해주세요.');
               return;
             }
-            if (
-              !window.confirm(
-                '계정을 탈퇴 상태로 전환하고 로그아웃하시겠습니까? 30일 후 자동 처리는 서버 미연동입니다.',
-              )
-            )
-              return;
+            if (!window.confirm('정말 탈퇴하시겠어요? 탈퇴하면 바로 로그아웃돼요.')) return;
             setBusy(true);
             try {
               await accountService.withdraw(String(f.get('password') || ''));
@@ -941,14 +945,14 @@ export function WithdrawAccount({ onDone }) {
             }
           }}
         >
-          <p>마지막 관리자는 다른 관리자에게 권한을 부여한 후 탈퇴할 수 있습니다.</p>
+          {!server && <p>마지막 관리자는 다른 관리자에게 권한을 부여한 후 탈퇴할 수 있습니다.</p>}
           <label className="field">
             <span>현재 비밀번호 재확인</span>
-            <input type="password" name="password" required />
+            <input type="password" name="password" autoComplete="current-password" required />
           </label>
           <label className="checkline">
             <input type="checkbox" name="confirm" required />
-            로그인 차단·30일 유예·이후 식별 정보 처리 예정 안내를 확인했습니다.
+            로그인 차단·30일 유예·이후 식별 정보 처리 안내를 확인했어요.
           </label>
           <button className="btn danger" disabled={busy}>
             {busy ? '탈퇴 처리 중…' : '재확인하고 탈퇴하기'}

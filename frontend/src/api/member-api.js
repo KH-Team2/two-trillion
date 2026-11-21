@@ -1,6 +1,6 @@
-// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) · 회원정보 수정(F-01-04) back API 호출 함수입니다.
+// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) · 회원정보 수정(F-01-04) · 회원 탈퇴(F-01-05) back API 호출 함수입니다.
 // 화면 입력값 이름을 API 이름으로 바꾸는 일도 여기서 합니다 (화면 username → API loginId 등).
-// TODO: 중복확인 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
+// TODO: 중복확인 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정 · 탈퇴 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
 import { apiRequest } from './http.js';
 import { consentVersions } from '../config/consent-versions.js';
 import { ageOn } from './account-service.js';
@@ -175,6 +175,10 @@ export function createMemberApi(request = apiRequest) {
         },
         auth: true,
       }),
+    // 회원 탈퇴(F-01-05) → null · 비밀번호를 다시 확인하고 서버가 지금 토큰도 무효로 함 (D-05)
+    // 실패: 400 CURRENT_PASSWORD_MISMATCH(비밀번호 틀림) · VALIDATION(비밀번호 비움) · 404 NOT_FOUND(이미 탈퇴)
+    withdrawMe: (password) =>
+      request('/api/members/me/withdrawal', { method: 'POST', body: { password }, auth: true }),
   };
 }
 

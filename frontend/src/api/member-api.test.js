@@ -198,6 +198,14 @@ assert.deepEqual(profileCalls[2], [
     auth: true,
   },
 ]);
+
+// 회원 탈퇴(F-01-05): 비밀번호 재확인 · 로그인 토큰 필요 · 비밀번호는 주소가 아닌 본문으로
+await profileApi.withdrawMe('password1!');
+assert.deepEqual(profileCalls[3], [
+  '/api/members/me/withdrawal',
+  { method: 'POST', body: { password: 'password1!' }, auth: true },
+]);
+
 assert.equal(
   toProfileRequest({ ...profileForm, hireDate: '2023-03-01', companySize: 'SME' }).companySize,
   'SME',

@@ -137,9 +137,7 @@ export default function ProfilePage({
                   setCompareBase(null);
                   setSimTx([]);
                   go('login');
-                  notify(
-                    '탈퇴 상태로 전환하고 로그아웃했습니다. 30일 유예 후 자동 처리는 서버 연동이 필요합니다.',
-                  );
+                  notify('탈퇴했어요. 30일 동안은 같은 아이디·이메일로 다시 가입할 수 없어요.');
                 }}
               />
             ) : (
