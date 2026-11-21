@@ -163,4 +163,20 @@
            AND STATUS = 'ACTIVE'
     </select>
 
+    <!--
+        회원 탈퇴 (F-01-05 · D-21)
+        - STATUS 와 WITHDRAWN_AT 을 한 문장에서 같이 바꾼다 (하나만 바꾸면 CK_MEMBER_WITHDRAWN 위반 · ORA-02290)
+        - ROLE 은 USER 로 되돌린다 (탈퇴한 관리자 계정에 관리자 권한이 남지 않게)
+        - LOGIN_ID · EMAIL 은 30일 유예기간 동안 그대로 둔다 → 30일 뒤 식별 불가 처리는 97_데이터정리.sql 2-2
+        - STATUS = 'ACTIVE' 조건 → 이미 탈퇴한 회원은 0행 (두 번 눌러도 탈퇴일이 바뀌지 않음)
+    -->
+    <update id="withdrawMember">
+        UPDATE MEMBER
+           SET STATUS = 'WITHDRAWN',
+               WITHDRAWN_AT = SYSDATE,
+               ROLE = 'USER'
+         WHERE MEMBER_ID = #{memberId}
+           AND STATUS = 'ACTIVE'
+    </update>
+
 </mapper>

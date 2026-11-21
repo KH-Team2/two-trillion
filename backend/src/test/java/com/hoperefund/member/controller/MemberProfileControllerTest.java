@@ -8,15 +8,19 @@ import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.common.exception.GlobalExceptionHandler;
+import com.hoperefund.common.service.TokenService.TokenInfo;
 import com.hoperefund.member.dto.MemberProfileDTO;
 import com.hoperefund.member.dto.MemberProfileResponseDTO;
 import com.hoperefund.member.service.MemberProfileService;
+import com.hoperefund.member.service.MemberWithdrawalService;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
@@ -37,7 +41,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
- * 회원정보 · 자격 정보 수정 API 테스트 (F-01-04)
+ * 회원정보 · 자격 정보 수정 API 테스트 (F-01-04) · 회원 탈퇴 API 테스트 (F-01-05)
  * 요청 형식 검증 · 응답 봉투 · 로그인한 회원번호 전달 · Service 오류가 그대로 나가는지 확인한다.
  * 토큰 없이 부르면 401 인 것은 SecurityConfig 의 /api/** 규칙 (SecurityConfigTest).
  */
@@ -49,6 +53,10 @@ class MemberProfileControllerTest {
     private static final long MEMBER_ID = 7L;
     private static final String URL = "/api/members/me";
     private static final String PASSWORD_URL = "/api/members/me/password";
+    private static final String WITHDRAWAL_URL = "/api/members/me/withdrawal";
+    private static final String WITHDRAWAL_BODY = "{\"password\": \"password1!\"}";
+    private static final TokenInfo TOKEN =
+            new TokenInfo(MEMBER_ID, "test1234", "USER", "token-1", Instant.now().plusSeconds(60));
     private static final String PROFILE_BODY =
             """
             {"gender": "M", "militaryMonths": 18, "hireDate": "2023-03-01",
@@ -76,6 +84,7 @@ class MemberProfileControllerTest {
     }
 
     @MockitoBean private MemberProfileService memberProfileService;
+    @MockitoBean private MemberWithdrawalService memberWithdrawalService;
 
     // 로그인한 회원으로 요청 (JWT 필터가 하는 일을 대신: principal = 회원번호)
     private static RequestPostProcessor loginAs(long memberId) {
@@ -203,5 +212,65 @@ class MemberProfileControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("CURRENT_PASSWORD_MISMATCH"))
                 .andExpect(jsonPath("$.error.message").value("현재 비밀번호가 맞지 않아요"));
+    }
+
+    // ---------- 회원 탈퇴 (F-01-05) ----------
+
+    // 로그인한 회원 + 토큰 정보(JWT 필터가 details 에 넣는 값)로 탈퇴 요청
+    private ResultActions postWithdrawal(String body) throws Exception {
+        RequestPostProcessor login =
+                request -> {
+                    UsernamePasswordAuthenticationToken auth =
+                            new UsernamePasswordAuthenticationToken(MEMBER_ID, null, List.of());
+                    auth.setDetails(TOKEN);
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                    // Controller 의 Authentication 매개변수는 요청의 principal 에서 온다 (필터를 끈 테스트라 직접 넣음)
+                    request.setUserPrincipal(auth);
+                    return request;
+                };
+        MockHttpServletRequestBuilder request =
+                post(WITHDRAWAL_URL).with(login).contentType(MediaType.APPLICATION_JSON);
+        return mockMvc.perform(request.content(body));
+    }
+
+    // 탈퇴 → 200 · data null · 토큰의 회원번호 · 토큰 정보를 Service 로
+    @Test
+    void withdrawReturns200() throws Exception {
+        postWithdrawal(WITHDRAWAL_BODY)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").doesNotExist());
+        verify(memberWithdrawalService).withdraw(eq(MEMBER_ID), any(), eq(TOKEN));
+    }
+
+    // 비밀번호 비움 → 400 · Service 안 부름
+    @Test
+    void withdrawBlankPasswordReturns400() throws Exception {
+        postWithdrawal("{\"password\": \"\"}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.message").value("비밀번호를 입력해 주세요"));
+        verify(memberWithdrawalService, never()).withdraw(anyLong(), any(), any());
+    }
+
+    // 비밀번호 틀림 → Service 오류가 그대로 400
+    @Test
+    void withdrawWrongPasswordReturns400() throws Exception {
+        String message = "비밀번호가 맞지 않아요";
+        BusinessException error =
+                new BusinessException(HttpStatus.BAD_REQUEST, "CURRENT_PASSWORD_MISMATCH", message);
+        willThrow(error).given(memberWithdrawalService).withdraw(eq(MEMBER_ID), any(), any());
+
+        postWithdrawal(WITHDRAWAL_BODY)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("CURRENT_PASSWORD_MISMATCH"))
+                .andExpect(jsonPath("$.error.message").value(message));
+    }
+
+    // 탈퇴 주소에 GET → 405
+    @Test
+    void withdrawalGetReturns405() throws Exception {
+        mockMvc.perform(get(WITHDRAWAL_URL).with(loginAs(MEMBER_ID)))
+                .andExpect(status().isMethodNotAllowed());
     }
 }

@@ -49,4 +49,7 @@ public interface MemberMapper {
 
     // 비밀번호 변경 (F-01-04): 현재 BCrypt 암호문. 없거나 탈퇴 회원이면 null
     String selectPassword(long memberId);
+
+    // 회원 탈퇴 (F-01-05): STATUS · WITHDRAWN_AT · ROLE 변경 (아이디 · 이메일 유지). 고친 행 수 (0 = 없거나 이미 탈퇴)
+    int withdrawMember(long memberId);
 }
