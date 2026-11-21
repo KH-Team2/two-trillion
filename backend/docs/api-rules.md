@@ -110,3 +110,6 @@
 | POST | `/api/auth/login-id-lookups` | 아이디 찾기 · 본문 `{email}` → `{maskedLoginId}`(예: `te******`) · 가입 정보 없음 · 탈퇴 · (인증을 켰을 때) 미인증이면 404 (F-01-03 · 제안 주소) |
 | POST | `/api/auth/password-resets` | 비밀번호 재설정 인증 코드 메일 발송 · 본문 `{email}` → `{expiresAt, devCode}` · 10분 유효 · 대상 회원이 아니면 404 (F-01-03 · 제안 주소) |
 | POST | `/api/auth/password-resets/completion` | 코드 확인 + 새 비밀번호 저장 · 본문 `{email, code, newPassword, newPasswordConfirm}` → `null` · 틀림 400 `RESET_CODE_FAILED` · 만료 · 5번 틀림 400 `RESET_CODE_EXPIRED` / `RESET_CODE_LIMIT` (F-01-03 · 제안 주소) |
+| GET | `/api/members/me` | 내 회원정보 · `{loginId, maskedEmail, birthDate, gender, militaryMonths, hireDate, companySize, homelessHeadYn, updatedAt}` · 이메일은 가린 값만 · 탈퇴면 404 (F-01-04 · 제안 주소) |
+| PUT | `/api/members/me` | 회원정보 · 자격 정보 저장 · 본문 `{gender, militaryMonths, hireDate, companySize, homelessHeadYn}` (모든 칸) → 저장된 회원정보 · 군 복무 음수 400 「0 이상으로 입력해 주세요」 · `ROLE` · `STATUS` 안 바뀜 (F-01-04 · 제안 주소) |
+| PUT | `/api/members/me/password` | 비밀번호 변경 · 본문 `{currentPassword, newPassword, newPasswordConfirm}` → `null` · 현재 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` (F-01-04 · 제안 주소) |

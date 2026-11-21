@@ -2,6 +2,37 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-21] 회원(member) 코드 줄바꿈 정리 (선생님 샘플 기준)
+- **작업 내용**:
+  - 원인: Spotless(google-java-format AOSP)는 100자를 넘는 줄을 자동으로 꺾는다 → 긴 `throw new BusinessException(...)` · 람다 안의 람다 · 긴 요청 체인이 3 ~ 5단계로 들쭉날쭉하게 꺾여 있었음
+  - 방법 (final_project_sample/back 과 같은 방식 · 처음부터 100자를 넘지 않게 씀): 오류는 `badRequest(code, message)` · `unauthorized(...)` · `signupFailed()` 같은 메서드로 뺌 · 긴 식은 변수로 나눔 · 메일 본문은 텍스트 블록(`"""`) · 응답 DTO 는 `from()` 으로 만듦(`MemberProfileResponseDTO`) · 인증 기록 만료 판단은 `Verification.isExpired()` 로
+  - 테스트: 오류 확인을 `catchThrowable(...)` + `assertError(...)` 두 줄로 · 로그인은 `login()` · `loginError()` 도우미 · Controller 는 `postJson(주소, 본문)` · `putJson(...)` 도우미 · 긴 요청 DTO 는 setter 로
+  - 범위: `member/` main · test 만 (common · 다른 도메인은 건드리지 않음) · API · 응답 · 동작은 바뀌지 않음
+  - 그대로 둔 모양: 생성자의 긴 매개변수 목록(한 줄에 하나씩) · `변수 =` 다음 줄 한 줄로 끝나는 대입 (formatter 가 일정하게 만드는 모양)
+- **변경 사유**: 푸시된 코드의 줄바꿈이 읽기 어렵다는 사용자 피드백 · 참고 저장소: sjlimiei26/final_project_sample · 5_Framework · secure-coding-lab-student
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 251건 중 249건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · 변경 전과 같음) · member 테스트 107건 통과 · member 폴더에 24칸 이상 들여 쓴 줄 0개 (JSON 텍스트 블록 제외)
+  - 남은 곳 (이번에 안 고침): 다른 도메인(income · expense · prediction · statistics) 코드
+- **추가 (사용자 요청)**: `common/config/SecurityConfig` 도 같은 방식으로 정리
+  - 설정을 샘플처럼 ① 기본 기능 끄기 → ② 세션 안 씀 → ③ 주소 규칙 → ④ 401 · 403 응답 → ⑤ 토큰 필터 순서로 · 람다 안에 길게 늘어놓던 부분은 `stateless()` · `authorizeRules()` · `errorHandlers()` 메서드로 뺌 (주소 규칙은 한 줄에 하나)
+  - 401 · 403 응답: `writeUnauthorized()` · `writeForbidden()` · `JsonMapper` 는 메서드 매개변수 대신 생성자로 받음 (`@RequiredArgsConstructor`)
+  - JWT 필터: 로그인 정보 넣는 부분을 `login(TokenInfo)` 로 뺌
+  - 주소 규칙 · 순서 · 응답 코드 · 문구는 그대로 · `SecurityConfigTest` 7건 통과 · 전체 251건 중 249건 통과 (기존 expense 2건만 실패 · 변경 전과 같음)
+
+### [2026-11-21] 회원정보 · 자격 정보 수정 · 비밀번호 변경 (F-01-04)
+- **작업 내용**:
+  - API 3개 (`member/controller/MemberProfileController` · 로그인 필요 · 회원번호는 토큰에서 · 팀 명세에 없는 제안 주소)
+    - `GET /api/members/me`: 아이디 · 가린 이메일(`ho***@example.com` · 서버에서 가림) · 생년월일 · 성별 · 군 복무 개월 · 입사일 · 회사 규모 · 무주택 세대주 · 수정일 (권한 · 상태 · 비밀번호는 응답에 없음)
+    - `PUT /api/members/me`: 성별(M·F 필수) · 군 복무(0 ~ 999) · 입사일(비우면 NULL) · 회사 규모(SME·MID·LARGE · 비우면 NULL) · 무주택(Y·N 필수) 전부 저장 · `UPDATED_AT = SYSDATE` · `ROLE` · `STATUS` · 아이디 · 이메일(D-04) · 생년월일은 SQL `SET`에 없음 · 저장 후 다시 조회해 응답
+    - `PUT /api/members/me/password`: 현재 비밀번호 BCrypt 확인(틀리면 400 `CURRENT_PASSWORD_MISMATCH`) → 새 비밀번호 규칙(회원가입과 같은 `MemberService.validatePassword` · 현재와 같으면 400) → BCrypt 저장
+  - 군 복무 음수: DTO 검사로 400 「0 이상으로 입력해 주세요」 · DB 값 제한 위반(ORA-02290 `CK_MEMBER_MILITARY`)도 같은 문구로 바꿈 (ORA 코드는 화면에 보내지 않음)
+  - 모든 SQL에 `MEMBER_ID = 로그인 회원` + `STATUS = 'ACTIVE'` 조건 · 없거나 탈퇴면 404
+  - `MemberProfileService` · DTO 4개 (`MemberProfileDTO`(Mapper 1행 · 이메일 원문) · `MemberProfileResponseDTO` · `MemberProfileRequestDTO` · `PasswordChangeRequestDTO`) · `MemberMapper`에 `selectProfile` · `updateProfile` · `selectPassword` 추가
+  - 화면: `frontend/src/api/member-api.js`에 `getMyProfile` · `updateMyProfile` · `changeMyPassword` · `profileFormError` · `toProfileRequest` · `passwordChangeFormError` 추가 · `ProfileDetails.jsx`에 서버 회원용 `ServerProfileDetails` · `ServerPasswordChange` 추가 · `ProfilePage.jsx`의 「개인정보」 · 「비밀번호 변경」 탭은 서버 로그인 회원이면 서버 폼 (빠른 체험은 기존 시연 폼 그대로 · 라우팅 그대로)
+  - 테스트: `MemberProfileServiceTest` 12개 · `MemberProfileControllerTest` 9개 · `member-api.test.js` · `render-pages.mjs`(서버 회원 개인정보 · 비밀번호 탭 2개)
+- **변경 사유**: 기능명세서 F-01-04. 세액 계산(F-03-01) · 혜택 진단(F-03-02)이 `MEMBER`의 군 복무 · 입사일 · 회사 규모 · 무주택을 읽는데 이 값을 저장하는 곳이 없어 모든 회원이 기본값으로 계산되고 있었음. 비밀번호 변경은 토큰만 탈취돼도 바꾸지 못하게 현재 비밀번호를 확인하는 별도 주소로 둠 (사용자 결정)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 251건 중 249건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · tasks.md 「팀 확인 필요」) · 프론트 `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과
+  - 미검증: 실제 Oracle DB에서 UPDATE · ORA-02290 문구 확인 · 브라우저에서 조회 → 저장 → 다시 계산 흐름 · 토큰 없이 부르면 401 (`/api/**` 규칙이라 같을 것으로 보지만 `SecurityConfigTest`는 common이라 추가 안 함)
+
 ### [2026-11-21] 아이디 찾기 · 비밀번호 재설정 (F-01-03)
 - **작업 내용**:
   - API 3개 (`member/controller/PasswordResetController` · 팀 명세에 없는 제안 주소 · 이메일이 접속 기록에 남지 않게 모두 POST 본문)
