@@ -334,13 +334,13 @@ export function AccountForms({ page, go, onLogin }) {
         )}
         {signup && (
           <>
-            {/* 이메일 인증 UI: 실제 메일 발송 전이라 숨김 (코드는 그대로 · 켜려면 member-api.js EMAIL_VERIFICATION_REQUIRED = true) */}
+            {/* 이메일 인증 UI: frontend/.env 의 VITE_EMAIL_VERIFICATION_REQUIRED=true 일 때만 보임 (member-api.js) */}
             {EMAIL_VERIFICATION_REQUIRED && (
               <div className="email-verification">
                 <h3>{serverSignup ? '이메일 인증' : '이메일 인증 · 체험'}</h3>
                 <p>
                   {serverSignup
-                    ? '인증번호는 5분 동안 유효하며 5번 틀리면 다시 받아야 해요. 메일 발송 기능은 준비 중이라 개발 환경에서는 인증번호가 아래에 표시됩니다.'
+                    ? '입력한 이메일로 인증번호를 보내 드려요. 인증번호는 5분 동안 유효하며 5번 틀리면 다시 받아야 해요.'
                     : '이메일 발송 API가 연결되지 않아 실제 메일은 보내지 않습니다. 아래에 표시되는 체험 인증번호로 동작을 확인하세요.'}
                 </p>
                 <button
@@ -362,7 +362,7 @@ export function AccountForms({ page, go, onLogin }) {
                         setVerificationMessage(
                           result.devCode
                             ? '개발 환경: 메일 대신 아래 인증번호를 사용하세요.'
-                            : '인증번호를 발급했어요. (메일 발송 기능은 아직 연결되지 않았어요)',
+                            : '인증번호를 메일로 보냈어요. 메일이 보이지 않으면 스팸함도 확인해 주세요.',
                         );
                       } catch (err) {
                         if (err.code === 'DUPLICATE_EMAIL') setCheckedEmail('');

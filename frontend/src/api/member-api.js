@@ -5,10 +5,11 @@ import { apiRequest } from './http.js';
 import { consentVersions } from '../config/consent-versions.js';
 import { ageOn } from './account-service.js';
 
-// 이메일 인증을 가입 화면에 보여 주고 · 가입 전에 꼭 마치게 할지 [추가 11/17]
-// 실제 메일 발송이 아직 없어 false: 인증 UI는 숨기고(코드는 그대로 둠) 인증 없이 가입
-// 메일 발송이 붙으면 true로 바꾸고, 서버도 EMAIL_VERIFICATION_REQUIRED=true로 켠다 (backend application.yml)
-export const EMAIL_VERIFICATION_REQUIRED = false;
+// 이메일 인증을 가입 화면에 보여 주고 · 가입 전에 꼭 마치게 할지 [추가 11/17 · 수정 11/20 환경변수로]
+// frontend/.env 의 VITE_EMAIL_VERIFICATION_REQUIRED=true 일 때만 켬 (없으면 false: 인증 UI 숨김 · 인증 없이 가입)
+// 켤 때는 서버 backend/.env 의 EMAIL_VERIFICATION_REQUIRED=true 도 같이 (화면 · 서버 값이 같아야 함)
+export const EMAIL_VERIFICATION_REQUIRED =
+  (import.meta.env || {}).VITE_EMAIL_VERIFICATION_REQUIRED === 'true';
 
 // 화면 성별 버튼 값 → API·DB 값 (MEMBER.GENDER M/F)
 export const GENDER_CODE = { 남성: 'M', 여성: 'F' };

@@ -108,6 +108,7 @@ frontend/.env.example
 | `VITE_PRIVACY_VERSION` | 개인정보 처리 동의 버전 |
 | `VITE_FINANCE_VERSION` | 금융정보 저장 동의 버전 |
 | `VITE_API_PROXY` | 개발용 Spring Boot API 서버 주소 |
+| `VITE_EMAIL_VERIFICATION_REQUIRED` | 회원가입 이메일 인증 화면 표시 (`true`일 때만 · 비우면 숨김 · 켜면 `backend/.env`의 `EMAIL_VERIFICATION_REQUIRED=true`도 같이) |
 
 `.env.example`을 복사해 `.env` 파일을 만들면 동의서 버전 기본값(`1.0`)이 들어갑니다.
 
