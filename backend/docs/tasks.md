@@ -44,7 +44,7 @@
 ### 아이디 찾기 · 비밀번호 재설정 남은 작업 (F-01-03 · 2026-11-21)
 
 - 팀 API 명세에 주소 3개 추가 (`/api/auth/login-id-lookups` · `/api/auth/password-resets` · `/api/auth/password-resets/completion` · `api-rules.md` 7번 표)
-- 공용 DB에서 확인: `SEQ_PASSWORD_RESET` 시퀀스가 있는지 · 재설정 → `PASSWORD_RESET` 행 · `MEMBER.PASSWORD` 바뀌는지
+- ~~공용 DB에서 확인: `SEQ_PASSWORD_RESET` · `PASSWORD_RESET` 행 · `MEMBER.PASSWORD` 변경~~ → 2026-11-21 확인 완료
 - 이메일 인증 조건: `EMAIL_VERIFICATION_REQUIRED=false`(기본)인 동안은 `EMAIL_VERIFIED_YN = 'N'` 회원도 재설정 가능 · 운영에서는 true로 켜야 명세(인증 회원만)와 같아짐
   - 켜기 전에 가입한 회원은 계속 'N' → 켜면 그 회원들은 재설정 불가 (DB 값 변경이 필요하면 DB 담당자와 결정)
 - 재발송 제한 없음: `POST /api/auth/password-resets`도 아래 「이메일 인증번호 재발송 제한」과 같은 문제 (남의 이메일로 메일 반복 발송) → 같이 처리

@@ -16,7 +16,8 @@
   - 테스트: `PasswordResetServiceTest` 18개 · `PasswordResetControllerTest` 8개 · `SmtpEmailSenderTest` 1개 · `member-api.test.js` · `render-pages.mjs`(로그인 링크 · 재설정 화면)
 - **변경 사유**: 기능명세서 F-01-03 (DB v2.3 · v2.5의 `PASSWORD_RESET`은 준비돼 있었음 · 계획서에 없어 포함 여부 D-03 후순위)
 - **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 230건 중 228건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · tasks.md 「팀 확인 필요」) · 프론트 `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과 (전체 `format:check`는 기존 CRLF 문제로 실패)
-  - 미검증: 실제 Oracle에서 `PasswordResetMapper.xml` 실행 (`SEQ_PASSWORD_RESET` 존재 · `FETCH FIRST` · `FOR UPDATE`) · 실제 메일 수신 · 브라우저에서 화면 흐름
+  - 사용자 확인 (2026-11-21): 화면에서 아이디 찾기(앞 2글자 + 마스킹) · 인증 코드 발송 → 입력 → 새 비밀번호 → 「비밀번호를 바꿨어요」 → 로그인하러 가기 · 공용 DB에서 `SEQ_PASSWORD_RESET` · `PASSWORD_RESET` 저장 값(코드 해시 · 10분 · `USED_YN`) · `MEMBER.PASSWORD` · `UPDATED_AT` 변경 확인
+  - 미검증: 예외 흐름을 실제 DB에서 따로 확인한 기록 없음 (5번 틀림 · 10분 만료 · 사용한 코드 재사용 · 테스트로만 확인)
 
 ### [2026-11-21] 이메일 인증 화면 스위치를 환경변수로 · 메일 발송 안내 문구 수정 (F-01-01)
 - **작업 내용**:
