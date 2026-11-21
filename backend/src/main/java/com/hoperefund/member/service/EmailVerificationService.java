@@ -1,6 +1,7 @@
 package com.hoperefund.member.service;
 
 import com.hoperefund.common.exception.BusinessException;
+import com.hoperefund.member.client.EmailSender;
 import com.hoperefund.member.dto.EmailVerificationResponseDTO;
 import com.hoperefund.member.mapper.MemberMapper;
 import java.security.SecureRandom;
@@ -19,7 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 /**
- * 회원가입 이메일 인증. 순서: 인증번호 발송 → 인증번호 확인 → (가입할 때) 인증 완료 확인 · 사용 처리
+ * 회원가입 이메일 인증. 순서: 인증번호 발송(EmailSender) → 인증번호 확인 → (가입할 때) 인증 완료 확인 · 사용 처리
  * ERD 에 가입 전 인증 테이블이 없어 서버 메모리에 보관한다 (docs/tasks.md 「이메일 인증 방식」).
  * 서버를 다시 켜면 진행 중인 인증은 사라진다 (다시 인증하면 된다).
  */
@@ -35,6 +36,7 @@ public class EmailVerificationService {
 
     private final MemberMapper memberMapper;
     private final PasswordEncoder passwordEncoder;
+    private final EmailSender emailSender; // 메일 발송 (MAIL_MODE: log = 로그만 · smtp = 실제 발송)
     private final Clock clock;
     private final boolean devCodeEnabled;
     private final SecureRandom random = new SecureRandom(); // 추측할 수 없는 난수 (Random 은 예측 가능)
@@ -46,18 +48,21 @@ public class EmailVerificationService {
     public EmailVerificationService(
             MemberMapper memberMapper,
             PasswordEncoder passwordEncoder,
+            EmailSender emailSender,
             @Value("${member.email-verification.dev-code-enabled:false}") boolean devCodeEnabled) {
-        this(memberMapper, passwordEncoder, Clock.systemUTC(), devCodeEnabled);
+        this(memberMapper, passwordEncoder, emailSender, Clock.systemUTC(), devCodeEnabled);
     }
 
     // 테스트용: 시각(Clock)을 바꿔 만료를 확인할 수 있게 한다
     EmailVerificationService(
             MemberMapper memberMapper,
             PasswordEncoder passwordEncoder,
+            EmailSender emailSender,
             Clock clock,
             boolean devCodeEnabled) {
         this.memberMapper = memberMapper;
         this.passwordEncoder = passwordEncoder;
+        this.emailSender = emailSender;
         this.clock = clock;
         this.devCodeEnabled = devCodeEnabled;
     }
@@ -75,12 +80,13 @@ public class EmailVerificationService {
         String verificationId = UUID.randomUUID().toString();
         Instant expiresAt = clock.instant().plus(CODE_VALID);
 
+        // 메일을 먼저 보낸다. 못 보내면 예외(503)가 나가고, 쓸 수 없는 인증 기록은 남기지 않는다
+        emailSender.sendVerificationCode(email, code);
+
         // 인증번호 원문은 보관하지 않고 BCrypt 해시만 둔다
         verifications.put(
                 verificationId, new Verification(email, passwordEncoder.encode(code), expiresAt));
-
-        // TODO: 메일 발송 구현 (spring-boot-starter-mail · SMTP 계정 확정 후). 지금은 메일을 보내지 않는다
-        log.info("이메일 인증번호 발급 (메일 발송 미구현)"); // 인증번호는 로그에 남기지 않는다
+        log.info("이메일 인증번호 발급"); // 인증번호 · 이메일은 로그에 남기지 않는다
 
         return new EmailVerificationResponseDTO(
                 verificationId, expiresAt, devCodeEnabled ? code : null);

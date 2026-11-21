@@ -3,10 +3,16 @@ package com.hoperefund.member.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.willThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 
 import com.hoperefund.common.exception.BusinessException;
+import com.hoperefund.member.client.EmailSender;
 import com.hoperefund.member.dto.EmailVerificationResponseDTO;
 import com.hoperefund.member.mapper.MemberMapper;
 import java.time.Clock;
@@ -16,6 +22,7 @@ import java.time.ZoneId;
 import java.time.ZoneOffset;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 /**
@@ -27,16 +34,18 @@ class EmailVerificationServiceTest {
     private static final String EMAIL = "hope@example.com";
 
     private MemberMapper memberMapper;
+    private EmailSender emailSender;
     private MutableClock clock;
     private EmailVerificationService service;
 
     @BeforeEach
     void setUp() {
         memberMapper = mock(MemberMapper.class);
+        emailSender = mock(EmailSender.class);
         clock = new MutableClock(Instant.parse("2026-11-10T03:00:00Z"));
         service =
                 new EmailVerificationService(
-                        memberMapper, new BCryptPasswordEncoder(), clock, true);
+                        memberMapper, new BCryptPasswordEncoder(), emailSender, clock, true);
     }
 
     // 발급: 번호표 · 5분 뒤 만료 · (개발 설정) 6자리 인증번호
@@ -50,13 +59,48 @@ class EmailVerificationServiceTest {
         assertThat(response.getDevCode()).matches("^[0-9]{6}$");
     }
 
+    // 발급하면 소문자로 정리한 이메일로 같은 인증번호를 메일로 보냄
+    @Test
+    void sendMailsCodeToNormalizedEmail() {
+
+        EmailVerificationResponseDTO response = service.send(" Hope@Example.com ");
+
+        verify(emailSender).sendVerificationCode(EMAIL, response.getDevCode());
+    }
+
+    // 이미 가입된 이메일이면 메일을 보내지 않음
+    @Test
+    void sendSkipsMailForRegisteredEmail() {
+
+        given(memberMapper.countByEmail(EMAIL)).willReturn(1);
+
+        assertThatThrownBy(() -> service.send(EMAIL)).isInstanceOf(BusinessException.class);
+        verify(emailSender, never()).sendVerificationCode(anyString(), anyString());
+    }
+
+    // 메일 발송 실패(503 MAIL_UNAVAILABLE)는 그대로 전달
+    @Test
+    void sendPropagatesMailFailure() {
+
+        willThrow(
+                        new BusinessException(
+                                HttpStatus.SERVICE_UNAVAILABLE, "MAIL_UNAVAILABLE", "메일을 보내지 못했어요"))
+                .given(emailSender)
+                .sendVerificationCode(eq(EMAIL), anyString());
+
+        assertThatThrownBy(() -> service.send(EMAIL))
+                .isInstanceOf(BusinessException.class)
+                .extracting("code")
+                .isEqualTo("MAIL_UNAVAILABLE");
+    }
+
     // 개발 설정이 꺼져 있으면 인증번호를 응답에 담지 않음
     @Test
     void sendHidesCodeWhenDevDisabled() {
 
         EmailVerificationService prod =
                 new EmailVerificationService(
-                        memberMapper, new BCryptPasswordEncoder(), clock, false);
+                        memberMapper, new BCryptPasswordEncoder(), emailSender, clock, false);
 
         assertThat(prod.send(EMAIL).getDevCode()).isNull();
     }

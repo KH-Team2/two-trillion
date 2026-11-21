@@ -170,6 +170,12 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
+| `MAIL_MODE` | 인증번호 메일 발송 방식 · `log`: 메일을 보내지 않고 로그만 · `smtp`: 실제 발송 (`CALC_MODE`와 같은 구조 · `member/client/EmailSender`) | `log` |
+| `MAIL_USERNAME` · `MAIL_PASSWORD` | 메일 계정 · Gmail은 「앱 비밀번호」 · `MAIL_MODE=smtp`일 때 필요 | 없음 |
+| `MAIL_FROM` | 보내는 주소 (`MAIL_MODE=smtp`인데 이것과 `MAIL_USERNAME`이 모두 비면 서버가 시작되지 않음) | `MAIL_USERNAME` |
+| `MAIL_HOST` · `MAIL_PORT` | 메일 서버 주소 · 포트 | `smtp.gmail.com` · `587` |
+| `EMAIL_VERIFICATION_REQUIRED` | 가입 때 이메일 인증 필수 (켜면 화면 `frontend/.env`의 `VITE_EMAIL_VERIFICATION_REQUIRED=true`도 같이) | `false` |
+| `EMAIL_DEV_CODE_ENABLED` | 인증번호를 발송 API 응답(`devCode`)에 담음 · 개발용 · 운영 금지 | `false` |
 
 환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
 
