@@ -2,6 +2,22 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-21] 아이디 찾기 · 비밀번호 재설정 (F-01-03)
+- **작업 내용**:
+  - API 3개 (`member/controller/PasswordResetController` · 팀 명세에 없는 제안 주소 · 이메일이 접속 기록에 남지 않게 모두 POST 본문)
+    - `POST /api/auth/login-id-lookups`: 이메일 → 앞 2글자만 보이는 아이디 (`te******` · 마스킹은 서버에서)
+    - `POST /api/auth/password-resets`: 6자리 코드 생성 → 메일 발송 → BCrypt 해시로 `PASSWORD_RESET` 저장 (`SEQ_PASSWORD_RESET` · 만료 `SYSDATE + 10분`)
+    - `POST /api/auth/password-resets/completion`: 가장 최근 코드를 `FOR UPDATE`로 잠그고 확인 → 틀리면 `FAIL_COUNT + 1`(5번째에 무효) → 맞으면 `USED_YN = 'Y'` + 새 비밀번호 BCrypt 저장 (한 트랜잭션 · 코드 틀림 예외에서는 되돌리지 않음 `noRollbackFor`)
+  - 대상 회원: 탈퇴 제외 · `EMAIL_VERIFICATION_REQUIRED=true`면 `EMAIL_VERIFIED_YN = 'Y'`만 (끈 동안은 'N'도 허용 · 사용자 결정) · 아이디 찾기도 같은 조건
+  - `PasswordResetService` · `PasswordResetMapper`(.java · .xml) · DTO 6개 (`MemberEmailRequestDTO` · `LoginIdLookupResponseDTO` · `PasswordResetResponseDTO` · `PasswordResetCompleteRequestDTO` · `PasswordResetMemberDTO` · `PasswordResetDTO`) 추가
+  - `MemberMapper`: `selectResetMember`(이메일로 조회) · `updatePassword` 추가 · `MemberService.validatePassword`를 패키지 공개로 (재설정도 같은 비밀번호 규칙)
+  - `EmailSender.sendPasswordResetCode` 추가 (`LogEmailSender` · `SmtpEmailSender` · 메일 1통 보내는 부분을 `send()`로 묶음)
+  - 화면: `frontend/src/api/member-api.js`에 `findLoginId` · `sendPasswordResetCode` · `completePasswordReset` · `passwordResetFormError` 추가 · `AccountForms.jsx`의 기존 `reset` 화면(「미연동」 안내)을 「아이디 찾기 / 비밀번호 재설정」 두 탭 서버 연결 카드로 교체 · 로그인 화면에 「아이디 · 비밀번호를 잊으셨나요?」 표시 (`SHOW_PASSWORD_RESET` 삭제) · 라우팅은 그대로
+  - 테스트: `PasswordResetServiceTest` 18개 · `PasswordResetControllerTest` 8개 · `SmtpEmailSenderTest` 1개 · `member-api.test.js` · `render-pages.mjs`(로그인 링크 · 재설정 화면)
+- **변경 사유**: 기능명세서 F-01-03 (DB v2.3 · v2.5의 `PASSWORD_RESET`은 준비돼 있었음 · 계획서에 없어 포함 여부 D-03 후순위)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 230건 중 228건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · tasks.md 「팀 확인 필요」) · 프론트 `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과 (전체 `format:check`는 기존 CRLF 문제로 실패)
+  - 미검증: 실제 Oracle에서 `PasswordResetMapper.xml` 실행 (`SEQ_PASSWORD_RESET` 존재 · `FETCH FIRST` · `FOR UPDATE`) · 실제 메일 수신 · 브라우저에서 화면 흐름
+
 ### [2026-11-21] 이메일 인증 화면 스위치를 환경변수로 · 메일 발송 안내 문구 수정 (F-01-01)
 - **작업 내용**:
   - `frontend/src/api/member-api.js`: `EMAIL_VERIFICATION_REQUIRED`를 코드 고정값(false) 대신 `VITE_EMAIL_VERIFICATION_REQUIRED=true`일 때만 켜지게 변경 (기본 꺼짐)

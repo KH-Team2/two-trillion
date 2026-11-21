@@ -107,3 +107,6 @@
 | GET | `/api/predictions?year={taxYear}` | 결과 이력 목록 · 현재와 시나리오 함께 · 최신순 · 없으면 빈 목록 (F-04-02) |
 | GET | `/api/predictions/{predictionId}` | 결과 하나 다시 열기 · 항목별 내역 포함 · 없거나 남의 것이면 404 (F-04-02) |
 | GET | `/api/group-stats/{taxYear}` | 내 성별·연령대 그룹과 총급여 구간 그룹의 통계 평균 · 못 찾은 그룹은 null (F-06-02) |
+| POST | `/api/auth/login-id-lookups` | 아이디 찾기 · 본문 `{email}` → `{maskedLoginId}`(예: `te******`) · 가입 정보 없음 · 탈퇴 · (인증을 켰을 때) 미인증이면 404 (F-01-03 · 제안 주소) |
+| POST | `/api/auth/password-resets` | 비밀번호 재설정 인증 코드 메일 발송 · 본문 `{email}` → `{expiresAt, devCode}` · 10분 유효 · 대상 회원이 아니면 404 (F-01-03 · 제안 주소) |
+| POST | `/api/auth/password-resets/completion` | 코드 확인 + 새 비밀번호 저장 · 본문 `{email, code, newPassword, newPasswordConfirm}` → `null` · 틀림 400 `RESET_CODE_FAILED` · 만료 · 5번 틀림 400 `RESET_CODE_EXPIRED` / `RESET_CODE_LIMIT` (F-01-03 · 제안 주소) |
