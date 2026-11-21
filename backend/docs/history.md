@@ -2,6 +2,33 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-21] 이메일 인증 화면 스위치를 환경변수로 · 메일 발송 안내 문구 수정 (F-01-01)
+- **작업 내용**:
+  - `frontend/src/api/member-api.js`: `EMAIL_VERIFICATION_REQUIRED`를 코드 고정값(false) 대신 `VITE_EMAIL_VERIFICATION_REQUIRED=true`일 때만 켜지게 변경 (기본 꺼짐)
+  - `frontend/src/pages/auth/AccountForms.jsx`: 서버 회원가입 인증 안내 「메일 발송 기능은 준비 중…아래에 표시됩니다」 · 「(메일 발송 기능은 아직 연결되지 않았어요)」 삭제 → 메일 발송 안내로 변경 (빠른 체험 문구는 그대로)
+  - `frontend/.env.example` · `frontend/README.md` 환경변수 표에 `VITE_EMAIL_VERIFICATION_REQUIRED` 추가 · 백엔드 문서의 「member-api.js를 true로」 안내를 새 방식으로 수정
+- **변경 사유**: 메일 발송이 붙어 실제로 메일이 나감 · 스위치를 코드에 두면 켜서 커밋할 때 메일 계정이 없는 팀원 화면에도 인증이 강제됨
+- **검증 결과**: `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과 (전체 `format:check`는 기존 CRLF 문제로 실패) · 로컬에서 Gmail 인증번호 수신 → 가입 → `EMAIL_VERIFIED_YN = 'Y'` 확인 (사용자 확인)
+
+### [2026-11-20] 회원가입 동의서 버전 표시 · 초안 안내 문구 삭제 (F-01-01)
+- **작업 내용**: `frontend/src/pages/auth/AccountForms.jsx` 서버 회원가입 체크박스에 동의서 버전 표시 (예: `[필수] 서비스 이용약관 동의 (v1.0)` · `VITE_*_VERSION` 값) · 펼치기 문구 「동의문 초안 보기 · 내용·버전 확인 필요」 → 「동의문 보기」 (빠른 체험 화면은 그대로)
+- **변경 사유**: 기능명세서 F-01-01 「약관·개인정보 동의(버전 표시)」 · 동의서 버전 1.0 확정
+- **검증 결과**: `npm test` · `npm run build` 통과 · 미검증: 동의문 본문의 「확정 전」 표현은 팀 결정 사항이라 그대로 둠
+
+### [2026-11-20] 이메일 인증번호 메일 발송 구조 추가 (EmailSender · F-01-01)
+- **작업 내용**:
+  - `pom.xml`: `spring-boot-starter-mail` 추가
+  - `member/client/EmailSender`(인터페이스) · `LogEmailSender`(MAIL_MODE=log · 기본값 · 로그만) · `SmtpEmailSender`(MAIL_MODE=smtp · 실제 발송 · 실패 시 503 `MAIL_UNAVAILABLE`) 추가 → `CalcClient` · `MockCalcClient` · `HttpCalcClient`와 같은 구조
+  - `EmailVerificationService.send`: 메일을 먼저 보내고, 보낸 뒤에만 인증 기록 저장 (발송 실패 시 쓸 수 없는 기록을 남기지 않음)
+  - `application.yml`: `spring.mail`(MAIL_HOST · MAIL_PORT · MAIL_USERNAME · MAIL_PASSWORD · 연결 3초 · 읽기/쓰기 5초) · `member.mail.mode` · `member.mail.from` 추가
+  - `.env.example` · README 4.2 표에 메일 환경변수 추가
+  - 테스트: `SmtpEmailSenderTest` 3개 추가 · `EmailVerificationServiceTest` 3개 추가
+- **변경 사유**: 이메일 인증에서 실제 메일 발송만 비어 있었음 (인증번호 생성 · 확인 · 가입 전 확인은 구현돼 있었음). SMTP 계정 확정 전에도 개발이 멈추지 않게 log/smtp를 설정으로 고름
+- **검증 결과**: `./mvnw spotless:check` 통과 · member 테스트 모두 통과 · `./mvnw -B verify`는 expense 테스트 2개 실패
+  - 실패: `CardUploadControllerTest` · `ExpenseControllerTest`의 `회원번호_헤더가_없으면_401` (401 기대 · 400 응답) → 이번 변경 전 코드에서도 똑같이 실패 (기존 문제 · expense 담당 확인 필요)
+  - 참고: 503은 공통 처리기(`GlobalExceptionHandler`)가 화면에 `SERVER_ERROR` 「잠시 후 다시 시도해 주세요.」 + `errorId`로 바꿔 보냄 (`MAIL_UNAVAILABLE`은 서버 로그에서 확인 · common 수정 안 함)
+  - 미검증: 실제 SMTP 발송(메일 계정 미정) · 화면에서 인증 흐름 (EMAIL_VERIFICATION_REQUIRED는 아직 false)
+
 ### [2026-11-17] 로그인 성공 알림 문구에서 「시연」 삭제
 - **작업 내용**: `frontend/src/pages/auth/AuthPage.jsx` 서버 로그인 성공 알림 「이 브라우저의 시연 계정으로 로그인했습니다.」 → 「로그인했습니다.」 (빠른 체험 문구는 그대로)
 - **변경 사유**: 실제 서버 계정으로 로그인하는데 「시연 · 이 브라우저의」로 보여 사용자가 가짜 로그인으로 오해할 수 있었음
