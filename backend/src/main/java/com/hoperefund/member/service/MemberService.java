@@ -183,7 +183,8 @@ public class MemberService {
     }
 
     // 비밀번호 확인 일치 · BCrypt 바이트 한도 검사 (한글은 1글자 3바이트라 글자 수가 아니라 바이트로 센다)
-    private static void validatePassword(String password, String passwordConfirm) {
+    // 비밀번호 재설정(PasswordResetService)도 같은 규칙을 쓴다
+    static void validatePassword(String password, String passwordConfirm) {
         if (!password.equals(passwordConfirm)) {
             throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION", "비밀번호 확인이 일치하지 않아요");
         }

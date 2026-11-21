@@ -24,4 +24,10 @@ public class LogEmailSender implements EmailSender {
         // 인증번호 · 이메일 주소는 로그에 남기지 않는다
         log.info("인증번호 메일 발송 생략 (MAIL_MODE=log)");
     }
+
+    @Override
+    public void sendPasswordResetCode(String to, String code) {
+        // 인증 코드 · 이메일 주소는 로그에 남기지 않는다
+        log.info("비밀번호 재설정 메일 발송 생략 (MAIL_MODE=log)");
+    }
 }

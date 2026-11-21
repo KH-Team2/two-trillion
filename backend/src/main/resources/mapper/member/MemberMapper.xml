@@ -103,4 +103,22 @@
          WHERE MEMBER_ID = #{memberId}
     </update>
 
+    <!-- 아이디 찾기 · 비밀번호 재설정 (F-01-03): 이메일(소문자로 바꾼 값)로 회원 조회 · 탈퇴 · 인증 여부는 Service 가 판단 -->
+    <select id="selectResetMember" resultType="com.hoperefund.member.dto.PasswordResetMemberDTO">
+        SELECT MEMBER_ID,
+               LOGIN_ID,
+               STATUS,
+               EMAIL_VERIFIED_YN
+          FROM MEMBER
+         WHERE EMAIL = #{email}
+    </select>
+
+    <!-- 비밀번호 재설정 (F-01-03): 새 BCrypt 암호문 저장 -->
+    <update id="updatePassword">
+        UPDATE MEMBER
+           SET PASSWORD = #{password},
+               UPDATED_AT = SYSDATE
+         WHERE MEMBER_ID = #{memberId}
+    </update>
+
 </mapper>

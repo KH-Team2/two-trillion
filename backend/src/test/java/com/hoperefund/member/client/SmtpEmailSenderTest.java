@@ -46,6 +46,20 @@ class SmtpEmailSenderTest {
         assertThat(message.getText()).contains("123456").contains("5분");
     }
 
+    // 비밀번호 재설정 메일: 재설정 제목 · 본문의 코드 · 10분
+    @Test
+    void sendsPasswordResetMail() {
+
+        sender.sendPasswordResetCode("hope@example.com", "654321");
+
+        ArgumentCaptor<SimpleMailMessage> captor = ArgumentCaptor.forClass(SimpleMailMessage.class);
+        verify(mailSender).send(captor.capture());
+        SimpleMailMessage message = captor.getValue();
+        assertThat(message.getTo()).containsExactly("hope@example.com");
+        assertThat(message.getSubject()).isEqualTo(SmtpEmailSender.RESET_SUBJECT);
+        assertThat(message.getText()).contains("654321").contains("10분");
+    }
+
     // 메일 서버 오류 → 503 MAIL_UNAVAILABLE
     @Test
     void mailFailureBecomesUnavailable() {

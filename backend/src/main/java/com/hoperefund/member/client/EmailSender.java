@@ -21,4 +21,12 @@ public interface EmailSender {
      * @param code 6자리 인증번호
      */
     void sendVerificationCode(String to, String code);
+
+    /**
+     * 비밀번호 재설정 인증 코드 메일을 보낸다 (F-01-03). 보내지 못하면 BusinessException(503 · MAIL_UNAVAILABLE)을 던진다.
+     *
+     * @param to 받는 이메일 (소문자로 정리된 값)
+     * @param code 6자리 인증 코드
+     */
+    void sendPasswordResetCode(String to, String code);
 }

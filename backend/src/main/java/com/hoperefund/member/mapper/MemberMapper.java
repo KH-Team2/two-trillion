@@ -2,6 +2,7 @@ package com.hoperefund.member.mapper;
 
 import com.hoperefund.member.dto.LoginMemberDTO;
 import com.hoperefund.member.dto.MemberInsertDTO;
+import com.hoperefund.member.dto.PasswordResetMemberDTO;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
@@ -30,4 +31,10 @@ public interface MemberMapper {
 
     // 로그인 성공: 실패 횟수 · 잠금 초기화
     int resetLoginFail(long memberId);
+
+    // 아이디 찾기 · 비밀번호 재설정 (F-01-03): 이메일로 회원 조회. 없으면 null
+    PasswordResetMemberDTO selectResetMember(String email);
+
+    // 비밀번호 재설정 (F-01-03): 새 BCrypt 암호문 저장 · 수정일 갱신
+    int updatePassword(@Param("memberId") long memberId, @Param("password") String password);
 }

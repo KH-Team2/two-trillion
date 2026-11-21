@@ -22,6 +22,7 @@ import org.springframework.stereotype.Component;
 public class SmtpEmailSender implements EmailSender {
 
     static final String SUBJECT = "[희망환급] 이메일 인증번호";
+    static final String RESET_SUBJECT = "[희망환급] 비밀번호 재설정 인증 코드";
 
     private final JavaMailSender mailSender;
     private final String from; // 보내는 사람 주소
@@ -38,22 +39,41 @@ public class SmtpEmailSender implements EmailSender {
 
     @Override
     public void sendVerificationCode(String to, String code) {
-        SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(from);
-        message.setTo(to);
-        message.setSubject(SUBJECT);
-        message.setText(
+        send(
+                to,
+                SUBJECT,
                 "희망환급 회원가입 인증번호는 ["
                         + code
                         + "] 입니다.\n"
                         + "5분 안에 회원가입 화면에 입력해 주세요.\n\n"
                         + "본인이 요청하지 않았다면 이 메일은 무시해 주세요.");
+    }
+
+    @Override
+    public void sendPasswordResetCode(String to, String code) {
+        send(
+                to,
+                RESET_SUBJECT,
+                "희망환급 비밀번호 재설정 인증 코드는 ["
+                        + code
+                        + "] 입니다.\n"
+                        + "10분 안에 비밀번호 재설정 화면에 입력해 주세요.\n\n"
+                        + "본인이 요청하지 않았다면 이 메일은 무시해 주세요. 비밀번호는 바뀌지 않아요.");
+    }
+
+    // 메일 1통 발송 (가입 인증 · 비밀번호 재설정 공통)
+    private void send(String to, String subject, String text) {
+        SimpleMailMessage message = new SimpleMailMessage();
+        message.setFrom(from);
+        message.setTo(to);
+        message.setSubject(subject);
+        message.setText(text);
 
         try {
             mailSender.send(message);
         } catch (MailException e) {
             // 원인(계정 오류 · 연결 실패 등)은 서버 로그에만 · 화면에는 짧은 안내만 (인증번호는 로그에 남기지 않는다)
-            log.error("인증번호 메일 발송 실패: {}", e.getClass().getSimpleName(), e);
+            log.error("메일 발송 실패 ({}): {}", subject, e.getClass().getSimpleName(), e);
             throw new BusinessException(
                     HttpStatus.SERVICE_UNAVAILABLE,
                     "MAIL_UNAVAILABLE",
