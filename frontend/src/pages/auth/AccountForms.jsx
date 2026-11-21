@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { accountService } from '@/api/account-service.js';
 import { EMAIL_VERIFICATION_REQUIRED, memberApi, signupFormError } from '@/api/member-api.js';
 import { recordAccess } from '@/api/prototype-records.js';
+import { consentVersions } from '@/config/consent-versions.js';
 // 동의서 버전은 별도 설정합니다. 미확정 버전의 서버 DTO는 생성할 수 없습니다.
 // 「비밀번호를 잊으셨나요?」 버튼 표시 여부 [추가 11/17] · 비밀번호 재설정 서버 API가 생기면 true
 const SHOW_PASSWORD_RESET = false;
@@ -15,16 +16,19 @@ const agreements = [
     'terms',
     '[필수] 서비스 이용약관 동의',
     '희망환급은 소득·지출 입력, 예상 결과 조회, 시뮬레이션 및 안내를 제공합니다. 만 14세 이상 가입할 수 있으며 관리자는 기존 계정에 권한을 부여합니다. 본인에게 사용 권한이 있는 자료만 등록해야 합니다. 계산·분류·AI는 시연이며 실제 신고·자격 확정·세무 자문이 아닙니다. 마이페이지에서 탈퇴할 수 있으며 마지막 관리자는 인계가 필요합니다. 운영 주체·시행일·분쟁 처리 등은 서비스 정책 확정 전 보완해야 합니다.',
+    'TERMS_VERSION',
   ],
   [
     'privacy',
     '[필수] 개인정보 수집·이용 동의',
     '목적: 계정 식별, 로그인, 연령 확인, 그룹 비교 및 서비스 지원. 항목: 아이디, 이메일, 비밀번호 파생 해시, 생년월일, 성별, 동의 이력. 보유기간·보존 정책은 운영 검토가 필요합니다. 탈퇴 후 30일 유예기간 동안 아이디·이메일을 유지하고 이후 식별 정보 처리 예정입니다. 회원가입 정보는 희망환급 서버(DB)에 저장합니다. 주민등록번호 전체는 수집하지 않습니다. 필수 동의 거부 시 가입할 수 없습니다. 운영 주체·문의처·법적 보존 대상 및 기간·위탁 정책은 확정 전입니다.',
+    'PRIVACY_VERSION',
   ],
   [
     'financial',
     '[필수] 금융 정보 저장 동의',
     '목적: 연말정산 예상 계산, 거래 자동 분류, 결과 조회 및 시뮬레이션. 저장 항목: 사용자가 제출한 급여·기납부세액·결제수단별 지출액, 거래일·상호명·금액·결제수단, 파일 처리 메타정보, 가족 수·월세·주거 및 감면 자격 입력, 계산·시뮬레이션 기록. 원본 CSV·XLSX 파일 자체와 카드번호 전체·계좌 비밀번호는 저장하지 않습니다. 탈퇴 요청 시 즉시 삭제하지 않으며 30일 유예 및 이후 식별 정보 처리 정책은 운영 검토가 필요합니다. 업로드 파일별 삭제도 가능합니다. 거부 시 가입할 수 없습니다. 실제 금융기관·국세청 조회나 운영 서버 저장은 연결되지 않았습니다.',
+    'FINANCE_VERSION',
   ],
 ];
 export function AccountForms({ page, go, onLogin }) {
@@ -502,7 +506,7 @@ export function AccountForms({ page, go, onLogin }) {
                 />
                 전체 동의
               </label>
-              {agreements.map(([key, label, text]) => (
+              {agreements.map(([key, label, text, versionKey]) => (
                 <div key={key}>
                   <label className="checkline">
                     <input
@@ -511,9 +515,15 @@ export function AccountForms({ page, go, onLogin }) {
                       onChange={(e) => setConsent({ ...consent, [key]: e.target.checked })}
                     />
                     {label}
+                    {/* 서버 회원가입: 동의서 버전 표시 (VITE_*_VERSION · 가입 요청에도 같은 값을 보냄) */}
+                    {serverSignup &&
+                      consentVersions[versionKey] &&
+                      ` (v${consentVersions[versionKey]})`}
                   </label>
                   <details>
-                    <summary>동의문 초안 보기 · 내용·버전 확인 필요</summary>
+                    <summary>
+                      {serverSignup ? '동의문 보기' : '동의문 초안 보기 · 내용·버전 확인 필요'}
+                    </summary>
                     <p>{text}</p>
                   </details>
                 </div>
