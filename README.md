@@ -136,6 +136,8 @@
  │   │   ├── main.jsx                         # React 진입점
  │   │   ├── App.jsx                          # 앱 최상위 컴포넌트·상태 연결
  │   │   ├── api/                             # 브라우저 체험 서비스·API 연동 경계
+ │   │   │   ├── api-client.js                # JWT 포함 공통 HTTP 요청 처리
+ │   │   │   ├── faq-service.js               # FAQ 목록·상세·질문 분류 API 호출
  │   │   │   ├── account-service.js           # 회원 관련 체험 서비스
  │   │   │   ├── calculation-contract.js      # 계산 응답 계약 관련 로직
  │   │   │   ├── erd-contract.js              # ERD 관련 데이터 계약
@@ -152,6 +154,9 @@
  │   │   │   │   ├── PublicHeader.jsx         # 비로그인 화면 헤더
  │   │   │   │   ├── Sidebar.jsx              # 사이드바
  │   │   │   │   └── Topbar.jsx               # 상단바
+ │   │   │   ├── chatbot/                     # 로그인 후 이용하는 FAQ 챗봇 UI·상태 관리
+ │   │   │   │   ├── FaqContext.jsx           # 질문 제출 및 메시지 상태
+ │   │   │   │   └── FaqLayout.jsx            # FAQ 챗봇 레이아웃
  │   │   │   └── ui/                          # 재사용 UI 컴포넌트 다수
  │   │   │       # button.jsx, input.jsx, dialog.jsx, chart.jsx, table.jsx 등
  │   │   ├── pages/                           # 실제 화면 구성
@@ -198,7 +203,8 @@
  │   │   ├── routes/
  │   │   │   └── useHashRouting.js            # 기존 해시 라우팅
  │   │   ├── styles/
- │   │   │   └── globals.css                  # 전역 스타일
+ │   │   │   ├── globals.css                  # 전역 스타일
+ │   │   │   └── chatbot.css                  # 챗봇 FAQ 스타일
  │   │   └── utils/
  │   │       ├── benefit-model.js             # 혜택 관련 보조 로직
  │   │       ├── cn.js                        # 클래스명 처리 유틸
@@ -238,7 +244,7 @@
  │       │   │   │   │    └── PageMeta.java     # 목록 응답의 페이지 정보
  │       │   │   │   └── exception/
  │       │   │   │        ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
- │       │   │   │        └── *Exception.java               # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
+ │       │   │   │        └── *Exception.java               # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable · ChatbotUnavailable 
  │       │   │   │
  │       │   │   ├── income/                    # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
  │       │   │   │   ├── controller/
@@ -261,11 +267,15 @@
  │       │   │   │   ├── mapper/                # PredictionMapper (PREDICTION · 기준값 · 카드 합계 조회)
  │       │   │   │   └── dto/                   # 계산 · 혜택 · 시뮬레이션 · 이력 요청·응답 DTO
  │       │   │   │
- │       │   │   └── statistics/                # 그룹 비교 통계 (GET /api/group-stats/{taxYear})
- │       │   │       ├── controller/
- │       │   │       ├── service/
- │       │   │       ├── mapper/
- │       │   │       └── dto/
+ │       │   │   ├── statistics/                # 그룹 비교 통계 (GET /api/group-stats/{taxYear})
+ │       │   │   │   ├── controller/
+ │       │   │   │   ├── service/
+ │       │   │   │   ├── mapper/
+ │       │   │   │   └── dto/
+ │       │   │   └── chatbot/                   # FAQ 조회 및 질문 분류 중계 (FastAPI 내부 토큰 인증)
+ │       │   │       ├── controller/            # GET /api/faqs · /api/faq-categories · /api/faqs/{faqId}
+ │       │   │       ├── service/               # 챗봇 서비스 연동
+ │       │   │       └── client/                # FastAPI /faq 내부 호출 (X-Chatbot-Token)
  │       │   │
  │       │   └── resources/
  │       │       ├── application.yml            # Spring Boot 공통 설정
@@ -366,82 +376,40 @@
  │   └── 계정_2_계산서버_권한.sql               # 계산 서버 계정 읽기 권한 (DB 관리자)
  │   # 03_데이터적재.sql · cp949/ 복사본은 크기 때문에 팀 노션 zip에만 있음
  │
- ├── chatbot/                                 # Python FastAPI · Ollama 기반 AI 챗봇 서버
- │   ├── .env.example                         # Ollama·내부 API 인증 등 환경 변수 예시
- │   ├── AGENTS.md                            # 챗봇 서버 개발 규칙
- │   ├── README.md                            # 챗봇 서버 설치·실행 안내
- │   ├── requirements.txt                     # 서버 의존성
- │   ├── requirements-dev.txt                 # 개발·검증 의존성
+ ├── chatbot/                                 # Python FastAPI · Ollama 기반 세법 용어 FAQ 서버
+ │   ├── .env.example                         # 내부 토큰·Ollama 환경변수 예시 (실제 .env 커밋 금지)
+ │   ├── AGENTS.md                            # 챗봇 개발 규칙
+ │   ├── README.md                            # 챗봇 설치·실행·API 안내
+ │   ├── requirements.txt                     # 실행 의존성
+ │   ├── requirements-dev.txt                 # 테스트·개발 의존성
  │   ├── pyproject.toml                       # Ruff·pytest 설정
- │   │
  │   ├── app/
  │   │   ├── __init__.py
- │   │   ├── main.py                          # FastAPI 진입점
- │   │   │
- │   │   ├── api/                             # 챗봇 API 엔드포인트
+ │   │   ├── main.py                          # FastAPI 진입점·환경변수 로딩
+ │   │   ├── api/
  │   │   │   ├── __init__.py
- │   │   │   ├── chat.py                      # 채팅 API
- │   │   │   ├── dependencies.py              # API 공통 의존성
- │   │   │   ├── health.py                    # 서버 상태 확인 API
- │   │   │   └── recommendations.py           # 추천 API
- │   │   │
- │   │   ├── core/                            # 서버 공통 설정·보안·오류 처리
- │   │   │   ├── __init__.py
- │   │   │   ├── config.py                    # 환경 설정
- │   │   │   ├── errors.py                    # 챗봇 서버 오류 정의
- │   │   │   └── security.py                  # 내부 API 인증 처리
- │   │   │
- │   │   ├── data
- │   │   │   └── raw/                         # RAG 원본 PDF
- │   │   │    
- │   │   ├── llm/                             # LLM 연동
- │   │   │   ├── __init__.py
- │   │   │   └── ollama.py                    # Ollama 호출 처리
- │   │   │
- │   │   ├── schemas/                         # API 요청·응답 모델
- │   │   │   ├── __init__.py
- │   │   │   ├── chat.py                      # 채팅 요청·응답 모델
- │   │   │   ├── common.py                    # 공통 응답 모델
- │   │   │   └── recommendation.py            # 추천 요청·응답 모델
- │   │   │
- │   │   └── services/                        # 챗봇 비즈니스 로직
+ │   │   │   ├── deps.py                      # X-Chatbot-Token 내부 인증
+ │   │   │   ├── faq.py                       # FAQ 카테고리·목록·상세·자유 질문 API
+ │   │   │   └── health.py                    # GET /health (인증 제외)
+ │   │   ├── data/
+ │   │   │   └── tax_terms.json               # 검증된 FAQ 답변 원본
+ │   │   └── services/
  │   │       ├── __init__.py
- │   │       ├── chat_service.py               # 채팅 처리
- │   │       ├── generation.py                 # 답변 생성 처리
- │   │       └── recommendation_service.py     # 추천 처리
- │   │
- │   ├── docs/                                # 챗봇 설계·개발 문서
- │   │
- │   ├── prompts/                             # AI 개발 작업용 프롬프트
- │   │   ├── 01_최초분석요청.md
- │   │   ├── 02_첫구현요청.md
- │   │   └── 03_작업이어하기.md
- │   │
- │   └── tests/                               # 챗봇 서버 테스트
- │       ├── test_generation.py                # 답변 생성 테스트
- │       ├── test_health.py                    # Health API 테스트
- │       ├── test_internal_api.py              # 내부 API 테스트
- │       └── test_ollama.py                    # Ollama 연동 테스트
+ │   │       └── classifier.py                # Ollama Gemma 3 FAQ ID 분류
+ │   └── tests/
+ │       ├── test_health.py                   # 상태 확인 테스트
+ │       └── test_faq.py                      # FAQ 조회 테스트 (내부 인증 반영 점검 필요)
 ──────────────────────────────────────────────────────────────────
 [개발 예정 구조 — AGENTS.md에 명시되었지만 아직 GitHub에 없는 폴더]
 
 backend/src/main/java/com/hoperefund/
 ├── member/           # MEMBER · PASSWORD_RESET
 ├── expense/          # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY
-├── chat/             # CHAT_SESSION · CHAT_MESSAGE · RECOMMENDATION
 ├── inquiry/          # INQUIRY
 ├── admin/            # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION
 └── common/           # 현재 존재, 보안/예외 처리 등의 확장 예정
 # 기능별 폴더 하위 계층: controller/ service/ mapper/ dto/
 # MyBatis XML: backend/src/main/resources/mapper/ (기능별)
-
-chatbot/app/
-├── api/             # 채팅·추천 API
-├── schemas/         # 요청·응답 모델
-├── services/        # 챗봇 비즈니스 로직
-├── rag/             # RAG 검색·문서 처리
-├── llm/             # Ollama · Gemma3 연동
-└── core/            # 설정·보안·오류 처리
 ```
 ## 🖥 실행 방법
 
