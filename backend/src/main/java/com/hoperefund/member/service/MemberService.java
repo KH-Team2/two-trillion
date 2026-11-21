@@ -93,8 +93,7 @@ public class MemberService {
         if (verificationRequired) {
             String verificationId = request.getVerificationId();
             if (verificationId == null || verificationId.isBlank()) {
-                throw new BusinessException(
-                        HttpStatus.BAD_REQUEST, "EMAIL_NOT_VERIFIED", "이메일 인증을 완료해 주세요");
+                throw badRequest("EMAIL_NOT_VERIFIED", "이메일 인증을 완료해 주세요");
             }
             emailVerificationService.requireVerified(verificationId, email);
         }
@@ -102,7 +101,8 @@ public class MemberService {
         MemberInsertDTO member = new MemberInsertDTO();
         member.setLoginId(loginId);
         member.setEmail(email);
-        member.setPassword(passwordEncoder.encode(request.getPassword())); // 원래 비밀번호는 저장하지 않는다
+        // 원래 비밀번호는 저장하지 않는다
+        member.setPassword(passwordEncoder.encode(request.getPassword()));
         member.setBirthDate(request.getBirthDate());
         member.setGender(request.getGender());
         member.setTermsVersion(request.getTermsVersion().trim());
@@ -112,15 +112,15 @@ public class MemberService {
         member.setDataOrigin(DATA_ORIGIN_INPUT);
 
         try {
-            memberMapper.insertMember(member); // 이후 member.getMemberId() 에 새 번호가 들어 있다
+            // 이후 member.getMemberId() 에 새 번호가 들어 있다
+            memberMapper.insertMember(member);
         } catch (DuplicateKeyException e) {
             // 가입 요청이 동시에 들어와 번호 · 아이디가 겹친 경우
             throw new BusinessException(HttpStatus.CONFLICT, "DUPLICATE_MEMBER", "잠시 후 다시 시도해 주세요");
         } catch (DataAccessException e) {
             // 그 밖의 DB 오류 (필수 칸 누락 · 제약조건 위반 등) → 원인은 서버 로그에만 남긴다
             log.error("회원 저장 실패: {}", e.getClass().getSimpleName(), e);
-            throw new BusinessException(
-                    HttpStatus.INTERNAL_SERVER_ERROR, "SIGNUP_FAILED", "가입 처리 중 오류가 발생했습니다");
+            throw signupFailed();
         }
 
         // 같은 인증으로 다시 가입하지 못하게 사용 처리
@@ -129,16 +129,16 @@ public class MemberService {
         }
 
         // createdAt: DB 기본값(SYSDATE)과 같은 시점의 서버 시각 · name: 실명을 받지 않아 null
-        return new MemberSignupResponseDTO(
-                member.getMemberId(), loginId, email, null, ROLE_USER, LocalDateTime.now(KOREA));
+        Long memberId = member.getMemberId();
+        LocalDateTime createdAt = LocalDateTime.now(KOREA);
+        return new MemberSignupResponseDTO(memberId, loginId, email, null, ROLE_USER, createdAt);
     }
 
     // 아이디 중복확인: 형식 오류 · 사용 제한은 400, 중복이면 available = false
     public MemberAvailabilityResponseDTO checkLoginId(String rawLoginId) {
         String loginId = normalize(rawLoginId);
         if (!LOGIN_ID_PATTERN.matcher(loginId).matches()) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST, "VALIDATION", "아이디는 영문·숫자·밑줄 4~50자로 입력해 주세요");
+            throw badRequest("VALIDATION", "아이디는 영문·숫자·밑줄 4~50자로 입력해 주세요");
         }
         validateLoginIdNotRestricted(loginId);
 
@@ -152,7 +152,7 @@ public class MemberService {
     public MemberAvailabilityResponseDTO checkEmail(String rawEmail) {
         String email = normalize(rawEmail);
         if (email.length() > 100 || !EMAIL_PATTERN.matcher(email).matches()) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION", "이메일 형식을 확인해 주세요");
+            throw badRequest("VALIDATION", "이메일 형식을 확인해 주세요");
         }
 
         if (memberMapper.countByEmail(email) > 0) {
@@ -169,9 +169,17 @@ public class MemberService {
     // withdrawn_ 은 탈퇴 회원 아이디에 붙이는 앞글자라 새 가입에는 쓸 수 없다
     private static void validateLoginIdNotRestricted(String loginId) {
         if (loginId.startsWith("withdrawn_")) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST, "INVALID_LOGIN_ID", "사용할 수 없는 아이디예요");
+            throw badRequest("INVALID_LOGIN_ID", "사용할 수 없는 아이디예요");
         }
+    }
+
+    private static BusinessException badRequest(String code, String message) {
+        return new BusinessException(HttpStatus.BAD_REQUEST, code, message);
+    }
+
+    private static BusinessException signupFailed() {
+        HttpStatus status = HttpStatus.INTERNAL_SERVER_ERROR; // 500 → 화면에는 공통 문구 + errorId
+        return new BusinessException(status, "SIGNUP_FAILED", "가입 처리 중 오류가 발생했습니다");
     }
 
     private static BusinessException duplicateLoginId() {
@@ -186,10 +194,10 @@ public class MemberService {
     // 비밀번호 재설정(PasswordResetService)도 같은 규칙을 쓴다
     static void validatePassword(String password, String passwordConfirm) {
         if (!password.equals(passwordConfirm)) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION", "비밀번호 확인이 일치하지 않아요");
+            throw badRequest("VALIDATION", "비밀번호 확인이 일치하지 않아요");
         }
         if (password.getBytes(StandardCharsets.UTF_8).length > BCRYPT_MAX_BYTES) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION", "비밀번호가 너무 길어요");
+            throw badRequest("VALIDATION", "비밀번호가 너무 길어요");
         }
     }
 
@@ -197,10 +205,10 @@ public class MemberService {
     private static void validateBirthDate(LocalDate birthDate) {
         LocalDate today = LocalDate.now(KOREA);
         if (birthDate.isAfter(today)) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION", "생년월일을 확인해 주세요");
+            throw badRequest("VALIDATION", "생년월일을 확인해 주세요");
         }
         if (Period.between(birthDate, today).getYears() < MIN_SIGNUP_AGE) {
-            throw new BusinessException(HttpStatus.BAD_REQUEST, "UNDER_AGE", "만 14세 이상만 가입할 수 있어요");
+            throw badRequest("UNDER_AGE", "만 14세 이상만 가입할 수 있어요");
         }
     }
 }

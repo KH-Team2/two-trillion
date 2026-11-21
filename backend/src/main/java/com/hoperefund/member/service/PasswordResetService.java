@@ -44,6 +44,7 @@ public class PasswordResetService {
 
     static final String NOT_FOUND_MESSAGE = "가입 정보를 찾을 수 없어요";
     static final String RESEND_MESSAGE = "인증 코드를 다시 받아 주세요";
+    static final String CODE_FAILED = "인증 코드가 맞지 않아요";
 
     private static final String STATUS_WITHDRAWN = "WITHDRAWN";
     private static final String EMAIL_VERIFIED = "Y";
@@ -115,10 +116,12 @@ public class PasswordResetService {
         reset.setCodeHash(passwordEncoder.encode(code));
         reset.setValidMinutes(CODE_VALID_MINUTES);
         passwordResetMapper.insertReset(reset);
-        log.info("비밀번호 재설정 코드 발급: resetId={}", reset.getResetId()); // 코드 · 이메일은 남기지 않는다
+        // 코드 · 이메일은 로그에 남기지 않는다
+        log.info("비밀번호 재설정 코드 발급: resetId={}", reset.getResetId());
 
         Instant expiresAt = clock.instant().plus(Duration.ofMinutes(CODE_VALID_MINUTES));
-        return new PasswordResetResponseDTO(expiresAt, devCodeEnabled ? code : null);
+        String devCode = devCodeEnabled ? code : null; // 개발용 설정일 때만 응답에 담는다
+        return new PasswordResetResponseDTO(expiresAt, devCode);
     }
 
     /**
@@ -139,10 +142,8 @@ public class PasswordResetService {
         }
         // 행을 잠그고 읽는다 → 같은 코드로 동시에 여러 번 확인해도 틀린 횟수가 빠지지 않는다
         PasswordResetDTO reset = passwordResetMapper.selectResetForUpdate(resetId);
-        if (reset == null
-                || reset.isUsed()
-                || reset.isExpired()
-                || reset.getFailCount() >= MAX_FAIL_COUNT) {
+        boolean unusable = reset == null || reset.isUsed() || reset.isExpired();
+        if (unusable || reset.getFailCount() >= MAX_FAIL_COUNT) {
             throw resendRequired("RESET_CODE_EXPIRED");
         }
 
@@ -152,14 +153,13 @@ public class PasswordResetService {
             if (reset.getFailCount() + 1 >= MAX_FAIL_COUNT) {
                 throw resendRequired("RESET_CODE_LIMIT");
             }
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST, "RESET_CODE_FAILED", "인증 코드가 맞지 않아요");
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "RESET_CODE_FAILED", CODE_FAILED);
         }
 
         passwordResetMapper.markUsed(resetId);
-        memberMapper.updatePassword(
-                member.getMemberId(),
-                passwordEncoder.encode(request.getNewPassword())); // 원래 비밀번호는 저장하지 않는다
+        // 원래 비밀번호는 저장하지 않는다
+        String newPasswordHash = passwordEncoder.encode(request.getNewPassword());
+        memberMapper.updatePassword(member.getMemberId(), newPasswordHash);
         log.info("비밀번호 재설정 완료: memberId={}", member.getMemberId());
     }
 

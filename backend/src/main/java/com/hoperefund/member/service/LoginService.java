@@ -87,8 +87,7 @@ public class LoginService {
         // ② 잠금 중
         if (lockEnabled && member.isLocked()) {
             writeAccessLog(memberId, ipAddress, RESULT_FAIL);
-            throw new BusinessException(
-                    HttpStatus.UNAUTHORIZED, "LOGIN_LOCKED", "10분 뒤 다시 시도해 주세요");
+            throw unauthorized("LOGIN_LOCKED", "10분 뒤 다시 시도해 주세요");
         }
 
         // ③ 비밀번호 틀림
@@ -103,7 +102,7 @@ public class LoginService {
         // ④ 탈퇴 회원
         if (STATUS_WITHDRAWN.equals(member.getStatus())) {
             writeAccessLog(memberId, ipAddress, RESULT_FAIL);
-            throw new BusinessException(HttpStatus.UNAUTHORIZED, "WITHDRAWN_MEMBER", "탈퇴한 계정이에요");
+            throw unauthorized("WITHDRAWN_MEMBER", "탈퇴한 계정이에요");
         }
 
         // ⑤ 성공 (실패 기록이 있을 때만 초기화 → 필요 없는 UPDATE 를 줄인다)
@@ -113,12 +112,10 @@ public class LoginService {
         IssuedToken token = tokenService.issue(memberId, member.getLoginId(), member.getRole());
         writeAccessLog(memberId, ipAddress, RESULT_SUCCESS);
 
-        return new LoginResponseDTO(
-                token.token(),
-                TokenService.TOKEN_TYPE,
-                LocalDateTime.ofInstant(token.expiresAt(), KOREA),
-                member.getLoginId(),
-                member.getRole());
+        LocalDateTime expiresAt = LocalDateTime.ofInstant(token.expiresAt(), KOREA);
+        String tokenType = TokenService.TOKEN_TYPE;
+        String role = member.getRole();
+        return new LoginResponseDTO(token.token(), tokenType, expiresAt, member.getLoginId(), role);
     }
 
     // 로그아웃: 그 토큰을 무효로 만든다 → 다음 요청부터 401
@@ -155,7 +152,10 @@ public class LoginService {
 
     // 아이디가 없을 때와 비밀번호가 틀렸을 때 같은 문구 → 어떤 아이디가 있는지 알려 주지 않기 위해
     private static BusinessException loginFailed() {
-        return new BusinessException(
-                HttpStatus.UNAUTHORIZED, "LOGIN_FAILED", "아이디 또는 비밀번호가 맞지 않아요");
+        return unauthorized("LOGIN_FAILED", "아이디 또는 비밀번호가 맞지 않아요");
+    }
+
+    private static BusinessException unauthorized(String code, String message) {
+        return new BusinessException(HttpStatus.UNAUTHORIZED, code, message);
     }
 }

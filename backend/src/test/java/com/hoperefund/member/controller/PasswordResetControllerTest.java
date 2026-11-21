@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * 아이디 찾기 · 비밀번호 재설정 API 테스트 (F-01-03)
@@ -40,6 +41,11 @@ class PasswordResetControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
+    // JSON 본문으로 POST 요청
+    private ResultActions postJson(String url, String body) throws Exception {
+        return mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
     @MockitoBean private PasswordResetService passwordResetService;
 
     // 아이디 찾기 → 200 {data: {maskedLoginId}}
@@ -49,10 +55,7 @@ class PasswordResetControllerTest {
         given(passwordResetService.findLoginId("hope@example.com"))
                 .willReturn(new LoginIdLookupResponseDTO("te******"));
 
-        mockMvc.perform(
-                        post("/api/auth/login-id-lookups")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"email\": \"hope@example.com\"}"))
+        postJson("/api/auth/login-id-lookups", "{\"email\": \"hope@example.com\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.maskedLoginId").value("te******"));
@@ -62,15 +65,11 @@ class PasswordResetControllerTest {
     @Test
     void findLoginIdUnknownEmailReturns404() throws Exception {
 
-        given(passwordResetService.findLoginId("nobody@example.com"))
-                .willThrow(
-                        new BusinessException(
-                                HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요"));
+        String message = "가입 정보를 찾을 수 없어요";
+        BusinessException error = new BusinessException(HttpStatus.NOT_FOUND, "NOT_FOUND", message);
+        given(passwordResetService.findLoginId("nobody@example.com")).willThrow(error);
 
-        mockMvc.perform(
-                        post("/api/auth/login-id-lookups")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"email\": \"nobody@example.com\"}"))
+        postJson("/api/auth/login-id-lookups", "{\"email\": \"nobody@example.com\"}")
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"))
                 .andExpect(jsonPath("$.error.message").value("가입 정보를 찾을 수 없어요"));
@@ -80,10 +79,7 @@ class PasswordResetControllerTest {
     @Test
     void invalidEmailReturns400() throws Exception {
 
-        mockMvc.perform(
-                        post("/api/auth/password-resets")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"email\": \"not-an-email\"}"))
+        postJson("/api/auth/password-resets", "{\"email\": \"not-an-email\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("이메일 형식을 확인해 주세요"));
 
@@ -94,14 +90,11 @@ class PasswordResetControllerTest {
     @Test
     void sendCodeReturns200() throws Exception {
 
-        given(passwordResetService.sendCode("hope@example.com"))
-                .willReturn(
-                        new PasswordResetResponseDTO(Instant.parse("2026-11-21T03:10:00Z"), null));
+        Instant expiresAt = Instant.parse("2026-11-21T03:10:00Z");
+        PasswordResetResponseDTO response = new PasswordResetResponseDTO(expiresAt, null);
+        given(passwordResetService.sendCode("hope@example.com")).willReturn(response);
 
-        mockMvc.perform(
-                        post("/api/auth/password-resets")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"email\": \"hope@example.com\"}"))
+        postJson("/api/auth/password-resets", "{\"email\": \"hope@example.com\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.expiresAt").exists());
     }
@@ -110,10 +103,7 @@ class PasswordResetControllerTest {
     @Test
     void completeReturns200() throws Exception {
 
-        mockMvc.perform(
-                        post("/api/auth/password-resets/completion")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(COMPLETE_BODY))
+        postJson("/api/auth/password-resets/completion", COMPLETE_BODY)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data").doesNotExist());
@@ -125,10 +115,7 @@ class PasswordResetControllerTest {
     @Test
     void completeInvalidCodeReturns400() throws Exception {
 
-        mockMvc.perform(
-                        post("/api/auth/password-resets/completion")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(COMPLETE_BODY.replace("123456", "12ab")))
+        postJson("/api/auth/password-resets/completion", COMPLETE_BODY.replace("123456", "12ab"))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("6자리 인증 코드를 입력해 주세요"));
 
@@ -139,12 +126,9 @@ class PasswordResetControllerTest {
     @Test
     void completeShortPasswordReturns400() throws Exception {
 
-        mockMvc.perform(
-                        post("/api/auth/password-resets/completion")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        "{\"email\": \"hope@example.com\", \"code\": \"123456\","
-                                                + " \"newPassword\": \"short\", \"newPasswordConfirm\": \"short\"}"))
+        String body = COMPLETE_BODY.replace("newPassword1!", "short");
+
+        postJson("/api/auth/password-resets/completion", body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("비밀번호는 8자 이상 입력해 주세요"));
     }
@@ -153,16 +137,12 @@ class PasswordResetControllerTest {
     @Test
     void completeExpiredCodeReturns400() throws Exception {
 
-        willThrow(
-                        new BusinessException(
-                                HttpStatus.BAD_REQUEST, "RESET_CODE_EXPIRED", "인증 코드를 다시 받아 주세요"))
-                .given(passwordResetService)
-                .complete(any());
+        String message = "인증 코드를 다시 받아 주세요";
+        BusinessException error =
+                new BusinessException(HttpStatus.BAD_REQUEST, "RESET_CODE_EXPIRED", message);
+        willThrow(error).given(passwordResetService).complete(any());
 
-        mockMvc.perform(
-                        post("/api/auth/password-resets/completion")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(COMPLETE_BODY))
+        postJson("/api/auth/password-resets/completion", COMPLETE_BODY)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("RESET_CODE_EXPIRED"))
                 .andExpect(jsonPath("$.error.message").value("인증 코드를 다시 받아 주세요"));

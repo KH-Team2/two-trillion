@@ -2,6 +2,7 @@ package com.hoperefund.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -38,6 +39,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 class PasswordResetServiceTest {
 
     private static final String EMAIL = "hope@example.com";
+    private static final String UNKNOWN_EMAIL = "nobody@example.com"; // 가입되지 않은 이메일
     private static final long MEMBER_ID = 7L;
     private static final long RESET_ID = 30L;
     private static final String CODE = "123456";
@@ -61,6 +63,10 @@ class PasswordResetServiceTest {
     }
 
     private PasswordResetService newService(boolean verificationRequired) {
+        return newService(verificationRequired, true);
+    }
+
+    private PasswordResetService newService(boolean verificationRequired, boolean devCodeEnabled) {
         return new PasswordResetService(
                 memberMapper,
                 passwordResetMapper,
@@ -68,7 +74,7 @@ class PasswordResetServiceTest {
                 emailSender,
                 clock,
                 verificationRequired,
-                true);
+                devCodeEnabled);
     }
 
     private static PasswordResetMemberDTO member(String status, String emailVerifiedYn) {
@@ -97,7 +103,9 @@ class PasswordResetServiceTest {
         return new PasswordResetCompleteRequestDTO(EMAIL, code, NEW_PASSWORD, NEW_PASSWORD);
     }
 
+    // 오류(e)가 그 상태 · 코드 · 문구의 BusinessException 인지 확인 (예외가 안 났으면 e 는 null → 실패)
     private static void assertError(Throwable e, HttpStatus status, String code, String message) {
+        assertThat(e).isInstanceOf(BusinessException.class);
         BusinessException be = (BusinessException) e;
         assertThat(be.getStatus()).isEqualTo(status);
         assertThat(be.getCode()).isEqualTo(code);
@@ -126,9 +134,8 @@ class PasswordResetServiceTest {
     @Test
     void unknownEmailReturns404() {
 
-        assertThatThrownBy(() -> service.findLoginId("nobody@example.com"))
-                .satisfies(
-                        e -> assertError(e, HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요"));
+        Throwable e = catchThrowable(() -> service.findLoginId(UNKNOWN_EMAIL));
+        assertError(e, HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요");
     }
 
     // 탈퇴 회원 → 없는 회원과 같은 404
@@ -137,9 +144,8 @@ class PasswordResetServiceTest {
 
         given(memberMapper.selectResetMember(EMAIL)).willReturn(member("WITHDRAWN", "Y"));
 
-        assertThatThrownBy(() -> service.findLoginId(EMAIL))
-                .satisfies(
-                        e -> assertError(e, HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요"));
+        Throwable e = catchThrowable(() -> service.findLoginId(EMAIL));
+        assertError(e, HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요");
     }
 
     // 이메일 인증을 켰을 때: 인증하지 않은 회원(N) → 404 · 메일도 보내지 않음
@@ -187,15 +193,7 @@ class PasswordResetServiceTest {
     @Test
     void sendCodeHidesCodeWhenDevCodeOff() {
 
-        PasswordResetService prod =
-                new PasswordResetService(
-                        memberMapper,
-                        passwordResetMapper,
-                        passwordEncoder,
-                        emailSender,
-                        clock,
-                        true,
-                        false);
+        PasswordResetService prod = newService(true, false);
 
         assertThat(prod.sendCode(EMAIL).getDevCode()).isNull();
     }
@@ -204,11 +202,10 @@ class PasswordResetServiceTest {
     @Test
     void sendCodeSkipsSaveWhenMailFails() {
 
-        willThrow(
-                        new BusinessException(
-                                HttpStatus.SERVICE_UNAVAILABLE, "MAIL_UNAVAILABLE", "메일을 보내지 못했어요"))
-                .given(emailSender)
-                .sendPasswordResetCode(eq(EMAIL), anyString());
+        HttpStatus unavailable = HttpStatus.SERVICE_UNAVAILABLE;
+        BusinessException mailError =
+                new BusinessException(unavailable, "MAIL_UNAVAILABLE", "메일을 보내지 못했어요");
+        willThrow(mailError).given(emailSender).sendPasswordResetCode(eq(EMAIL), anyString());
 
         assertThatThrownBy(() -> service.sendCode(EMAIL)).isInstanceOf(BusinessException.class);
         verify(passwordResetMapper, never()).insertReset(any());
@@ -237,14 +234,8 @@ class PasswordResetServiceTest {
 
         givenReset("N", 0, "N");
 
-        assertThatThrownBy(() -> service.complete(request("000000")))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "RESET_CODE_FAILED",
-                                        "인증 코드가 맞지 않아요"));
+        Throwable e = catchThrowable(() -> service.complete(request("000000")));
+        assertError(e, HttpStatus.BAD_REQUEST, "RESET_CODE_FAILED", "인증 코드가 맞지 않아요");
         verify(passwordResetMapper).increaseFailCount(RESET_ID);
         verify(memberMapper, never()).updatePassword(anyLong(), anyString());
     }
@@ -255,14 +246,8 @@ class PasswordResetServiceTest {
 
         givenReset("N", 4, "N");
 
-        assertThatThrownBy(() -> service.complete(request("000000")))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "RESET_CODE_LIMIT",
-                                        "인증 코드를 다시 받아 주세요"));
+        Throwable e = catchThrowable(() -> service.complete(request("000000")));
+        assertError(e, HttpStatus.BAD_REQUEST, "RESET_CODE_LIMIT", "인증 코드를 다시 받아 주세요");
         verify(passwordResetMapper).increaseFailCount(RESET_ID);
     }
 
@@ -272,14 +257,8 @@ class PasswordResetServiceTest {
 
         givenReset("N", 5, "N");
 
-        assertThatThrownBy(() -> service.complete(request(CODE)))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "RESET_CODE_EXPIRED",
-                                        "인증 코드를 다시 받아 주세요"));
+        Throwable e = catchThrowable(() -> service.complete(request(CODE)));
+        assertError(e, HttpStatus.BAD_REQUEST, "RESET_CODE_EXPIRED", "인증 코드를 다시 받아 주세요");
         verify(memberMapper, never()).updatePassword(anyLong(), anyString());
     }
 
@@ -289,14 +268,8 @@ class PasswordResetServiceTest {
 
         givenReset("N", 0, "Y");
 
-        assertThatThrownBy(() -> service.complete(request(CODE)))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "RESET_CODE_EXPIRED",
-                                        "인증 코드를 다시 받아 주세요"));
+        Throwable e = catchThrowable(() -> service.complete(request(CODE)));
+        assertError(e, HttpStatus.BAD_REQUEST, "RESET_CODE_EXPIRED", "인증 코드를 다시 받아 주세요");
         verify(memberMapper, never()).updatePassword(anyLong(), anyString());
     }
 
@@ -306,14 +279,8 @@ class PasswordResetServiceTest {
 
         givenReset("Y", 0, "N");
 
-        assertThatThrownBy(() -> service.complete(request(CODE)))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "RESET_CODE_EXPIRED",
-                                        "인증 코드를 다시 받아 주세요"));
+        Throwable e = catchThrowable(() -> service.complete(request(CODE)));
+        assertError(e, HttpStatus.BAD_REQUEST, "RESET_CODE_EXPIRED", "인증 코드를 다시 받아 주세요");
         verify(passwordResetMapper, never()).markUsed(anyLong());
     }
 
@@ -321,14 +288,8 @@ class PasswordResetServiceTest {
     @Test
     void noCodeRequiresResend() {
 
-        assertThatThrownBy(() -> service.complete(request(CODE)))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "RESET_CODE_EXPIRED",
-                                        "인증 코드를 다시 받아 주세요"));
+        Throwable e = catchThrowable(() -> service.complete(request(CODE)));
+        assertError(e, HttpStatus.BAD_REQUEST, "RESET_CODE_EXPIRED", "인증 코드를 다시 받아 주세요");
     }
 
     // 새 비밀번호 확인이 다름 → 400 · 코드 기회를 쓰지 않음
@@ -337,18 +298,11 @@ class PasswordResetServiceTest {
 
         givenReset("N", 0, "N");
 
-        assertThatThrownBy(
-                        () ->
-                                service.complete(
-                                        new PasswordResetCompleteRequestDTO(
-                                                EMAIL, "000000", NEW_PASSWORD, "different1!")))
-                .satisfies(
-                        e ->
-                                assertError(
-                                        e,
-                                        HttpStatus.BAD_REQUEST,
-                                        "VALIDATION",
-                                        "비밀번호 확인이 일치하지 않아요"));
+        PasswordResetCompleteRequestDTO mismatch =
+                new PasswordResetCompleteRequestDTO(EMAIL, "000000", NEW_PASSWORD, "different1!");
+
+        Throwable e = catchThrowable(() -> service.complete(mismatch));
+        assertError(e, HttpStatus.BAD_REQUEST, "VALIDATION", "비밀번호 확인이 일치하지 않아요");
         verify(passwordResetMapper, never()).increaseFailCount(anyLong());
     }
 
@@ -356,15 +310,10 @@ class PasswordResetServiceTest {
     @Test
     void completeUnknownEmailReturns404() {
 
-        assertThatThrownBy(
-                        () ->
-                                service.complete(
-                                        new PasswordResetCompleteRequestDTO(
-                                                "nobody@example.com",
-                                                CODE,
-                                                NEW_PASSWORD,
-                                                NEW_PASSWORD)))
-                .satisfies(
-                        e -> assertError(e, HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요"));
+        PasswordResetCompleteRequestDTO unknown = request(CODE);
+        unknown.setEmail(UNKNOWN_EMAIL);
+
+        Throwable e = catchThrowable(() -> service.complete(unknown));
+        assertError(e, HttpStatus.NOT_FOUND, "NOT_FOUND", "가입 정보를 찾을 수 없어요");
     }
 }

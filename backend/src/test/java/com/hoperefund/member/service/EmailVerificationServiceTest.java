@@ -24,6 +24,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * 이메일 인증 Service 테스트
@@ -43,9 +44,13 @@ class EmailVerificationServiceTest {
         memberMapper = mock(MemberMapper.class);
         emailSender = mock(EmailSender.class);
         clock = new MutableClock(Instant.parse("2026-11-10T03:00:00Z"));
-        service =
-                new EmailVerificationService(
-                        memberMapper, new BCryptPasswordEncoder(), emailSender, clock, true);
+        service = newService(true);
+    }
+
+    // devCode: 발급 응답에 인증번호를 담을지 (개발용 설정)
+    private EmailVerificationService newService(boolean devCode) {
+        PasswordEncoder encoder = new BCryptPasswordEncoder();
+        return new EmailVerificationService(memberMapper, encoder, emailSender, clock, devCode);
     }
 
     // 발급: 번호표 · 5분 뒤 만료 · (개발 설정) 6자리 인증번호
@@ -82,11 +87,10 @@ class EmailVerificationServiceTest {
     @Test
     void sendPropagatesMailFailure() {
 
-        willThrow(
-                        new BusinessException(
-                                HttpStatus.SERVICE_UNAVAILABLE, "MAIL_UNAVAILABLE", "메일을 보내지 못했어요"))
-                .given(emailSender)
-                .sendVerificationCode(eq(EMAIL), anyString());
+        HttpStatus unavailable = HttpStatus.SERVICE_UNAVAILABLE;
+        BusinessException mailError =
+                new BusinessException(unavailable, "MAIL_UNAVAILABLE", "메일을 보내지 못했어요");
+        willThrow(mailError).given(emailSender).sendVerificationCode(eq(EMAIL), anyString());
 
         assertThatThrownBy(() -> service.send(EMAIL))
                 .isInstanceOf(BusinessException.class)
@@ -98,9 +102,7 @@ class EmailVerificationServiceTest {
     @Test
     void sendHidesCodeWhenDevDisabled() {
 
-        EmailVerificationService prod =
-                new EmailVerificationService(
-                        memberMapper, new BCryptPasswordEncoder(), emailSender, clock, false);
+        EmailVerificationService prod = newService(false);
 
         assertThat(prod.send(EMAIL).getDevCode()).isNull();
     }
@@ -191,10 +193,8 @@ class EmailVerificationServiceTest {
                 .isEqualTo("EMAIL_NOT_VERIFIED");
 
         service.confirm(sent.getVerificationId(), sent.getDevCode());
-        assertThatThrownBy(
-                        () ->
-                                service.requireVerified(
-                                        sent.getVerificationId(), "other@example.com"))
+        String verificationId = sent.getVerificationId();
+        assertThatThrownBy(() -> service.requireVerified(verificationId, "other@example.com"))
                 .extracting("code")
                 .isEqualTo("EMAIL_NOT_VERIFIED");
 

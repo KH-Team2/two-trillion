@@ -70,12 +70,8 @@ class SmtpEmailSenderTest {
 
         assertThatThrownBy(() -> sender.sendVerificationCode("hope@example.com", "123456"))
                 .isInstanceOf(BusinessException.class)
-                .satisfies(
-                        e -> {
-                            BusinessException be = (BusinessException) e;
-                            assertThat(be.getStatus()).isEqualTo(HttpStatus.SERVICE_UNAVAILABLE);
-                            assertThat(be.getCode()).isEqualTo("MAIL_UNAVAILABLE");
-                        });
+                .hasFieldOrPropertyWithValue("status", HttpStatus.SERVICE_UNAVAILABLE)
+                .hasFieldOrPropertyWithValue("code", "MAIL_UNAVAILABLE");
     }
 
     // 보내는 주소가 비어 있으면 서버를 켤 때 바로 실패
