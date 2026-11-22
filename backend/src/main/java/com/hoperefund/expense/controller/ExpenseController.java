@@ -7,7 +7,6 @@ import com.hoperefund.expense.dto.UploadHistoryDTO;
 import com.hoperefund.expense.service.ExpenseService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -22,7 +21,7 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li>GET /api/card-uploads : 업로드 이력
  *   <li>GET /api/expenses?year= 또는 ?uploadId= : 거래 목록 + 분류 근거
  *   <li>GET /api/expense-totals?year= : 분류 · 결제수단별 합계
- *   <li>DELETE /api/card-uploads/{uploadId} : 업로드 삭제 → 204 (응답 본문 없음)
+ *   <li>DELETE /api/card-uploads/{uploadId} : 업로드 삭제 → 200 {success: true, data: null}
  * </ul>
  *
  * <p>업로드(POST /api/card-uploads)는 CardUploadController에 있음 · 주소가 같아도 HTTP 방식(GET · POST · DELETE)이
@@ -72,14 +71,18 @@ public class ExpenseController {
     /**
      * 업로드 삭제 (그 업로드의 거래도 같이 삭제)
      *
-     * <p>ResponseEntity.noContent(): 204 No Content = 「성공했고, 돌려줄 내용은 없음」 (API 명세서)
+     * <p>[수정 11/23 고은] 204 → 200 + 공통 봉투 {success: true, data: null}
+     *
+     * <p>이유: 팀 API 규칙(api-rules.md 3번) 「성공 응답은 모두 200 · 201 · 204 안 씀」에 맞춤 · 돌려줄 데이터가 없으면 data를
+     * null로 보냄
      *
      * <p>@PathVariable: 주소의 {uploadId} 자리 값을 꺼냄 (예: /api/card-uploads/10 → 10)
      */
     @DeleteMapping("/api/card-uploads/{uploadId}")
-    public ResponseEntity<Void> deleteUpload(
+    public ApiResponse<Void> deleteUpload(
             @AuthenticationPrincipal Long memberId, @PathVariable("uploadId") long uploadId) {
         expenseService.deleteUpload(memberId, uploadId);
-        return ResponseEntity.noContent().build();
+        // ApiResponse<Void>: 돌려줄 데이터가 없다는 표시 (Void = 「값 없음」 타입) → JSON의 data는 null
+        return ApiResponse.ok(null);
     }
 }

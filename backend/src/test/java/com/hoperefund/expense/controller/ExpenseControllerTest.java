@@ -6,7 +6,6 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -177,10 +176,13 @@ class ExpenseControllerTest {
     }
 
     @Test
-    void 삭제_성공이면_204_본문_없음() throws Exception {
+    // [수정 11/23 고은] 204 → 200 + {success: true, data: null} (팀 API 규칙: 성공은 모두 200)
+    void 삭제_성공이면_200_data_null() throws Exception {
         mockMvc.perform(delete("/api/card-uploads/10").with(loginAs(1L)))
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""));
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                // nullValue(): 값이 null인지 확인 (Hamcrest 검사 도구)
+                .andExpect(jsonPath("$.data", org.hamcrest.Matchers.nullValue()));
         verify(expenseService).deleteUpload(1L, 10L);
     }
 
