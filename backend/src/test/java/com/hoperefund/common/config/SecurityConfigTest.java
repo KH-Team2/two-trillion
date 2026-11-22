@@ -2,8 +2,11 @@ package com.hoperefund.common.config;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willAnswer;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
@@ -14,6 +17,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.hoperefund.common.controller.HealthController;
 import com.hoperefund.common.exception.GlobalExceptionHandler;
+import com.hoperefund.common.service.AccessLogService;
 import com.hoperefund.common.service.TokenService;
 import com.hoperefund.common.service.TokenService.TokenInfo;
 import com.hoperefund.income.controller.IncomeController;
@@ -50,6 +54,7 @@ class SecurityConfigTest {
     @MockitoBean private MemberService memberService;
     @MockitoBean private LoginService loginService;
     @MockitoBean private IncomeService incomeService;
+    @MockitoBean private AccessLogService accessLogService;
 
     private String bearer(String role) {
         return "Bearer " + tokenService.issue(3L, "hope_user", role).token();
@@ -142,6 +147,27 @@ class SecurityConfigTest {
                         get("/api/admin/members")
                                 .header(HttpHeaders.AUTHORIZATION, bearer("ADMIN")))
                 .andExpect(status().isNotFound());
+    }
+
+    // [추가 11/22 · F-09-01] 실제 필터 순서에서 접근 기록이 남는지
+    // 403 → DENIED(토큰의 회원번호와 함께) · 관리자 동작 → 결과대로 · 401 → 남기지 않음
+    @Test
+    void accessLogFilterRecordsDeniedAndSkipsUnauthorized() throws Exception {
+
+        mockMvc.perform(get("/api/admin/members").header(HttpHeaders.AUTHORIZATION, bearer("USER")))
+                .andExpect(status().isForbidden());
+        verify(accessLogService).record(3L, "/api/admin/members", "127.0.0.1", "DENIED");
+
+        // 관리자 API 는 아직 없어 404 → FAIL
+        String adminToken = bearer("ADMIN");
+        mockMvc.perform(get("/api/admin/members").header(HttpHeaders.AUTHORIZATION, adminToken))
+                .andExpect(status().isNotFound());
+        verify(accessLogService).record(3L, "/api/admin/members", "127.0.0.1", "FAIL");
+
+        mockMvc.perform(post("/api/calculations/2026")).andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/admin/members")).andExpect(status().isUnauthorized());
+        verify(accessLogService, never()).record(any(), eq("/api/calculations/2026"), any(), any());
+        verify(accessLogService, times(2)).record(any(), any(), any(), any());
     }
 
     // 로그아웃 → 200 + data: null · 같은 토큰으로 다시 요청하면 401

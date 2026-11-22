@@ -14,6 +14,7 @@ import static org.mockito.Mockito.verify;
 
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.common.mapper.AccessLogMapper;
+import com.hoperefund.common.service.AccessLogService;
 import com.hoperefund.common.service.TokenService;
 import com.hoperefund.member.dto.LoginMemberDTO;
 import com.hoperefund.member.dto.LoginRequestDTO;
@@ -55,8 +56,10 @@ class LoginServiceTest {
     }
 
     private LoginService service(boolean lockEnabled) {
+        // 기록은 실제 AccessLogService 로 하고, 그 안의 Mapper 만 가짜 → 어떤 값이 저장되는지 확인
+        AccessLogService accessLogService = new AccessLogService(accessLogMapper);
         return new LoginService(
-                memberMapper, accessLogMapper, passwordEncoder, tokenService, lockEnabled);
+                memberMapper, accessLogService, passwordEncoder, tokenService, lockEnabled);
     }
 
     // 로그인 요청 → 성공 응답
@@ -205,9 +208,9 @@ class LoginServiceTest {
         assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
     }
 
-    // ACCESS_LOG 번호가 겹치면 한 번 더 시도하고, 그래도 안 되면 로그인은 그대로 성공
+    // ACCESS_LOG 저장이 실패해도 로그인은 그대로 성공 (번호는 시퀀스라 다시 시도하지 않음)
     @Test
-    void accessLogDuplicateKeyIsRetriedOnceAndNeverBlocksLogin() {
+    void accessLogFailureNeverBlocksLogin() {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
         given(accessLogMapper.insertAccessLog(any(), any(), any(), any()))
@@ -216,10 +219,10 @@ class LoginServiceTest {
         LoginResponseDTO response = login(true, "hope_user", PASSWORD);
 
         assertThat(response.getAccessToken()).isNotBlank();
-        verify(accessLogMapper, times(2)).insertAccessLog(3L, "/api/auth/login", IP, "SUCCESS");
+        verify(accessLogMapper, times(1)).insertAccessLog(3L, "/api/auth/login", IP, "SUCCESS");
     }
 
-    // ACCESS_LOG 저장이 다른 이유로 실패하면 다시 시도하지 않고, 로그인 실패 응답도 그대로 나간다
+    // ACCESS_LOG 저장이 실패해도 로그인 실패 응답은 그대로 나간다
     @Test
     void accessLogFailureDoesNotChangeLoginResult() {
 
