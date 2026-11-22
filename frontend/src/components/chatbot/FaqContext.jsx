@@ -1,11 +1,5 @@
 // 열림 상태, 대화 내용, 요청 처리 관리
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, {createContext, useContext, useEffect, useRef, useState,} from "react";
 import { askFaq, getFaqById, FAQ_FALLBACK } from "../../api/faq-service.js";
 const Context = createContext({
   openFaq: () => {},

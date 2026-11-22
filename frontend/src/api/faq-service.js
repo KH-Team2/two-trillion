@@ -59,7 +59,6 @@ export function listFaqQuestions(items, category) {
 // FAQ ID로 상세 답변 조회
 export async function getFaqById(id) {
   if (!id) return null;
-
   return requestFaq(`${FAQ_URL}/${encodeURIComponent(id)}`);
 }
 
