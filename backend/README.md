@@ -58,7 +58,10 @@ backend/
     │   │   │   │   └── SecurityConfig.java           # 로그인 필요 주소 · JWT 필터 · 401/403 응답
     │   │   │   ├── controller/
     │   │   │   │   └── HealthController.java
+    │   │   │   ├── filter/
+    │   │   │   │   └── AccessLogFilter.java          # 업로드 · 계산 · 관리자 동작 · 403 을 ACCESS_LOG 에 기록 (F-09-01)
     │   │   │   ├── service/
+    │   │   │   │   ├── AccessLogService.java         # 접근 기록 저장 (실패해도 본래 동작을 막지 않음)
     │   │   │   │   └── TokenService.java             # 로그인 토큰(JWT) 발급 · 검사 · 로그아웃 목록
     │   │   │   ├── mapper/
     │   │   │   │   └── AccessLogMapper.java          # 접속 기록(ACCESS_LOG)

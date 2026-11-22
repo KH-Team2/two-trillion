@@ -11,6 +11,49 @@
 - 고칠 방법: 소득 Controller(`IncomeController`)처럼 `@AuthenticationPrincipal Long memberId`로 바꾸고, 테스트도 `X-Member-Id` 헤더 대신 로그인 정보로 요청하게 맞춘다.
 - 회원 담당 브랜치(feature/member)에서는 다른 도메인이라 고치지 않고 기록만 남김.
 
+## 접근 기록 (F-09-01 · 2026-11-22)
+
+### 기존 DB 의 ACCESS_LOG 시퀀스 맞추기 (팀원 각자)
+
+- `LOG_ID` 가 `MAX + 1` → `SEQ_ACCESS_LOG.NEXTVAL` 로 바뀜. 예전 방식으로 기록이 쌓인 DB 는 시퀀스가 1부터라 번호가 겹쳐 기록이 저장되지 않는다
+  (로그인 · 계산은 막히지 않고 서버 로그에 「접근 기록 저장 실패」만 남음). 새로 만든 DB(`01_schema.sql`)는 비어 있어 할 일 없음.
+- 확인: `SELECT MAX(LOG_ID) FROM ACCESS_LOG;` · `SELECT LAST_NUMBER FROM USER_SEQUENCES WHERE SEQUENCE_NAME = 'SEQ_ACCESS_LOG';`
+- 맞추는 방법 (둘 중 하나 · 각자 자기 DB 에서):
+
+  ```sql
+  -- A: 기록 유지 · n = MAX(LOG_ID) + 1 이상
+  ALTER SEQUENCE SEQ_ACCESS_LOG RESTART START WITH n;
+  -- B: 테스트 기록이라 지워도 되면
+  DELETE FROM ACCESS_LOG;
+  COMMIT;
+  ```
+
+- 공용 DB 를 쓰는 경우는 DB 담당자에게 요청 (노션 「요청·전달」)
+- 남은 확인: 로컬 DB 정리 후 로그인 · 업로드 · 계산 · 일반 회원으로 관리자 주소 → ACCESS_LOG 행 (`RESULT` · `MEMBER_ID` · `SCREEN`)
+
+### develop 합치는 순서 · 예상 충돌 (2026-11-22 확인)
+
+- `feature/backend-common` 은 `feature/member` 에서 만든 브랜치라 회원 커밋(F-01-01 ~ F-01-05 · 14개)이 같이 들어 있다.
+  → **`feature/member` 를 먼저 develop 에 합치고, 그다음 `feature/backend-common`** (그러면 PR 에는 접근 기록 커밋만 보임)
+- develop 에서 새로 시작하지 않은 이유: 회원 쪽 줄바꿈 정리(`8231d85`)가 `SecurityConfig` · `LoginService` 를 고쳐서,
+  develop 위로 옮기면 그 두 파일이 충돌하고, 나중에 `feature/member` 를 합칠 때 같은 곳이 한 번 더 충돌한다 (임시 브랜치로 시험해 확인)
+- 합쳐 보기 결과 (develop 에 새 커밋 0개일 때): 접근 기록 커밋 2개가 새로 만드는 충돌은 팀원 브랜치 어디에도 없음.
+  회원 커밋 때문에 예상되는 충돌은 아래 두 곳
+  - `feature/sse` (TT-150): `SecurityConfig.java` 주소 규칙 부분 · sse 가 넣은 `DispatcherType.ASYNC` 허용 두 줄을 남기면 됨
+  - `docs/tasks.md`: calc-4 · calc-5 · calculation · dashboard · expense · group-stat · simulation · 두 기록을 모두 남기면 됨
+- 어떤 브랜치가 develop 에 먼저 합쳐질지 몰라 미리 풀어 둘 수 없다 → **PR 올리기 직전에 최신 develop 을 이 브랜치에 합쳐 충돌을 풀고**
+  `./mvnw spotless:check && ./mvnw -B verify` 를 다시 돌린다 (남의 브랜치를 미리 받아 합치면 그 사람 작업까지 PR 에 섞임)
+- PR 본문에 넣을 것: 위 「기존 DB 의 ACCESS_LOG 시퀀스 맞추기」 SQL (git 충돌은 아니지만 받은 팀원 DB 에서 기록이 저장되지 않음)
+
+### 이번에 하지 않은 것
+
+- **남의 데이터 요청 `DENIED`**: 남의 결과 · 업로드 번호로 요청하면 F-09-02 대로 404 라서 필터는 "정말 없음"과 구분할 수 없다.
+  남기려면 prediction · expense Service 에서 "번호는 있는데 주인이 다름"을 따로 확인해야 함 → 각 담당자와 결정 필요
+- **97번 SQL (오래된 기록 정리)**: 저장소에 파일이 없음 · 보관 기간 · 실행 방법(DB 담당자 / `@Scheduled`) 팀 결정 필요 (탈퇴 2-2 와 같이)
+- **IP 기준 제한 (D-16 보류)**: 숫자가 정해지면 ACCESS_LOG 의 IP · 시각으로 셀 수 있음
+- **관리자 접근 기록 조회 (upstream/feature/admin)**: `AdminAccessLogMapper.xml` 이 ERD 에 없는 칸 `ACCESS_ID` 를 쓰고 (실제는 `LOG_ID`)
+  `M.LOGIN_FAIL_COUNT` 를 MEMBER 조인 없이 읽음 → 실행하면 ORA-00904 · admin 담당자에게 전달 필요
+
 ## 회원 (member)
 
 ### MEMBER_ID 발급 방식: `MAX + 1` → `SEQ_MEMBER` 전환 검토
