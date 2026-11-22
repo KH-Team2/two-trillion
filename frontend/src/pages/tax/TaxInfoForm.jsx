@@ -172,6 +172,14 @@ export default function TaxInfoForm({
         className="card form-card"
         onSubmit={(e) => {
           e.preventDefault();
+          // [수정 11/23 고은] 마지막 단계 전에는 「다음 단계」 검사를 move 함수에 맡김
+          // 이유: 여기서 전체 검사(validateTaxData)를 먼저 하면, move에서 「기본 정보 → 소득 정보는 전체 검사 건너뛰기」로
+          //   고친 것이 「다음 단계」 버튼에는 적용되지 않아 같은 곳에서 또 막혔음
+          //   → 위쪽 단계 버튼과 「다음 단계」 버튼이 같은 규칙(move)으로 검사하도록 맞춤
+          if (step < 5) {
+            move(step + 1);
+            return;
+          }
           const error =
             validateTaxData(d) || (step >= 2 && mode !== 'simulation' ? uploadBlocker(tx) : '');
           if (error) {
@@ -179,8 +187,7 @@ export default function TaxInfoForm({
             return;
           }
           setErr('');
-          if (step < 5) move(step + 1);
-          else if (!d.consent) setErr('시연용 예시 결과 확인에 동의해주세요.');
+          if (!d.consent) setErr('시연용 예시 결과 확인에 동의해주세요.');
           else {
             try {
               onSubmit(d, tx, uploadMeta);
