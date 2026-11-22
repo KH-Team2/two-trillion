@@ -1,9 +1,12 @@
 import json
+import re
 from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from app.services.classifier import classify_question, ClassifierError
+from app.services.privacy_filter import check_privacy
 from app.api.deps import check_token
+
 # FAQ 목록, 카테고리, 상세 조회 구현
 
 router = APIRouter(prefix='/faq', tags=['FAQ'], dependencies=[Depends(check_token)],)
@@ -48,6 +51,12 @@ def ask_faq(request: FaqAskRequest):
     question = request.question.strip()
     if not question:
         raise HTTPException(status_code=422, detail='질문을 입력해 주세요.')
+        # 개인정보 포함 여부 검사
+    if check_privacy(question):
+        raise HTTPException(status_code=400, detail='개인정보가 포함되어 있어 질문을 전송할 수 없습니다.')
+    # 숫자가 포함된 질문 제한
+    if re.search(r"[0-9]", question):
+        raise HTTPException(status_code=400, detail="세금 용어 설명만 제공하므로 개인정보의 위험이 있는 숫자가 포함된 질문은 입력할 수 없습니다.")
     terms = load_terms()
     try:
         faq_id = classify_question(question, terms)

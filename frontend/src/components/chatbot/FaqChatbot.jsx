@@ -48,11 +48,12 @@ export default function FaqChatbot() {
     setOpen(false);
     launcher.current?.focus();
   }
-  function send(event) {
+  async function send(event) {
     event.preventDefault();
     if (!question.trim() || busy) return;
-    void submit({ question });
-    setQuestion("");
+    const sentQuestion = question;
+    const success = await submit({question: sentQuestion,});
+    if (success) {setQuestion("");}
   }
   return (
     <div className="tax-faq-widget">

@@ -23,9 +23,7 @@ public class ChatbotController {
         this.chatbotService = chatbotService;
     }
 
-    public record FaqAskRequest(
-            @NotBlank @Size(max = 100) String question
-    ) {}
+    public record FaqAskRequest(@NotBlank @Size(max = 100) String question) {}
 
     // FAQ 카테고리 목록
     @GetMapping("/api/faq-categories")

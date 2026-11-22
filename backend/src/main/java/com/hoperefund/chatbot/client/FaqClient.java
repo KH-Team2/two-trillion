@@ -1,5 +1,7 @@
 package com.hoperefund.chatbot.client;
 
+import com.hoperefund.common.exception.ChatbotUnavailableException;
+import com.hoperefund.common.exception.BusinessException;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,7 +13,6 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.server.ResponseStatusException;
 import tools.jackson.databind.JsonNode;
-import com.hoperefund.common.exception.ChatbotUnavailableException;
 
 // FastAPI 서버에 실제 HTTP 요청
 @Component
@@ -58,7 +59,7 @@ public class FaqClient {
         } catch (HttpClientErrorException.NotFound e) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "해당 FAQ를 찾을 수 없습니다.");
         } catch (RestClientException | IllegalStateException e) {
-        	throw new ChatbotUnavailableException("챗봇 서버 연결 실패", e);
+            throw new ChatbotUnavailableException("챗봇 서버 연결 실패", e);
         }
     }
 
@@ -77,8 +78,16 @@ public class FaqClient {
             }
 
             return result;
+        } catch (HttpClientErrorException.BadRequest e) {
+            throw new BusinessException(
+                HttpStatus.BAD_REQUEST,
+                "PERSONAL_INFO_DETECTED",
+                "세금 용어 설명만 제공하므로 개인정보의 위험이 있는 질문은 전송할 수 없습니다."
+            );
         } catch (RestClientException | IllegalStateException e) {
-            throw new ChatbotUnavailableException("AI 질문 분류 서비스 오류", e);
+            throw new ChatbotUnavailableException(
+                "AI 질문 분류 서비스 오류", e
+            );
         }
     }
 }

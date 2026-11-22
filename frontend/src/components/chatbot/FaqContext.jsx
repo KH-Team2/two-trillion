@@ -47,16 +47,28 @@ export function FaqProvider({ children, sessionId }) {
           source: faq?.source,
         },
       ]);
-    } catch {
-      if (current === generation.current)
+      return true;
+    } catch (error) {
+      if (current === generation.current) {
+        const isPrivacyError =
+          error?.code === "PERSONAL_INFO_DETECTED";
+
         setMessages((previous) => [
           ...previous,
-          { role: "user", text: question?.trim() || "선택한 용어" },
+          ...(!isPrivacyError
+            ? [{ role: "user", text: question?.trim() || "선택한 용어" }]
+            : []),
           {
             role: "assistant",
-            text: "답변을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+            text: isPrivacyError
+              ? error.message
+              : "답변을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
           },
         ]);
+        if (isPrivacyError) {
+          return false;
+        }
+      }
     } finally {
       if (current === generation.current) {
         pending.current = false;

@@ -93,10 +93,11 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.fail("CALC_REJECTED", "계산할 수 없는 입력값이 있어요. 소득 정보를 확인해 주세요"));
     }
-    
+
     // 챗봇 서버 연결 실패 또는 AI 질문 분류 서비스 장애
     @ExceptionHandler(ChatbotUnavailableException.class)
-    public ResponseEntity<ApiResponse<Void>> handleChatbotUnavailable(ChatbotUnavailableException e) {
+    public ResponseEntity<ApiResponse<Void>> handleChatbotUnavailable(
+            ChatbotUnavailableException e) {
         String errorId = newErrorId();
         log.error("[errorId={}] 챗봇 서비스 오류", errorId, e);
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
@@ -106,7 +107,7 @@ public class GlobalExceptionHandler {
                                 "챗봇 서비스를 이용할 수 없어요. 잠시 후 다시 시도해 주세요.",
                                 errorId));
     }
-    
+
     // 같은 데이터를 동시에 두 번 저장해 겹쳤을 때 (예: 저장 버튼 두 번 클릭)
     @ExceptionHandler(ConflictException.class)
     public ResponseEntity<ApiResponse<Void>> handleConflict(ConflictException e) {
