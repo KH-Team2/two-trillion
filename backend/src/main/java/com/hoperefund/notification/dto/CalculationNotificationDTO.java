@@ -5,6 +5,6 @@ package com.hoperefund.notification.dto;
  *
  * <p>record: 값만 담는 클래스를 짧게 쓰는 방법 (Java 16+). getter · 생성자를 자동으로 만들어 줘요.
  *
- * @param expectedRefund 양수 = 환급, 음수 = 추가 납부
+ * <p>[수정 11/23] 금액(expectedRefund)은 보내지 않아요 (알림에 금융 정보를 넣지 않음) · 금액은 대시보드에서 확인
  */
-public record CalculationNotificationDTO(int taxYear, Long predictionId, Long expectedRefund) {}
+public record CalculationNotificationDTO(int taxYear, Long predictionId) {}
