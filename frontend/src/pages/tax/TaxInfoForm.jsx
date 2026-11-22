@@ -66,8 +66,15 @@ export default function TaxInfoForm({
       // reportValidity(): 틀린 칸이 있으면 그 칸에 말풍선을 띄우고 false를 돌려줌 → 넘어가지 않음
       // formRef.current가 아직 없으면(null) 검사를 건너뜀 (오류 방지)
       if (formRef.current && !formRef.current.reportValidity()) return;
-      const error =
-        validateTaxData(d) || (step >= 2 && mode !== 'simulation' ? uploadBlocker(tx) : '');
+      // [수정 11/23 고은] 기본 정보(0) → 소득 정보(1)로 갈 때는 전체 검사(validateTaxData)를 건너뜀
+      // 이유: 전체 검사는 아직 안 지나간 소득 정보 칸까지 봐서, 소득 칸을 비우고 뒤로 왔다가
+      //   다시 소득 정보로 가려 하면 「금액은 0 이상으로 입력해주세요」로 막혔음 (그 칸을 채우러 가는 길인데 막힘)
+      //   → 귀속 연도 같은 기본 정보 칸은 바로 위 reportValidity가 검사하고,
+      //     소득 정보 칸은 소득 정보를 지나갈 때(1 → 2 이상) 지금처럼 전체 검사로 막음
+      const toIncomeOnly = step === 0 && next === 1;
+      const error = toIncomeOnly
+        ? ''
+        : validateTaxData(d) || (step >= 2 && mode !== 'simulation' ? uploadBlocker(tx) : '');
       if (error) {
         setErr(error);
         return;
