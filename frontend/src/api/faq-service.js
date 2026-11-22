@@ -1,19 +1,11 @@
-import { apiRequest } from "./api-client.js";
-// FAQ 원본 데이터는 FastAPI 관리. React에는 별도 JSON을 저장하지 않음.
-// Spring Boot API 호출과 FAQ 목록 가공
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8080").replace(/\/$/, "");
-const FAQ_URL = `${API_BASE_URL}/api/faqs`;
-const FAQ_CATEGORIES_URL = `${API_BASE_URL}/api/faq-categories`;
-const FAQ_MATCHES_URL = `${API_BASE_URL}/api/faq-matches`;
+import { apiRequest } from './api-client.js';
 
-const normalize = (text) =>
-  String(text ?? "")
-    .normalize("NFKC")
-    .replace(/[\s?!？。，.,]/g, "")
-    .toLowerCase();
+// FAQ 원본 데이터는 FastAPI에서 관리하고 React에는 별도 JSON을 저장하지 않음
+const FAQ_URL = '/api/faqs';
+const FAQ_MATCHES_URL = '/api/faq-matches';
 
 export const FAQ_FALLBACK =
-  "아직 연결된 FAQ에서 답변을 찾지 못했어요. 카테고리에서 질문을 선택하거나, 다른 용어로 질문해 주세요. 개인별 세액 계산과 절세 상담은 제공하지 않아요.";
+  '아직 연결된 FAQ에서 답변을 찾지 못했어요. 카테고리에서 질문을 선택하거나, 다른 용어로 질문해 주세요. 개인별 세액 계산과 절세 상담은 제공하지 않아요.';
 
 let faqCache = null;
 let loadingPromise = null;
@@ -23,29 +15,32 @@ async function requestFaq(url) {
   try {
     return await apiRequest(url);
   } catch (error) {
-    if (error.code === "NOT_FOUND") {
+    if (error.code === 'NOT_FOUND') {
       return null;
     }
     throw error;
   }
 }
 
-// FastAPI GET /faq 응답: { total: 36, items: [...] }
-// Spring Boot가 감싼 응답: { success: true, data: { total, items }, ... }
 // FAQ 목록 조회 및 캐싱
 export async function loadFaqs() {
   if (faqCache) return faqCache;
+
   if (!loadingPromise) {
     loadingPromise = requestFaq(FAQ_URL)
       .then((data) => {
         if (!data || !Array.isArray(data.items)) {
-          throw new Error("FAQ 목록 응답에 items 배열이 없습니다.");
+          throw new Error('FAQ 목록 응답에 items 배열이 없습니다.');
         }
+
         faqCache = data.items;
         return faqCache;
       })
-      .finally(() => { loadingPromise = null; });
+      .finally(() => {
+        loadingPromise = null;
+      });
   }
+
   return loadingPromise;
 }
 
@@ -64,19 +59,20 @@ export function listFaqQuestions(items, category) {
 // FAQ ID로 상세 답변 조회
 export async function getFaqById(id) {
   if (!id) return null;
+
   return requestFaq(`${FAQ_URL}/${encodeURIComponent(id)}`);
 }
 
 // 자유 입력 질문을 Spring Boot → FastAPI → Gemma 3로 전달
 export async function askFaq(question) {
-  const trimmed = String(question ?? "").trim();
+  const trimmed = String(question ?? '').trim();
 
   if (!trimmed) return null;
 
   const data = await apiRequest(FAQ_MATCHES_URL, {
-    method: "POST",
+    method: 'POST',
     body: { question: trimmed },
   });
 
-  return data?.matched ? data.faq ?? null : null;
+  return data?.matched ? (data.faq ?? null) : null;
 }

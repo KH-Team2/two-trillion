@@ -23,15 +23,21 @@ React (FAQ 버튼 / 자유 질문)
 ```text
 chatbot/
 ├── app/
-│   ├── main.py                 # .env 읽기 · 기동 시 토큰 필수 검증
+│   ├── main.py                         # .env 읽기 · 기동 시 토큰 필수 검증
 │   ├── api/
-│   │   ├── health.py          # /health (인증 예외)
-│   │   ├── deps.py            # X-Chatbot-Token 검사
-│   │   └── faq.py             # FAQ 목록·카테고리·상세·분류 API
-│   ├── data/tax_terms.json    # 고정 FAQ 데이터
-│   └── services/classifier.py # 단순 용어 매칭 및 Ollama Gemma 3 분류
-├── tests/                      # 테스트 · 벤치마크 (일부 갱신 필요)
-├── .env.example               # 환경변수 예시 (.env는 Git 제외)
+│   │   ├── health.py                  # /health (내부 인증 예외)
+│   │   ├── deps.py                    # X-Chatbot-Token 검사
+│   │   └── faq.py                     # FAQ HTTP 요청·응답 처리
+│   ├── repositories/
+│   │   └── faq_repository.py          # tax_terms.json 조회
+│   ├── services/
+│   │   ├── faq_service.py             # FAQ 조회·자유 질문 처리 업무 흐름
+│   │   ├── classifier.py              # 단순 용어 매칭 및 Gemma 3 FAQ ID 분류
+│   │   └── privacy_filter.py          # 자유 질문 개인정보 검사
+│   └── data/
+│       └── tax_terms.json             # 검증된 고정 FAQ 데이터
+├── tests/                              # FAQ·health 등 자동 테스트
+├── .env.example                       # 환경변수 예시 (.env는 Git 제외)
 ├── requirements.txt
 ├── requirements-dev.txt
 ├── pyproject.toml

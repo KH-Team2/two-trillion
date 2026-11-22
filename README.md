@@ -389,27 +389,21 @@
  │   │   ├── api/
  │   │   │   ├── __init__.py
  │   │   │   ├── deps.py                      # X-Chatbot-Token 내부 인증
- │   │   │   ├── faq.py                       # FAQ 카테고리·목록·상세·자유 질문 API
+ │   │   │   ├── faq.py                       # FAQ HTTP 요청·응답 처리
  │   │   │   └── health.py                    # GET /health (인증 제외)
+ │   │   ├── repositories/
+ │   │   │   ├── __init__.py
+ │   │   │   └── faq_repository.py            # tax_terms.json 조회      
  │   │   ├── data/
  │   │   │   └── tax_terms.json               # 검증된 FAQ 답변 원본
  │   │   └── services/
- │   │       ├── __init__.py
+ │   │       ├── privacy_filter.py            # 자유 질문 개인정보 검사
+ │   │       ├── faq_service.py               # FAQ 조회·자유 질문 처리 업무 흐름
  │   │       └── classifier.py                # Ollama Gemma 3 FAQ ID 분류
  │   └── tests/
  │       ├── test_health.py                   # 상태 확인 테스트
  │       └── test_faq.py                      # FAQ 조회 테스트 (내부 인증 반영 점검 필요)
 ──────────────────────────────────────────────────────────────────
-[개발 예정 구조 — AGENTS.md에 명시되었지만 아직 GitHub에 없는 폴더]
-
-backend/src/main/java/com/hoperefund/
-├── member/           # MEMBER · PASSWORD_RESET
-├── expense/          # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY
-├── inquiry/          # INQUIRY
-├── admin/            # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION
-└── common/           # 현재 존재, 보안/예외 처리 등의 확장 예정
-# 기능별 폴더 하위 계층: controller/ service/ mapper/ dto/
-# MyBatis XML: backend/src/main/resources/mapper/ (기능별)
 ```
 ## 🖥 실행 방법
 
