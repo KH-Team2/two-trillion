@@ -102,8 +102,7 @@ public class CalculationService {
         notificationService.sendToMember(
                 memberId,
                 "calculation",
-                new CalculationNotificationDTO(
-                        taxYear, result.getPredictionId(), result.getExpectedRefund()));
+                new CalculationNotificationDTO(taxYear, result.getPredictionId()));
         return result;
     }
 
