@@ -103,7 +103,7 @@
  ├── .gitignore                               # 4개 프로젝트 공통 Git 제외 설정
  ├── README.md                                # 저장소 최상위 안내
  │
- ├── frontend/                                # React + Vite · 화면/UI · 체험 기능
+ ├── frontend/                                # React + Vite · 화면/UI
  │   ├── .env.example                         # 약관·개인정보·금융정보 동의 버전 변수 예시
  │   ├── .gitignore                           # 프론트엔드 개별 Git 제외 설정
  │   ├── .prettierignore                      # Prettier 검사 제외 파일
@@ -135,16 +135,16 @@
  │   ├── src/
  │   │   ├── main.jsx                         # React 진입점
  │   │   ├── App.jsx                          # 앱 최상위 컴포넌트·상태 연결
- │   │   ├── api/                             # 브라우저 체험 서비스·API 연동 경계
- │   │   │   ├── account-service.js           # 회원 관련 체험 서비스
+ │   │   ├── api/                             # Spring Boot API 호출 · 화면용 데이터 변환
+ │   │   │   ├── account-service.js           # 로그인 · 로그아웃 · 현재 로그인 회원
  │   │   │   ├── card-upload-service.js       # 카드 업로드 · 거래 내역 서버 API 호출 (업로드 · 이력 · 거래 목록 · 삭제)
  │   │   │   ├── calculation-contract.js      # 계산 응답 계약 관련 로직
  │   │   │   ├── erd-contract.js              # ERD 관련 데이터 계약
  │   │   │   ├── expense-service.js           # 지출·업로드 관련 서비스
- │   │   │   ├── prototype-records.js         # 체험용 기록 관리
- │   │   │   └── services.js                  # 체험 데이터·서비스
+ │   │   │   └── services.js                  # 입력 기본값 · 입력 검사 · 화면 표기
  │   │   ├── components/
  │   │   │   ├── common/                      # 공통 표현 컴포넌트
+ │   │   │   │   ├── ComingSoon.jsx           # 서버 API 전 화면의 「준비 중」 안내
  │   │   │   │   ├── DeductionDetails.jsx     # 공제·감면 상세 표시
  │   │   │   │   └── site-primitives.jsx      # 공통 사이트 UI 요소
  │   │   │   ├── expense/
@@ -157,21 +157,18 @@
  │   │   │       # button.jsx, input.jsx, dialog.jsx, chart.jsx, table.jsx 등
  │   │   ├── pages/                           # 실제 화면 구성
  │   │   │   ├── admin/
- │   │   │   │   ├── AdminPage.jsx            # 관리자 화면
- │   │   │   │   └── AdminTools.jsx           # 관리자 기능 UI
+ │   │   │   │   └── AdminPage.jsx            # 관리자 화면 (준비 중)
  │   │   │   ├── auth/
  │   │   │   │   ├── AccountForms.jsx         # 회원 관련 입력 폼
  │   │   │   │   └── AuthPage.jsx             # 로그인·가입 등 인증 화면
  │   │   │   ├── chatbot/
- │   │   │   │   ├── ChatPanel.jsx            # AI 상담 패널
- │   │   │   │   └── ChatbotPage.jsx          # AI 상담 페이지
+ │   │   │   │   └── ChatbotPage.jsx          # AI 상담 페이지 (준비 중)
  │   │   │   ├── dashboard/
  │   │   │   │   ├── Dashboard.jsx            # 대시보드 UI
  │   │   │   │   └── DashboardPage.jsx        # 대시보드 페이지
  │   │   │   ├── home/
  │   │   │   │   └── HomePage.jsx             # 시작 화면
  │   │   │   ├── profile/
- │   │   │   │   ├── ProfileDetails.jsx       # 마이페이지 상세
  │   │   │   │   └── ProfilePage.jsx          # 마이페이지
  │   │   │   ├── simulation/
  │   │   │   │   └── SimulationPage.jsx       # 조건 변경 시뮬레이션
@@ -201,14 +198,13 @@
  │   │   ├── styles/
  │   │   │   └── globals.css                  # 전역 스타일
  │   │   └── utils/
- │   │       ├── benefit-model.js             # 혜택 관련 보조 로직
  │   │       ├── cn.js                        # 클래스명 처리 유틸
  │   │       ├── dashboard-model.js           # 대시보드 모델
  │   │       ├── group-model.js               # 그룹 통계 모델
  │   │       └── tax-year.js                  # 귀속 연도 유틸
  │   └── tests/
  │       ├── feedback-contract.mjs            # 응답 계약 관련 테스트
- │       ├── prototype-flows.mjs              # 체험 기능 흐름 테스트
+ │       ├── prototype-flows.mjs              # 업로드 집계 · 입력 검사 · 그룹 통계 테스트
  │       └── render-pages.mjs                 # 화면 렌더링 테스트
  │
  ├── backend/                                 # Spring Boot · MyBatis · Oracle 연동

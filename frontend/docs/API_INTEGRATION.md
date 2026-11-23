@@ -12,11 +12,13 @@
 - `effect`, `formula`, `note`, `status`는 응답 계약에 포함하지 않습니다. 설명은 `deductionPresentation()`에서 제공합니다.
 - 음수·0원 공제액을 보존하며 `cardDeductionTotal()`은 CARD/CARD_RULE 행만 합산합니다. 소득공제·세액공제·감면을 하나의 금액으로 섞어 더하지 않습니다.
 
-`src/api/services.js`의 `taxService.calculate()`가 현재 체험 어댑터입니다. 실제 API 연동 시 이 경계를 비동기 서버 호출로 바꾸고, `App.calculate()`에서 응답을 상태로 보관하여 각 화면에 동일 결과를 전달하세요. 현재는 동일 입력의 체험 함수를 화면에서 호출합니다. 단순히 함수 이름만 비동기로 바꾸면 안 되며 로딩·오류·결과 상태 연결이 필요합니다.
+> 2026-11-23 체험판 기능 삭제: 체험용 계산(`taxService`) · `isDemo` · `canUseDemo` · `prototype-records.js` · `aiService` · 브라우저 계정(`createAccountService`)을 지웠습니다. 아래 문단 중 이 이름이 나오는 설명은 지난 기록입니다. 화면은 서버 계산 결과만 보여 주고, 결과가 없으면 `App.jsx`의 `NeedResult` 안내, 서버 API 전 화면은 `ComingSoon`을 보여 줍니다.
 
-`Dashboard`는 `result`와 `isDemo`를 독립된 prop으로 받습니다. 서버의 JSON만 `result`에 전달하고 실제 서버 응답일 때 `isDemo={false}`를 사용합니다. `dashboardModel(data, rows, result)`, `groupComparison(data, result)`도 결과를 받을 수 있습니다. 비교 화면은 `br`, `sr`, 챗봇 페이지는 `r`의 새 필드를 사용합니다. 실제 AI 연동 시 `aiService.reply`/`dashboardReply`의 체험 응답을 교체하고 새 결과를 상담 요청에 연결해야 합니다. AI가 세액을 다시 계산하게 하지 마세요.
+`App.calculate()`가 서버 계산 응답을 상태로 보관하여 각 화면에 동일 결과를 전달합니다.
 
-체험 `taxableIncome`만 미산출 `null`을 허용합니다(`allowPending: true`). 실제 응답 파서는 해당 값에 숫자를 요구합니다. 사용자 피드백의 예시 숫자를 법정 검증값으로 사용하지 않습니다.
+`Dashboard`는 서버 계산 결과를 `result`로 받습니다. `dashboardModel(data, rows, result)`, `groupComparison(data, result)`도 서버 결과를 꼭 받아야 합니다. 비교 화면은 `br`(기준 결과) · `sr`(시뮬레이션 결과)를 사용합니다. AI 상담은 「준비 중」이며, 연동할 때 AI가 세액을 다시 계산하게 하지 마세요.
+
+실제 응답 파서는 `taxableIncome`에 숫자를 요구합니다. 사용자 피드백의 예시 숫자를 법정 검증값으로 사용하지 않습니다.
 
 ## 입력과 귀속 연도
 
@@ -26,7 +28,7 @@
 
 `qualificationDTO.HOMELESS_HEAD_YN`, `incomeDTO.SME_REDUCTION_YN`: Y/N/null을 구분합니다. null을 N으로 치환하지 마세요. 서버 저장 요건이 Y/N 필수라면 입력 요청 오류로 처리하거나 팀이 정한 미입력 처리 규칙을 구현해야 합니다.
 
-`MONTHLY_RENT`는 월 금액 그대로입니다. 연간 계산용 금액은 월 금액 × 12로 체험 계산합니다. 실제 납부 개월·계약 검증은 서버가 담당합니다. 과거 연간 입력은 재입력을 요청하고 원본을 별도 보존합니다.
+`MONTHLY_RENT`는 월 금액 그대로입니다. 연간 금액은 월 금액 × 12로 서버가 계산합니다. 실제 납부 개월·계약 검증은 서버가 담당합니다. 과거 연간 입력은 재입력을 요청하고 원본을 별도 보존합니다.
 
 ## 업로드·분류·회원 격리
 
@@ -38,9 +40,7 @@
 - `api-client.js`: body가 FormData면 JSON으로 바꾸지 않고 `Content-Type`도 넣지 않음 (브라우저가 boundary 포함해서 넣음) · 204면 JSON을 읽지 않고 `null`
 - 회원번호는 보내지 않음 · 백엔드가 로그인 토큰에서 꺼냄 (11/19 · TT-149)
 
-**아래는 로그인 없는 체험(브라우저 안에서만 처리) 흐름입니다.**
-
-`expense-service.js`: `parseUploadFile()` → CSV/XLSX 공통 변환 → 기존 예시 상호명 자동 분류 → 파일별 관계·중복 확인 → `uploadTotals(rows, taxYear)`. 다른 연도 거래를 삭제하지 않습니다. 실제 입력의 카드·현금 금액은 업로드에서만 집계하며 가상 추가 소비는 별도입니다.
+`expense-service.js`: 업로드 묶음 · 중복 확인 · `uploadTotals(rows, taxYear)` 집계만 합니다. 브라우저 파일 해석(`parseUploadFile` 등)과 예시 상호명 분류는 2026-11-23 체험판 삭제 때 지웠습니다. 다른 연도 거래를 삭제하지 않습니다.
 
 `erd-contract.expenseDTO(row, categoryIdByCode, uploadIdByClientId)`는 서버에서 조회한 분류코드→숫자 CATEGORY_ID, 로컬 파일 ID→서버 발급 UPLOAD_ID 매핑이 준비되어야 객체를 생성합니다. 결제수단은 CREDIT/CHECK/CASH를 검증하며 임의 번호·알 수 없는 결제수단을 보내지 않습니다. 기존 예시 목록 LIST_ID는 운영 외래키가 아니므로 null로 내보내며 서버가 실제 목록 대조 결과로 확정해야 합니다.
 
@@ -48,9 +48,9 @@
 
 ## 회원·동의
 
-`account-service.js`, `AccountForms.jsx`: 가입·로그인·중복 검사·이메일 체험 인증·권한·잠금·탈퇴를 서버로 교체합니다. 현재 체험 등록은 브라우저 저장입니다.
+`account-service.js`, `AccountForms.jsx`: 가입 · 로그인 · 중복 검사 · 이메일 인증은 서버 API를 씁니다 (`member-api.js`). 회원정보 수정 · 비밀번호 변경 · 탈퇴 · 관리자 회원 관리는 서버 API 전이라 「준비 중」입니다.
 
-`src/config/consent-versions.js`의 환경변수는 팀의 운영 동의서 버전 설정입니다. 미확정이면 로컬 체험만 가능합니다. `consentDTO()`는 누락·빈 문자열·미확정 체험 버전을 차단합니다. 최종 시각·버전은 서버가 검증하고 기록하세요. 클라이언트가 보낸 동의 시각을 신뢰하지 않습니다.
+`src/config/consent-versions.js`의 환경변수는 팀의 운영 동의서 버전 설정입니다. `consentDTO()`는 누락·빈 문자열·미확정 체험 버전을 차단합니다. 최종 시각·버전은 서버가 검증하고 기록하세요. 클라이언트가 보낸 동의 시각을 신뢰하지 않습니다.
 
 ## 통계
 
@@ -60,13 +60,13 @@
 
 ## 그 밖의 연결 위치
 
-- `prototype-records.js`: 문의 WAITING/CHECKING/ANSWERED, 관리 기준값·접근 로그·예측 기록. 서버 관리자 권한 확인 필요.
-- `ChatPanel.jsx`, `services.aiService`: 상담방/메시지 Oracle 저장, Gemma3·RAG 호출. 현재 고정 응답.
+- 고객센터 문의(`SupportPage.jsx`) · 관리자(`AdminPage.jsx`): 「준비 중」 · 문의 · 관리자 API가 들어오면 연결 (예전 브라우저 시연 코드 `prototype-records.js` · `AdminTools.jsx`는 git 기록에 있음)
+- AI 상담(`ChatbotPage.jsx` · 대시보드 상담 카드): 「준비 중」 · 상담방/메시지 저장, Gemma3·RAG 호출 연결 필요 (예전 고정 응답 `ChatPanel.jsx`는 git 기록에 있음)
 - `App.jsx`, `userService`: 입력·계산 이력·시나리오 조회/저장을 서버로 교체. 원본과 가상 입력은 분리 유지.
 
 ## 소비 유형 표 복구 후 표시 경계
 
-대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 연결 여부는 응답 JSON과 분리된 `calculationConnected` prop으로 전달합니다. Dashboard는 기존 `isDemo`의 반대 값을 전달합니다. 실제 응답일 때만 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다. 시뮬레이션 비교 화면도 서버 결과일 때 같은 방식으로 실제 연결 상태를 전달합니다 (TT-105).
+대시보드의 소비 유형별 표는 업로드 거래에서만 집계합니다. `details`를 소비 유형으로 재분류하거나 지출액으로 사용하지 않습니다. 별도 `DeductionDetails`는 기본 접힌 표이며, 계산 API 미연동 시 숫자를 확정값으로 표시하지 않습니다. 서버 계산 결과만 받으므로 0원과 음수 조정액도 그대로 표시하고 카드 합계에 반영합니다 (2026-11-23 `calculationConnected` · `isDemo` 삭제).
 
 ## 백엔드 API 연결 흐름 — 세액 계산·진단 파트 (F-02-01 · F-03-01 · F-03-02)
 
@@ -90,9 +90,9 @@
 ### 공통
 
 - 모든 호출은 `src/api/api-client.js`의 `apiRequest()`를 거칩니다. 성공이면 응답 봉투의 `data`만 돌려주고, 실패면 서버의 `error.code` · `error.message`를 가진 오류를 던집니다.
-- 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 체험용 계산 · 판정으로 대신하는 것은 개발 서버(`npm run dev`)에서만이고(`canUseDemo`), 빌드한 파일(배포본)은 연결 실패 안내만 보여 줍니다.
+- 서버에 연결할 수 없으면 `OFFLINE` 오류입니다. 연결 실패 안내만 보여 줍니다 (2026-11-23 체험용 계산 대체 `canUseDemo` 삭제).
 - 회원 구분: localStorage의 로그인 토큰(`hope-refund.accessToken`)을 `Authorization: Bearer` 헤더로 보냅니다. 서버가 토큰에서 회원번호를 꺼냅니다. 토큰이 없으면 서버가 401 `UNAUTHORIZED`를 줍니다 (2026-11-17 · `X-Member-Id` 헤더 없앰).
-- 로그인(`accountService.login` → `POST /api/auth/login`)이 토큰을 저장합니다 (2026-11-17). 보낸 토큰이 401이면 `expireLogin()`이 토큰을 지우고 `App`이 로그인 화면으로 보냅니다. 빠른 체험은 토큰이 없어 회원 API가 401입니다.
+- 로그인(`accountService.login` → `POST /api/auth/login`)이 토큰을 저장합니다 (2026-11-17). 보낸 토큰이 401이면 `expireLogin()`이 토큰을 지우고 `App`이 로그인 화면으로 보냅니다.
 
 ### 소득 저장 · 세액 계산 (F-02-01 · F-03-01)
 
@@ -133,9 +133,9 @@
 가상 입력 화면에서 계산 → `src/api/prediction-service.js`의 `simulate()` → `POST /api/simulations/{taxYear}` → 비교 화면
 
 - 출발값은 서버에 저장된 소득(`GET /api/incomes/{taxYear}`)입니다. 없거나 연결이 안 되면 브라우저 입력값으로 시작합니다.
-- 기준 결과는 시뮬레이션을 시작할 때 대시보드에 보이던 서버 계산 결과(`predictionId`)입니다. 없으면 요청하지 않고 「먼저 기존 정보로 계산해 주세요」를 띄웁니다 (개발 서버에서만 체험용 비교).
+- 기준 결과는 시뮬레이션을 시작할 때 대시보드에 보이던 서버 계산 결과(`predictionId`)입니다. 없으면 요청하지 않고 「먼저 기존 정보로 계산해 주세요」를 띄웁니다.
 - 요청 본문은 바꾼 값만이 아니라 입력값 전부입니다: 소득(`incomeRequest()` 재사용) · 무주택 세대주(`homelessHeadYn()`) · 카드 사용액(`cardSpends()`, 분류 × 결제수단 합계).
-- 비교 화면은 서버 결과가 있으면 기존 · 변경 후 모두 서버 값, 없으면 모두 체험용 계산입니다. 두 쪽을 섞지 않습니다.
+- 비교 화면은 기존 · 변경 후 모두 서버 값입니다. 서버 결과가 없으면 「비교할 결과가 없어요」 안내를 보여 줍니다.
 - 비교 화면 아래 결과 이력: `fetchPredictions(taxYear)` → `GET /api/predictions?year=` · 「열기」 → `fetchPrediction(id)` → `GET /api/predictions/{id}`.
 
 ### 아직 연결 안 된 부분
