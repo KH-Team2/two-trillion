@@ -1,14 +1,11 @@
 package com.hoperefund.expense.controller;
 
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.doThrow;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -21,12 +18,16 @@ import com.hoperefund.expense.service.ExpenseService;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 /**
  * 거래 내역 조회 · 삭제 API 테스트 (요청 · 응답 모양 · 오류 코드)
@@ -43,6 +44,29 @@ class ExpenseControllerTest {
 
     @MockitoBean private ExpenseService expenseService;
 
+    /**
+     * 로그인한 회원으로 요청 (JWT 필터가 하는 일을 대신: principal = 회원번호)
+     *
+     * <p>[수정 11/19 고은] X-Member-Id 헤더 → 로그인 정보 · 이유: Controller가 @AuthenticationPrincipal로
+     * 회원번호를 받게 바뀜 (소득 · 계산 API 테스트와 같은 방식) · 토큰 검사와 401은 SecurityConfigTest에서 확인
+     *
+     * <p>SecurityContextHolder: 「지금 요청한 사람이 누구인지」를 담아 두는 곳 · 여기에 회원번호를 직접 넣어 둠
+     */
+    private static RequestPostProcessor loginAs(long memberId) {
+        return request -> {
+            SecurityContextHolder.getContext()
+                    .setAuthentication(
+                            new UsernamePasswordAuthenticationToken(memberId, null, List.of()));
+            return request;
+        };
+    }
+
+    // 로그인 정보가 다음 테스트로 넘어가지 않게 지움 (@AfterEach: 테스트 하나가 끝날 때마다 실행)
+    @AfterEach
+    void clearLogin() {
+        SecurityContextHolder.clearContext();
+    }
+
     @Test
     void 업로드_이력_200() throws Exception {
         when(expenseService.getUploads(1L))
@@ -55,7 +79,7 @@ class ExpenseControllerTest {
                                         .uploadedAt(LocalDateTime.of(2026, 11, 14, 18, 40))
                                         .build()));
 
-        mockMvc.perform(get("/api/card-uploads").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/card-uploads").with(loginAs(1L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].uploadId").value(10))
@@ -83,7 +107,7 @@ class ExpenseControllerTest {
                         .build();
         when(expenseService.getExpenses(1L, 2026, null)).thenReturn(List.of(row));
 
-        mockMvc.perform(get("/api/expenses").param("year", "2026").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/expenses").param("year", "2026").with(loginAs(1L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].usedDate").value("2026-03-02"))
                 .andExpect(jsonPath("$.data[0].categoryCode").value("TRANSIT"))
@@ -96,7 +120,7 @@ class ExpenseControllerTest {
     void 업로드번호로_거래_조회() throws Exception {
         when(expenseService.getExpenses(1L, null, 10L)).thenReturn(List.of());
 
-        mockMvc.perform(get("/api/expenses").param("uploadId", "10").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/expenses").param("uploadId", "10").with(loginAs(1L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data").isEmpty());
     }
@@ -106,7 +130,7 @@ class ExpenseControllerTest {
         when(expenseService.getExpenses(1L, null, 99L))
                 .thenThrow(new NotFoundException("업로드 내역을 찾을 수 없어요"));
 
-        mockMvc.perform(get("/api/expenses").param("uploadId", "99").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/expenses").param("uploadId", "99").with(loginAs(1L)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
     }
@@ -116,7 +140,7 @@ class ExpenseControllerTest {
         when(expenseService.getExpenses(1L, null, null))
                 .thenThrow(new BadRequestException("연도나 업로드 중 하나를 골라 주세요"));
 
-        mockMvc.perform(get("/api/expenses").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/expenses").with(loginAs(1L)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"));
     }
@@ -135,7 +159,7 @@ class ExpenseControllerTest {
                                         .count(615)
                                         .build()));
 
-        mockMvc.perform(get("/api/expense-totals").param("year", "2026").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/expense-totals").param("year", "2026").with(loginAs(1L)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data[0].categoryId").value(2))
                 .andExpect(jsonPath("$.data[0].payMethod").value("CREDIT"))
@@ -145,17 +169,20 @@ class ExpenseControllerTest {
 
     @Test
     void 합계에_연도가_없으면_400() throws Exception {
-        mockMvc.perform(get("/api/expense-totals").header("X-Member-Id", "1"))
+        mockMvc.perform(get("/api/expense-totals").with(loginAs(1L)))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"));
         verifyNoInteractions(expenseService);
     }
 
     @Test
-    void 삭제_성공이면_204_본문_없음() throws Exception {
-        mockMvc.perform(delete("/api/card-uploads/10").header("X-Member-Id", "1"))
-                .andExpect(status().isNoContent())
-                .andExpect(content().string(""));
+    // [수정 11/23 고은] 204 → 200 + {success: true, data: null} (팀 API 규칙: 성공은 모두 200)
+    void 삭제_성공이면_200_data_null() throws Exception {
+        mockMvc.perform(delete("/api/card-uploads/10").with(loginAs(1L)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                // nullValue(): 값이 null인지 확인 (Hamcrest 검사 도구)
+                .andExpect(jsonPath("$.data", org.hamcrest.Matchers.nullValue()));
         verify(expenseService).deleteUpload(1L, 10L);
     }
 
@@ -166,14 +193,8 @@ class ExpenseControllerTest {
                 .when(expenseService)
                 .deleteUpload(1L, 99L);
 
-        mockMvc.perform(delete("/api/card-uploads/99").header("X-Member-Id", "1"))
+        mockMvc.perform(delete("/api/card-uploads/99").with(loginAs(1L)))
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.error.code").value("NOT_FOUND"));
-    }
-
-    @Test
-    void 회원번호_헤더가_없으면_401() throws Exception {
-        mockMvc.perform(get("/api/card-uploads")).andExpect(status().isUnauthorized());
-        verify(expenseService, never()).getUploads(anyLong());
     }
 }

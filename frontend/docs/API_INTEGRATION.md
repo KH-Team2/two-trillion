@@ -30,6 +30,16 @@
 
 ## 업로드·분류·회원 격리
 
+**로그인 회원 (서버 저장 · 11/17~ · F-02-02 · F-02-04)**: `card-upload-service.js`
+- 업로드: `uploadCardFile()` → `POST /api/card-uploads` (FormData · `file` · 선택 `payMethod` · `allowDuplicate`) → 백엔드가 계산 서버(`POST /card/parse`)로 해석 · 분류 후 `CARD_UPLOAD` · `EXPENSE` 저장 → `fetchUploadExpenses()`(`GET /api/expenses?uploadId=`)로 분류 근거까지 받아 `toUploadRow()`로 화면 모양 변환
+- 결제수단 없음(400 `PAY_METHOD_REQUIRED`) → 신용/체크 선택 창 → 다시 보냄 · 중복(409 `DUPLICATE_WARNING`) → 확인 창 → `allowDuplicate=true`로 다시 보냄 (최대 3번)
+- 화면이 열릴 때 `loadServerUploads()`(`GET /api/card-uploads` + 업로드별 거래 목록)로 이력 복원 · 파일 삭제는 `deleteUpload()`(`DELETE /api/card-uploads/{uploadId}` · 204)
+- 미지원 형식(11/19 · TT-148): 이름이 `.csv` · `.xlsx` · `.xls`가 아니면 서버로 보내지 않음 · 서버가 `UNSUPPORTED_FORMAT`으로 답한 파일도 목록에 넣지 않음 → 끝난 뒤 `alert` 한 번 (「지원하지 않는 형식입니다.」 + 파일 이름)
+- `api-client.js`: body가 FormData면 JSON으로 바꾸지 않고 `Content-Type`도 넣지 않음 (브라우저가 boundary 포함해서 넣음) · 204면 JSON을 읽지 않고 `null`
+- 회원번호는 보내지 않음 · 백엔드가 로그인 토큰에서 꺼냄 (11/19 · TT-149)
+
+**아래는 로그인 없는 체험(브라우저 안에서만 처리) 흐름입니다.**
+
 `expense-service.js`: `parseUploadFile()` → CSV/XLSX 공통 변환 → 기존 예시 상호명 자동 분류 → 파일별 관계·중복 확인 → `uploadTotals(rows, taxYear)`. 다른 연도 거래를 삭제하지 않습니다. 실제 입력의 카드·현금 금액은 업로드에서만 집계하며 가상 추가 소비는 별도입니다.
 
 `erd-contract.expenseDTO(row, categoryIdByCode, uploadIdByClientId)`는 서버에서 조회한 분류코드→숫자 CATEGORY_ID, 로컬 파일 ID→서버 발급 UPLOAD_ID 매핑이 준비되어야 객체를 생성합니다. 결제수단은 CREDIT/CHECK/CASH를 검증하며 임의 번호·알 수 없는 결제수단을 보내지 않습니다. 기존 예시 목록 LIST_ID는 운영 외래키가 아니므로 null로 내보내며 서버가 실제 목록 대조 결과로 확정해야 합니다.
