@@ -137,6 +137,7 @@
  │   │   ├── App.jsx                          # 앱 최상위 컴포넌트·상태 연결
  │   │   ├── api/                             # 브라우저 체험 서비스·API 연동 경계
  │   │   │   ├── account-service.js           # 회원 관련 체험 서비스
+ │   │   │   ├── card-upload-service.js       # 카드 업로드 · 거래 내역 서버 API 호출 (업로드 · 이력 · 거래 목록 · 삭제)
  │   │   │   ├── calculation-contract.js      # 계산 응답 계약 관련 로직
  │   │   │   ├── erd-contract.js              # ERD 관련 데이터 계약
  │   │   │   ├── expense-service.js           # 지출·업로드 관련 서비스
@@ -147,7 +148,7 @@
  │   │   │   │   ├── DeductionDetails.jsx     # 공제·감면 상세 표시
  │   │   │   │   └── site-primitives.jsx      # 공통 사이트 UI 요소
  │   │   │   ├── expense/
- │   │   │   │   └── ExpenseUpload.jsx        # 카드·홈택스 CSV/XLSX 업로드 UI
+ │   │   │   │   └── ExpenseUpload.jsx        # 카드·홈택스 CSV/XLSX/XLS 업로드 UI (서버 업로드 · 이력 · 삭제)
  │   │   │   ├── layout/
  │   │   │   │   ├── PublicHeader.jsx         # 비로그인 화면 헤더
  │   │   │   │   ├── Sidebar.jsx              # 사이드바
@@ -360,7 +361,7 @@
  │   ├── README.md
  │   ├── 계정_1_생성.sql                       # 주인 계정 · 계산 서버 계정 만들기 (DB 관리자)
  │   ├── 00_초기화.sql
- │   ├── 01_schema.sql                        # 테이블 20개 · 제약조건 · 시퀀스 · 인덱스
+ │   ├── 01_schema.sql                        # 테이블 21개 · 제약조건 · 시퀀스 · 인덱스
  │   ├── 02_기준데이터.sql                     # 공제 · 세율 · 혜택 조건 등 기준값
  │   ├── 04_분류함수.sql                       # 가맹점명 정제 함수 FN_NORMALIZE_NAME
  │   └── 계정_2_계산서버_권한.sql               # 계산 서버 계정 읽기 권한 (DB 관리자)

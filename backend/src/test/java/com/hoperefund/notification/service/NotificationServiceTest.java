@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.hoperefund.notification.dto.NotificationListDTO;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /** 알림 저장 · 목록 · 읽음 (TT-158) · DB 대신 가짜 매퍼 */
@@ -24,7 +25,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void 계산_완료_알림은_접속하지_않아도_저장된다() {
+    @DisplayName("계산 완료 알림은 접속하지 않아도 저장된다")
+    void savesCalculationNoticeEvenWhenNotConnected() {
         service.notifyCalculation(81, 2026);
 
         assertEquals(1, mapper.rows.size());
@@ -36,7 +38,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void 목록은_본인_것만_새것부터_안_읽은_개수와_함께() {
+    @DisplayName("목록은 본인 것만 새것부터 안 읽은 개수와 함께")
+    void listsOnlyOwnNoticesNewestFirstWithUnreadCount() {
         service.notifyCalculation(81, 2025);
         service.notifyCalculation(82, 2026); // 다른 회원
         service.notifyCalculation(81, 2026);
@@ -50,7 +53,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void 모두_읽음은_본인_알림만_바꾼다() {
+    @DisplayName("모두 읽음은 본인 알림만 바꾼다")
+    void markAllReadChangesOnlyOwnNotices() {
         service.notifyCalculation(81, 2026);
         service.notifyCalculation(82, 2026);
 
@@ -61,7 +65,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void 마감_안내는_활동_중인_회원_모두에게_저장된다() {
+    @DisplayName("마감 안내는 활동 중인 회원 모두에게 저장된다")
+    void savesDeadlineNoticeForAllActiveMembers() {
         mapper.activeMembers = Set.of(81L, 82L, 83L);
 
         int saved =
@@ -72,7 +77,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void 저장이_실패해도_예외를_던지지_않는다() {
+    @DisplayName("저장이 실패해도 예외를 던지지 않는다")
+    void doesNotThrowWhenSaveFails() {
         mapper.fail = true;
 
         assertDoesNotThrow(() -> service.notifyCalculation(81, 2026));
@@ -80,7 +86,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void Last_Event_ID는_양수_숫자만_받는다() {
+    @DisplayName("Last-Event-ID는 양수 숫자만 받는다")
+    void acceptsOnlyPositiveNumberAsLastEventId() {
         assertEquals(12L, NotificationService.parseId("12"));
         assertEquals(12L, NotificationService.parseId(" 12 "));
         assertNull(NotificationService.parseId(null));
@@ -91,7 +98,8 @@ class NotificationServiceTest {
     }
 
     @Test
-    void 다시_연결할_때_조회가_실패해도_연결은_만들어진다() {
+    @DisplayName("다시 연결할 때 조회가 실패해도 연결은 만들어진다")
+    void subscribesEvenWhenMissedNoticeLookupFails() {
         service.notifyCalculation(81, 2026);
         mapper.fail = true;
 
