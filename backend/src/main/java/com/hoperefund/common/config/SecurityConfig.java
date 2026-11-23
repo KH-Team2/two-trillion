@@ -8,6 +8,7 @@ import com.hoperefund.common.filter.AccessLogFilter;
 import com.hoperefund.common.service.AccessLogService;
 import com.hoperefund.common.service.TokenService;
 import com.hoperefund.common.service.TokenService.TokenInfo;
+import jakarta.servlet.DispatcherType;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -98,6 +99,9 @@ public class SecurityConfig {
     // 주소별 접근 규칙 — 위에서부터 차례로 검사해 처음 맞는 규칙을 쓴다 (순서가 중요)
     private static void authorizeRules(
             AuthorizeHttpRequestsConfigurer<?>.AuthorizationManagerRequestMatcherRegistry auth) {
+        // [추가 11/20 · 이우진 · TT-150] SSE 연결 종료(ASYNC)는 통과
+        // 이유: 첫 요청에서 JWT 검사를 이미 통과함 · 다시 검사하면 Access Denied 로그
+        auth.dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll();
         // CORS 사전 요청(OPTIONS)은 토큰 없이 보냄
         auth.requestMatchers(HttpMethod.OPTIONS, "/**").permitAll();
         // 로그아웃은 "어떤 토큰을 끊을지" 알아야 해서 /api/auth/** 보다 먼저 적음

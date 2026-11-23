@@ -20,7 +20,7 @@
 - 화면은 회원번호를 주소 · 본문에 **보내지 않는다**. 서버가 로그인 정보에서 회원을 정한다.
 - 로그인 방식: **토큰(JWT)** (11/16 · [decisions/0004](decisions/0004-login-jwt.md)). `POST /api/auth/login`이 준 `accessToken`을 요청 헤더 `Authorization: Bearer <토큰>`으로 보낸다. 유효 2시간 · 리프레시 토큰 없음 (만료되면 다시 로그인).
 - Controller는 회원번호를 `@AuthenticationPrincipal Long memberId`로 받는다 (토큰에서 꺼낸 값 · `common/config/SecurityConfig`).
-- ~~개발용 임시 `X-Member-Id` 헤더~~ → 2026-11-17 없앰: 소득 · 계산 · 혜택 · 시뮬레이션 · 이력 · 그룹 통계 Controller 모두 `@AuthenticationPrincipal`로 바꿈 · 화면은 `Authorization: Bearer <토큰>`만 보냄 (`X-Member-Id`만 보내면 401)
+- ~~개발용 임시 `X-Member-Id` 헤더~~ → 2026-11-17 없앰: 소득 · 계산 · 혜택 · 시뮬레이션 · 이력 · 그룹 통계 Controller 모두 `@AuthenticationPrincipal`로 바꿈 (카드 업로드 · 거래 내역은 11/19) · 화면은 `Authorization: Bearer <토큰>`만 보냄 (`X-Member-Id`만 보내면 401)
 - 로그인이 필요한데 정보가 없으면 401 `UNAUTHORIZED`.
 
 ## 3. GET / POST / PUT / DELETE 쓰는 기준
@@ -39,7 +39,7 @@
 ## 4. 주고받는 데이터 모양
 
 - JSON · 이름은 camelCase (`totalSalary`) — DB 칸(`TOTAL_SALARY`)과 MyBatis가 자동으로 맞춤
-- 금액: 원 단위 정수 (소수 없음)
+- 금액: 원 단위 정수 (소수 없음 · 정수 칸에 소수를 보내면 400 `VALIDATION` · 11/19 `application.yml` `accept-float-as-int: false`)
 - 날짜: `"2026-11-03"` · 일시: `"2026-11-03T10:20:30"`
 - 여부: DB에 저장하는 값은 `"Y"` / `"N"` (예: `smeReductionYn`) · 판정 결과처럼 "모름"이 있으면 `true` / `false` / `null` (예: 혜택 진단 `eligible`)
 - 응답은 성공 · 실패 모두 **공통 봉투**로 감싼다 (11/09 팀 합의 · 선생님 샘플과 같은 모양 · `common/dto/ApiResponse`)
@@ -97,7 +97,7 @@
 | PUT | `/api/incomes/{taxYear}` | 소득 · 공제 정보 저장 (F-02-01) |
 | POST | `/api/card-uploads` | 카드 · 홈택스 파일 업로드 · 계산 서버에서 해석 · 분류 후 저장 · 중복이면 409 · 결제수단 없으면 400 (F-02-02 · F-02-03) |
 | GET | `/api/card-uploads` | 내 업로드 이력 · 최신순 (F-02-04) |
-| DELETE | `/api/card-uploads/{uploadId}` | 업로드 삭제 · 거래도 같이 삭제 · 204 · 없거나 남의 것이면 404 (F-02-04) |
+| DELETE | `/api/card-uploads/{uploadId}` | 업로드 삭제 · 거래도 같이 삭제 · 200 `data: null` · 없거나 남의 것이면 404 (F-02-04) |
 | GET | `/api/expenses?year=` 또는 `?uploadId=` | 거래 목록 + 분류 근거 · 남의 업로드면 404 (F-02-04) |
 | GET | `/api/expense-totals?year=` | 분류 + 결제수단별 합계 · 계산 서버 cardSpends 단위 (F-02-04) |
 | POST | `/api/calculations/{taxYear}` | 예상 세액 계산 + 결과 저장 (F-03-01) |

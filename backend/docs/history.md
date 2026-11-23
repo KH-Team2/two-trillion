@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-23] 업로드 삭제 성공 응답 204 → 200 (팀 API 규칙)
+- **작업 내용**
+  - `ExpenseController.deleteUpload`: `ResponseEntity.noContent()`(204 · 본문 없음) → `ApiResponse.ok(null)`(200 · `{success: true, data: null}`)
+  - `ExpenseControllerTest`: 「삭제 성공이면 204 · 본문 없음」 → 「200 · `success: true` · `data: null`」
+  - 화면: `card-upload-service.js` · `ExpenseUpload.jsx` 주석만 200으로 · `api-client.js`의 204 처리는 혹시 모를 204 대비로 그대로 둠 (동작 변화 없음 · 화면은 `data`(null)를 그대로 받음)
+  - `api-rules.md` 7번 표: 204 → 200 `data: null`
+  - `card-upload-service.js` · `ExpenseUpload.jsx`: Prettier 줄바꿈 정리 (기존 한글 문장 줄 나눔 위치만 · 동작 변화 없음)
+- **변경 사유**: `api-rules.md` 3번 「성공 응답은 모두 200 (201 · 204 안 씀 · 11/09 팀 합의)」과 어긋났음
+- **검증 결과**: `mvnw clean verify` 195건 통과 · 화면에서 업로드 삭제 → Network `DELETE /api/card-uploads/{id}` 200 · 응답 `{success: true, data: null}` · 목록에서 사라짐 확인
+
 ### [2026-11-22] 접근 기록 저장 (F-09-01)
 - **작업 내용**:
   - `common/filter/AccessLogFilter` (새 파일): 응답이 끝나면(finally) 상태 코드를 보고 ACCESS_LOG 에 기록 · `SecurityConfig` ⑥ `addFilterAfter(…, JwtAuthenticationFilter.class)` (회원번호를 읽고 뒤에서 나는 403 도 보이는 자리) · Bean 으로 등록하지 않음
@@ -111,6 +121,38 @@
   - 실패: `CardUploadControllerTest` · `ExpenseControllerTest`의 `회원번호_헤더가_없으면_401` (401 기대 · 400 응답) → 이번 변경 전 코드에서도 똑같이 실패 (기존 문제 · expense 담당 확인 필요)
   - 참고: 503은 공통 처리기(`GlobalExceptionHandler`)가 화면에 `SERVER_ERROR` 「잠시 후 다시 시도해 주세요.」 + `errorId`로 바꿔 보냄 (`MAIL_UNAVAILABLE`은 서버 로그에서 확인 · common 수정 안 함)
   - 미검증: 실제 SMTP 발송(메일 계정 미정) · 화면에서 인증 흐름 (EMAIL_VERIFICATION_REQUIRED는 아직 false)
+
+### [2026-11-20] 정보 입력: 단계 버튼에도 입력칸 검사 · 소수 입력 안내 문구 (TT-132)
+- **작업 내용**: `frontend/src/pages/tax/TaxInfoForm.jsx`
+  - 위쪽 단계 버튼으로 앞 단계로 넘어갈 때 `formRef.current.reportValidity()`로 지금 단계 입력칸 검사 (틀리면 말풍선 · 이동 안 함 · 뒤로 갈 때는 검사 안 함)
+  - 숫자 칸에 소수를 넣으면 브라우저 기본 문구 대신 「소수는 입력할 수 없어요.」 (`onInvalid` + `validity.stepMismatch` → `setCustomValidity`) · 다시 입력하면 문구 지움
+  - (11/23) 기본 정보 → 소득 정보로 갈 때는 전체 검사(`validateTaxData`)를 건너뜀: 소득 칸을 비우고 뒤로 왔다가 다시 가려 하면 「금액은 0 이상으로 입력해주세요.」로 막히던 문제 · 소득 정보를 지나갈 때(1 → 2 이상)는 지금처럼 전체 검사
+    · 「다음 단계」 버튼(`onSubmit`)도 마지막 단계 전에는 `move`에 검사를 맡겨서 위쪽 단계 버튼과 같은 규칙으로 맞춤 (`onSubmit`이 먼저 전체 검사를 해서 「다음 단계」로는 계속 막혔음)
+- **변경 사유**: 단계 버튼은 `<form>` 밖에 있어서 빈칸 · 소수가 있어도 검사 없이 넘어감 · 기본 문구 「가장 근접한 유효 값 2개는…」가 어려움
+- **검증 결과**: `npx prettier --check` 통과 · `npm test` · `npm run build` 통과 · 브라우저에서 총급여에 소수 입력 → 「소수는 입력할 수 없어요.」 · 「다음 단계」와 위쪽 단계 버튼 모두 빈칸(「이 입력란을 작성하세요」) · 귀속 연도 0(「값은 1900 이상이어야 합니다」)에서 막힘 확인 · 소득 칸 비움 → 기본 정보 → 다시 소득 정보(위쪽 단계 버튼 · 「다음 단계」) 이동 확인
+
+### [2026-11-19] 카드 업로드: 미지원 형식 파일은 목록에 넣지 않고 alert (TT-148)
+- **작업 내용**: `frontend/src/components/expense/ExpenseUpload.jsx`
+  - 확장자가 `.csv` · `.xlsx` · `.xls`가 아니면 서버로 보내지 않음 · 서버가 `UNSUPPORTED_FORMAT`(읽을 수 없는 양식)으로 답한 파일도 목록에 넣지 않음
+  - 다 끝난 뒤 `alert` 한 번: 「지원하지 않는 형식입니다.」 + 파일 이름
+  - 서버 검사(`CardUploadServiceImpl` 확장자 · 계산 서버 양식)는 그대로
+- **변경 사유**: pdf 등도 파일 목록에 「처리 실패」로 올라가 업로드된 것처럼 보였음 (DB에는 저장 안 됨)
+- **검증 결과**: 브라우저에서 pdf 업로드 → alert · 목록에 안 생김 확인 · `npm test` · `npm run build` 통과
+
+### [2026-11-19] 정수 칸에 소수가 오면 400으로 거부 (TT-131)
+- **작업 내용**: `backend/src/main/resources/application.yml`에 `spring.jackson.deserialization.accept-float-as-int: false`
+- **변경 사유**: 기본 설정은 정수 칸(금액 · 인원)에 `1.5`가 오면 소수점을 버리고 `1`로 저장함 → 잘못된 값이 조용히 들어감
+- **주의**: 팀 전체 API에 적용됨 · 화면에서 정수 칸에 소수를 보내면 400 `VALIDATION`
+- **검증 결과**: `mvnw clean verify` 195건 통과 (서버 전체를 띄우는 `contextLoads` 포함 → 설정 이름 오류 없음) · Talend API Tester로 `PUT /api/incomes/2026`에 `totalSalary: 36000000.5` → 400 `VALIDATION` 「요청 데이터 형식을 확인해 주세요.」 확인
+  - 테스트 코드는 추가하지 않음 (직접 호출로 확인)
+
+### [2026-11-19] 카드 업로드 · 거래 내역 API: 회원번호를 로그인 토큰에서 받기 (TT-149)
+- **작업 내용**
+  - `CardUploadController` · `ExpenseController`: `@RequestHeader("X-Member-Id")` → `@AuthenticationPrincipal Long memberId` (11/17 소득 · 계산 API와 같은 방식)
+  - 테스트: `CardUploadControllerTest` · `ExpenseControllerTest`는 헤더 대신 `loginAs(1L)` · 「헤더 없으면 401」 테스트 삭제 · `SecurityConfigTest`의 「토큰 없으면 401」 목록에 업로드 · 거래 목록 · 합계 · 삭제 추가
+- **변경 사유**: 화면이 로그인 토큰만 보내게 바뀌어(11/17) 업로드 · 거래 API가 헤더 없음으로 실패 · 헤더 방식은 숫자만 바꾸면 남의 데이터 접근 가능
+- **검증 결과**: `mvnw clean verify` 195건 통과 · 로그인 후 화면에서 CSV 업로드 · 업로드 목록 · 삭제 동작 확인
+  - 참고: 처음 `verify`에서 `contextLoads` 1건 실패 → 다른 브랜치(feature/admin)에서 빌드한 `target/classes/mapper/admin/*.xml`이 남아 있던 것 · `mvnw clean verify`로 해결 (코드 문제 아님)
 
 ### [2026-11-17] 로그인 성공 알림 문구에서 「시연」 삭제
 - **작업 내용**: `frontend/src/pages/auth/AuthPage.jsx` 서버 로그인 성공 알림 「이 브라우저의 시연 계정으로 로그인했습니다.」 → 「로그인했습니다.」 (빠른 체험 문구는 그대로)

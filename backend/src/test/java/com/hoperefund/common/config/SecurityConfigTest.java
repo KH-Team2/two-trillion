@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.willAnswer;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.options;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -122,7 +123,12 @@ class SecurityConfigTest {
             "/api/benefits/2026",
             "/api/predictions?year=2026",
             "/api/predictions/6",
-            "/api/group-stats/2026"
+            "/api/group-stats/2026",
+            // [수정 11/19 고은] 카드 업로드 · 거래내역 API 추가 · 이유: X-Member-Id → 로그인 토큰으로 바꾸면서
+            // Controller 테스트의 「헤더 없으면 401」을 지웠기 때문 (401은 여기 보안 설정에서 확인)
+            "/api/card-uploads",
+            "/api/expenses?year=2026",
+            "/api/expense-totals?year=2026"
         };
         for (String url : urls) {
             mockMvc.perform(get(url).header("X-Member-Id", "81"))
@@ -130,6 +136,9 @@ class SecurityConfigTest {
                     .andExpect(jsonPath("$.error.code").value("UNAUTHORIZED"));
         }
         mockMvc.perform(post("/api/simulations/2026").header("X-Member-Id", "81"))
+                .andExpect(status().isUnauthorized());
+        // [수정 11/19 고은] 업로드 삭제도 토큰이 있어야 함
+        mockMvc.perform(delete("/api/card-uploads/10").header("X-Member-Id", "81"))
                 .andExpect(status().isUnauthorized());
     }
 
