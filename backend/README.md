@@ -4,7 +4,7 @@
 
 본 프로젝트는 **Spring Boot 기반 백엔드 API 서버**로, React 프론트엔드의 요청 처리, Oracle Database 조회·저장, Python 계산 서버 및 AI 챗봇 서버 연동을 담당합니다.
 
-> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중 / 챗봇 용어 사전 완료 · LLM 절세 추천 개발 중
+> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중
 
 ## 1. 개발 환경
 
@@ -68,10 +68,6 @@ backend/
     │   │   │   └── exception/
     │   │   │       ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
     │   │   │       └── *Exception.java           # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
-    │   │   ├── chatbot/                          # FAQ 외부 API · FastAPI 연동 (controller / service / client)
-    │   │   │   ├── controller/
-    │   │   │   ├── service/
-    │   │   │   └── client/
     │   │   ├── income/                           # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
     │   │   │   ├── controller/
     │   │   │   ├── service/
@@ -171,11 +167,15 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) · `CALC_MODE=http`면 필수 (비우면 서버가 시작되지 않음 · 계산 서버도 같은 규칙) | 없음 |
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
-| `CHATBOT_API_TOKEN` | `chatbot/.env`와 동일해야 하는 Spring→FastAPI 내부 인증 토큰 (`X-Chatbot-Token`) | 설정 필요 |
+| `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
 
 환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
+
+Python Chatbot 서버와의 실제 통신은 아직 구현되지 않았습니다.
+
+챗봇 서버의 내부 인증 세부 방식은 실제 연동 구현 시 확정합니다.
 
 ### 4.3 STS 환경변수 등록 방법
 
@@ -282,15 +282,15 @@ mvnw -B verify
 - Health API
 - 공통 오류 응답 DTO
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
-- 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
+- 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 · 관리자 접근 기록 조회 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
-- 세금 용어 FAQ 챗봇 연동
 - JUnit 자동 테스트 및 코드 품질 검사 환경
 
 ### 추후 구현 예정
 
 - Spring Security 인증·권한 처리
 - 회원·관리자 API
+- Python AI 챗봇 서버 HTTP 통신
 - 공통 오류 처리 확장
 - API 및 DB 통합 테스트
 

@@ -107,7 +107,4 @@
 | GET | `/api/predictions?year={taxYear}` | 결과 이력 목록 · 현재와 시나리오 함께 · 최신순 · 없으면 빈 목록 (F-04-02) |
 | GET | `/api/predictions/{predictionId}` | 결과 하나 다시 열기 · 항목별 내역 포함 · 없거나 남의 것이면 404 (F-04-02) |
 | GET | `/api/group-stats/{taxYear}` | 내 성별·연령대 그룹과 총급여 구간 그룹의 통계 평균 · 못 찾은 그룹은 null (F-06-02) |
-| GET | `/api/faqs` | FAQ 목록 조회 |
-| GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
-| GET | `/api/faqs/{faqId}` | FAQ 상세 조회 |
-| POST | `/api/faq-matches` | 자유 질문을 등록된 FAQ에 매칭 |
+| GET | `/api/admin/access-logs?startDate=&endDate=&ipAddress=&page=&size=` | 관리자 전용 접근 기록 목록 · 최신순 · `meta`에 쪽 정보 · 같은 IP 실패 수 포함 · 날짜 형식 · page(1~) · size(1~100) 틀리면 400 · 조회한 것도 기록 (F-08-02 ③) |
