@@ -102,7 +102,7 @@ chatbot/
 │   │   └── health.py       # /health
 │   ├── data/tax_terms.json # FAQ 원본
 │   └── services/classifier.py # 단순 매칭 · Ollama 분류
-├── tests/                  # FAQ·health·벤치마크 (인증 테스트 보완 필요)
+├── tests/                  
 ├── .env.example
 ├── requirements.txt
 ├── requirements-dev.txt

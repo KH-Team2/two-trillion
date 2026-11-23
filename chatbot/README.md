@@ -48,14 +48,14 @@ chatbot/
 
 ## 3. 설치와 실행 (Windows PowerShell)
 
-사전 준비: Python 3.11, Ollama, 설치된 `gemma3:4b` 모델. 프로젝트의 `chatbot/`에서 다음을 실행합니다.
+사전 준비: Python 3.11, Ollama, Gemma 3 모델. 프로젝트의 `chatbot/`에서 다음을 실행합니다.
 
 ```powershell
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
 ```
-
+Ollama 공식 사이트에서 Windows용 프로그램을 설치합니다.
 Ollama가 실행되지 않았다면 다른 터미널에서 다음을 실행합니다. 이미 서비스로 실행 중이라면 중복 실행하지 않습니다.
 
 ```powershell
@@ -113,6 +113,7 @@ FastAPI 내부 응답에는 Spring 공통 봉투를 씌우지 않습니다. Spri
 - FAQ 없음: 외부 404 `NOT_FOUND`. 챗봇 연결 실패 또는 Gemma 분류 장애: 외부 503 `CHATBOT_UNAVAILABLE` 및 `errorId` (Spring 공통 처리기).
 - 내부 URL·토큰·개인정보·금액·질문 원문을 불필요하게 기록하지 않습니다. 오류 상세 스택은 사용자에게 노출하지 않습니다.
 - `chatbot/.env`, `backend/.env`, `.venv`, `__pycache__`는 버전 관리 대상이 아닙니다.
+- **개인정보 차단:** `ko-pii` 및 숫자 포함 여부를 검사하여 자유 질문을 차단합니다. 차단 시 HTTP 400 `PERSONAL_INFO_DETECTED`를 반환하며, Ollama에 질문을 전달하지 않습니다. 오탐·미탐 가능성이 있습니다.
 
 ## 6. 테스트
 

@@ -6,7 +6,11 @@ from fastapi import Header, HTTPException, Request
 
 log = logging.getLogger("chatbot")
 
-def check_token(request: Request, x_chatbot_token: str | None = Header(default=None),) -> None:
+
+def check_token(
+    request: Request,
+    x_chatbot_token: str | None = Header(default=None),
+) -> None:
     """Spring Boot에서 보낸 내부 인증 토큰을 확인한다."""
 
     expected = os.environ.get("CHATBOT_API_TOKEN")
@@ -22,10 +26,7 @@ def check_token(request: Request, x_chatbot_token: str | None = Header(default=N
     # 전달받은 토큰과 설정된 토큰을 안전하게 비교한다.
     sent = (x_chatbot_token or "").encode("utf-8", "surrogateescape")
 
-    if not (
-        x_chatbot_token
-        and hmac.compare_digest(sent, expected.encode("utf-8"))
-    ):
+    if not (x_chatbot_token and hmac.compare_digest(sent, expected.encode("utf-8"))):
         log.warning(
             "인증되지 않은 챗봇 요청: %s %s",
             request.method,

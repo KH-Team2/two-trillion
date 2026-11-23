@@ -5,6 +5,7 @@ import com.hoperefund.common.dto.ApiResponse;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -39,13 +40,15 @@ public class ChatbotController {
 
     // FAQ 상세 조회
     @GetMapping("/api/faqs/{faqId:TAX_[0-9]{3}}")
-    public ApiResponse<JsonNode> detail(@PathVariable String faqId) {
-        return ApiResponse.ok(chatbotService.detail(faqId));
+    public ApiResponse<JsonNode> detail(
+            @AuthenticationPrincipal Long memberId, @PathVariable String faqId) {
+        return ApiResponse.ok(chatbotService.detail(memberId, faqId));
     }
 
     // 자유 질문을 FAQ 항목에 매칭
     @PostMapping("/api/faq-matches")
-    public ApiResponse<JsonNode> ask(@Valid @RequestBody FaqAskRequest request) {
-        return ApiResponse.ok(chatbotService.ask(request.question()));
+    public ApiResponse<JsonNode> ask(
+            @AuthenticationPrincipal Long memberId, @Valid @RequestBody FaqAskRequest request) {
+        return ApiResponse.ok(chatbotService.ask(memberId, request.question()));
     }
 }

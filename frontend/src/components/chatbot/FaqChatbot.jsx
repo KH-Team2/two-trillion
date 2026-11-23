@@ -4,7 +4,7 @@ import { MessageCircle, X, Send, ChevronLeft, BookOpen } from "lucide-react";
 import { getFaqCategories, listFaqQuestions, loadFaqs } from "../../api/faq-service.js";
 import { useFaq } from "./FaqContext.jsx";
 export default function FaqChatbot() {
-  const { open, setOpen, messages, busy, submit } = useFaq();
+  const { open, setOpen, messages, busy, submit, remainingSeconds, } = useFaq();
   const [category, setCategory] = useState(null);
   const [question, setQuestion] = useState("");
   const [faqs, setFaqs] = useState([]);
@@ -13,6 +13,8 @@ export default function FaqChatbot() {
   const input = useRef(null);
   const feed = useRef(null);
   const launcher = useRef(null);
+  const lastBlockedQuestion = useRef(null);
+  const rateLimited = remainingSeconds > 0;
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -31,7 +33,7 @@ export default function FaqChatbot() {
   useEffect(() => {
     if (!open || !feed.current) return;
     const latest = [
-      ...feed.current.querySelectorAll(".tax-faq-message.user"),
+      ...feed.current.querySelectorAll(".tax-faq-message"),
     ].at(-1);
     if (latest) {
       const top =
@@ -50,7 +52,7 @@ export default function FaqChatbot() {
   }
   async function send(event) {
     event.preventDefault();
-    if (!question.trim() || busy) return;
+    if (!question.trim() || busy || rateLimited) return;
     const sentQuestion = question;
     const success = await submit({question: sentQuestion,});
     if (success) {setQuestion("");}
@@ -111,6 +113,11 @@ export default function FaqChatbot() {
               </p>
             )}
             <div className="tax-faq-choices">
+              {rateLimited && (
+                <p className="tax-faq-notice" role="status">
+                  요청 제한 중입니다. {remainingSeconds}초 후 다시 질문할 수 있어요.
+                </p>
+              )}
               <div className="tax-faq-choice-title">
                 {category ? (
                   <>

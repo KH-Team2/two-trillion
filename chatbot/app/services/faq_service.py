@@ -32,7 +32,10 @@ def get_faq_detail(faq_id: str) -> dict:
     faq = find_faq(faq_id)
 
     if faq is None:
-        raise HTTPException(status_code=404, detail="FAQ를 찾을 수 없습니다.",)
+        raise HTTPException(
+            status_code=404,
+            detail="FAQ를 찾을 수 없습니다.",
+        )
 
     return faq
 
@@ -42,16 +45,24 @@ def match_faq(question: str) -> dict:
     question = question.strip()
 
     if not question:
-        raise HTTPException(status_code=422, detail="질문을 입력해 주세요.",)
+        raise HTTPException(
+            status_code=422,
+            detail="질문을 입력해 주세요.",
+        )
 
     if check_privacy(question):
-        raise HTTPException(status_code=400, detail="개인정보가 포함되어 있어 질문을 전송할 수 없습니다.",)
+        raise HTTPException(
+            status_code=400,
+            detail="개인정보가 포함되어 있어 질문을 전송할 수 없습니다.",
+        )
 
     if re.search(r"[0-9]", question):
         raise HTTPException(
             status_code=400,
-            detail=("세금 용어 설명만 제공하므로 개인정보의 위험이 있는 "
-                "숫자가 포함된 질문은 입력할 수 없습니다."),
+            detail=(
+                "세금 용어 설명만 제공하므로 개인정보의 위험이 있는 "
+                "숫자가 포함된 질문은 입력할 수 없습니다."
+            ),
         )
 
     terms = load_terms()
@@ -65,7 +76,11 @@ def match_faq(question: str) -> dict:
         ) from exc
 
     if faq_id is None:
-        return {"matched": False, "faqId": None, "faq": None,}
+        return {
+            "matched": False,
+            "faqId": None,
+            "faq": None,
+        }
 
     faq = find_faq(faq_id)
 

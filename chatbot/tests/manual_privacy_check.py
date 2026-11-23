@@ -17,10 +17,7 @@ test_questions = [
 for question in test_questions:
     result = detector.process(question)
 
-    labels = [
-        record.detection.label
-        for record in result.detections
-    ]
+    labels = [record.detection.label for record in result.detections]
 
     blocked = check_privacy(question)
 
