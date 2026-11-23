@@ -49,6 +49,9 @@ public class DeadlineNotificationScheduler {
         if (!NOTICE_DAYS.contains(daysLeft)) {
             return null;
         }
-        return today.getYear() + "년 사용분은 12월 31일까지 반영돼요. 마감 " + daysLeft + "일 전이에요.";
+        return today.getYear()
+                + "년 사용분은 12월 31일까지 반영돼요. 마감 "
+                + daysLeft
+                + "일 전이에요.";
     }
 }
