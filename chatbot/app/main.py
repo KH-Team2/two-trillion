@@ -27,6 +27,9 @@ app = FastAPI(
     title="희망환급 Chatbot API",
     version="0.1.0",
     lifespan=lifespan,
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
 )
 
 # 상태 확인은 인증 없이 허용

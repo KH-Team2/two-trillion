@@ -17,32 +17,55 @@ import tools.jackson.databind.JsonNode;
 // FastAPI 서버에 실제 HTTP 요청
 @Component
 public class FaqClient {
-    private final RestClient restClient;
+	private final RestClient faqRestClient;
+	private final RestClient askRestClient;
 
-    public FaqClient(
-            @Value("${chatbot.base-url}") String baseUrl,
-            @Value("${chatbot.api-token:}") String token,
-            @Value("${chatbot.connect-timeout:3s}") Duration connectTimeout,
-            @Value("${chatbot.read-timeout:60s}") Duration readTimeout) {
-        HttpClient httpClient =
-                HttpClient.newBuilder()
-                        .connectTimeout(connectTimeout)
-                        .version(HttpClient.Version.HTTP_1_1)
-                        .build();
-        JdkClientHttpRequestFactory factory = new JdkClientHttpRequestFactory(httpClient);
-        factory.setReadTimeout(readTimeout);
-        RestClient.Builder builder = RestClient.builder().baseUrl(baseUrl).requestFactory(factory);
-        if (token != null && !token.isBlank()) {
-            // FastAPI에서 동일한 헤더를 검증하도록 설정한 경우에만 사용합니다.
-            builder.defaultHeader("X-Chatbot-Token", token);
-        }
-        restClient = builder.build();
-    }
+	public FaqClient(
+	        @Value("${chatbot.base-url}") String baseUrl,
+	        @Value("${chatbot.api-token}") String token,
+	        @Value("${chatbot.connect-timeout:3s}") Duration connectTimeout,
+	        @Value("${chatbot.faq-read-timeout:5s}") Duration faqReadTimeout,
+	        @Value("${chatbot.read-timeout:60s}") Duration askReadTimeout) {
+
+	    if (token == null || token.isBlank()) {
+	        throw new IllegalStateException(
+	            "CHATBOT_API_TOKEN이 설정되지 않았습니다."
+	        );
+	    }
+
+	    this.faqRestClient = createClient(
+	            baseUrl, token, connectTimeout, faqReadTimeout
+	    );
+
+	    this.askRestClient = createClient(
+	            baseUrl, token, connectTimeout, askReadTimeout
+	    );
+	}
+
+	private RestClient createClient(String baseUrl, String token, 
+			Duration connectTimeout, Duration readTimeout) {
+
+	    HttpClient httpClient = HttpClient.newBuilder()
+	            .connectTimeout(connectTimeout)
+	            .version(HttpClient.Version.HTTP_1_1)
+	            .build();
+
+	    JdkClientHttpRequestFactory factory =
+	            new JdkClientHttpRequestFactory(httpClient);
+
+	    factory.setReadTimeout(readTimeout);
+
+	    return RestClient.builder()
+	            .baseUrl(baseUrl)
+	            .requestFactory(factory)
+	            .defaultHeader("X-Chatbot-Token", token)
+	            .build();
+	}
 
     public JsonNode get(String path, String category) {
         try {
             JsonNode result =
-                    restClient
+            		faqRestClient
                             .get()
                             .uri(
                                     uriBuilder -> {
@@ -66,7 +89,7 @@ public class FaqClient {
     public JsonNode ask(String question) {
         try {
             JsonNode result =
-                    restClient
+            		askRestClient
                             .post()
                             .uri("/faq/ask")
                             .body(java.util.Map.of("question", question))
