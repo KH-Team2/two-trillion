@@ -103,7 +103,7 @@ export default function App() {
       window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
     };
   }, []);
-  // 서버 알림(SSE · TT-151): 로그인한 동안 연결해 두고, 계산 완료 알림이 오면 토스트로 보여 줘요
+  // 서버 알림(SSE · TT-151): 로그인한 동안 연결해 두고, 계산 완료 · 마감 안내 알림이 오면 토스트로 보여 줘요
   // 다른 탭에서 계산해도 이 탭에 알림이 와요 · 로그아웃 · 계정 바뀜 · 화면 닫힘이면 연결을 끊어요
   useEffect(() => {
     setAlerts([]); // 계정이 바뀌면 이전 계정 알림은 지움
