@@ -9,6 +9,6 @@ def health():
     """
     챗봇 서버의 HTTP 응답 상태 확인.
 
-    TODO: 추후 Ollama 및 RAG 준비 상태 별도 점검
+    TODO: 추후 FAQ 데이터 로딩 및 Ollama 연결 상태 별도 점검
     """
     return {"status": "OK"}
