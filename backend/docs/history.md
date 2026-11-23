@@ -10,7 +10,7 @@
   - 화면: `access-log-service.js` 신규 · `AdminTools.jsx` 접근 기록 탭을 체험 데이터 → 서버 API · `api-client.js`에 `withMeta` 옵션(기본 꺼짐)
   - 테스트: `AdminAccessLogServiceTest` 6건 · `tests/access-log-service.mjs`
 - **변경 사유**: PR #45 리뷰 4개(size 최대값 · 날짜 형식 · 전체 개수 · 회원 없는 기록) · 명세 F-08-02 비고 「관리자가 목록을 조회한 것도 ACCESS_LOG에 기록」
-- **검증 결과**: `mvnw verify` N건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인
+- **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인
 
 ### [2026-11-23] 업로드 삭제 성공 응답 204 → 200 (팀 API 규칙)
 - **작업 내용**
