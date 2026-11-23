@@ -4,12 +4,10 @@ import { newPrototypeId } from '@/api/account-service.js';
 import React, { useEffect, useState } from 'react';
 // [수정 11/20] inquiryService · inquiryLabels(브라우저 체험 데이터) 가져오기 삭제
 //   이유: F-18 문의 관리를 서버 API(inquiry-service.js)로 바꿈 · 다른 탭(기준값 · 접근 기록 · 예측 결과)은 그대로
-import {
-  accessRecords,
-  criteriaRecords,
-  saveCriterion,
-  predictionRecords,
-} from '@/api/prototype-records.js';
+// [수정 11/23] accessRecords(브라우저 체험 접근 기록) 가져오기 삭제
+//   이유: F-21 접근 기록 탭을 서버 API(access-log-service.js)로 바꿈 · 기준값 · 예측 결과 탭은 그대로
+import { criteriaRecords, saveCriterion, predictionRecords } from '@/api/prototype-records.js';
+import { ACCESS_RESULT_LABEL, PAGE_SIZE, fetchAccessLogs } from '@/api/access-log-service.js';
 import {
   CHECKING_MESSAGE,
   INQUIRY_STATUS_LABEL,
@@ -149,37 +147,148 @@ export function CriteriaManagement() {
     </>
   );
 }
+// [수정 11/23] F-21 접근 기록: 브라우저 체험 데이터(accessRecords) → 서버 API (GET /api/admin/access-logs)
+//   기간 · IP로 검색 · 한 쪽에 20건 · 이전/다음 쪽 · 회원 연속 실패 횟수 · 잠금 시각 · IP별 실패 수 (기능명세서 F-08-02 ③)
 export function AccessLog() {
-  const [rows] = useState(() => accessRecords());
+  // 화면에 적는 중인 검색 조건(form) vs 실제로 검색한 조건(filters)
+  //   → [검색]을 눌렀을 때만 filters를 바꿔서, 글자를 칠 때마다 서버를 부르지 않게
+  const empty = { startDate: '', endDate: '', ipAddress: '' };
+  const [form, setForm] = useState(empty),
+    [filters, setFilters] = useState(empty),
+    [page, setPage] = useState(1),
+    [rows, setRows] = useState([]),
+    [meta, setMeta] = useState(null),
+    [err, setErr] = useState(''),
+    [loading, setLoading] = useState(false);
+
+  // 검색 조건이나 쪽 번호가 바뀔 때마다 서버에서 다시 불러와요
+  // ignore: 응답이 오기 전에 다른 쪽을 누르면, 늦게 온 예전 응답은 버려요
+  useEffect(() => {
+    let ignore = false;
+    setLoading(true);
+    setErr('');
+    fetchAccessLogs({ ...filters, page, size: PAGE_SIZE })
+      .then((res) => {
+        if (!ignore) {
+          setRows(res.rows);
+          setMeta(res.meta);
+        }
+      })
+      .catch((e) => {
+        // 관리자가 아니면 403 · 서버 꺼짐(OFFLINE) 등 → 서버 문구 그대로
+        // 날짜 모양 · 시작일 > 종료일 등 화면 검사에 걸려도 서버에 보내지 않고 여기로 와요
+        if (!ignore) {
+          setRows([]);
+          setMeta(null);
+          setErr(e.message);
+        }
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [filters, page]);
+
+  const totalPages = Math.max(meta?.totalPages || 0, 1);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   return (
     <>
-      <h3>주요 동작 접근 기록 · 브라우저 시연</h3>
+      <h3>주요 동작 접근 기록</h3>
       <p>
-        서버 접속 IP는 수집되지 않아 미연동으로 표시합니다. 운영 ACCESS_LOG와 무결성·보존 정책은
-        서버 구현이 필요합니다. 최근 500건을 보관합니다.
+        로그인 · 관리자 조회 등 주요 동작을 누가 · 언제 · 어디서(IP) 했는지 보여 줘요. 이 화면을 연
+        것도 기록돼요.
+      </p>
+      <form
+        className="form-grid"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setFilters({ ...form });
+          setPage(1);
+        }}
+      >
+        <label className="field">
+          시작일
+          <input type="date" value={form.startDate} onChange={set('startDate')} />
+        </label>
+        <label className="field">
+          종료일
+          <input type="date" value={form.endDate} onChange={set('endDate')} />
+        </label>
+        <label className="field">
+          IP (일부만 써도 돼요)
+          <input
+            value={form.ipAddress}
+            onChange={set('ipAddress')}
+            maxLength={45}
+            placeholder="예: 127.0.0"
+          />
+        </label>
+        <button className="btn" disabled={loading}>
+          검색
+        </button>
+      </form>
+      <p>
+        전체 {meta?.total ?? 0}건 · {page} / {totalPages}쪽
       </p>
       <div className="table-scroll">
         <table>
           <thead>
             <tr>
-              {['계정', '동작', '시각', 'IP', '결과'].map((v) => (
+              {[
+                '번호',
+                '회원 번호',
+                '화면 · API',
+                '시각',
+                'IP',
+                '결과',
+                '연속 실패',
+                '잠금 해제 시각',
+                '같은 IP 실패',
+              ].map((v) => (
                 <th key={v}>{v}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id}>
-                <td>{r.LOGIN_ID}</td>
-                <td>{r.SCREEN}</td>
-                <td>{r.ACCESSED_AT}</td>
-                <td>미연동</td>
-                <td>{r.RESULT}</td>
+              <tr key={r.accessId}>
+                <td>{r.accessId}</td>
+                {/* 없는 아이디로 로그인에 실패한 기록은 회원 번호가 비어 있어요 */}
+                <td>{r.memberId ?? '없음'}</td>
+                <td>{r.screen}</td>
+                <td>{r.accessedAt}</td>
+                <td>{r.ipAddress || '-'}</td>
+                <td>{ACCESS_RESULT_LABEL[r.result] || r.result}</td>
+                <td>{r.failCount ?? '-'}</td>
+                <td>{r.lockedUntil || '-'}</td>
+                <td>{r.ipFailCount ?? 0}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+      {!loading && !rows.length && !err && <p className="empty">기록이 없습니다.</p>}
+      <div className="form-grid">
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((n) => n - 1)}
+        >
+          이전 쪽
+        </button>
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={loading || page >= totalPages}
+          onClick={() => setPage((n) => n + 1)}
+        >
+          다음 쪽
+        </button>
+      </div>
+      <p role="status">{err}</p>
     </>
   );
 }
