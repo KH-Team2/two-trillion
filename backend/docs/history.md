@@ -10,7 +10,7 @@
   - `api-rules.md` 7번 표: 204 → 200 `data: null`
   - `card-upload-service.js` · `ExpenseUpload.jsx`: Prettier 줄바꿈 정리 (기존 한글 문장 줄 나눔 위치만 · 동작 변화 없음)
 - **변경 사유**: `api-rules.md` 3번 「성공 응답은 모두 200 (201 · 204 안 씀 · 11/09 팀 합의)」과 어긋났음
-- **검증 결과**: (PR 전에 채우기) `mvnw clean verify` · 화면에서 업로드 삭제 → Network `DELETE` 200 · 목록에서 사라짐
+- **검증 결과**: `mvnw clean verify` 195건 통과 · 화면에서 업로드 삭제 → Network `DELETE /api/card-uploads/{id}` 200 · 응답 `{success: true, data: null}` · 목록에서 사라짐 확인
 
 ### [2026-11-20] 정보 입력: 단계 버튼에도 입력칸 검사 · 소수 입력 안내 문구 (TT-132)
 - **작업 내용**: `frontend/src/pages/tax/TaxInfoForm.jsx`
