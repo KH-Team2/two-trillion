@@ -1,0 +1,422 @@
+[
+  {
+    "number": "S01-1",
+    "question": "연말정산",
+    "expected": "TAX_001",
+    "term": "연말정산"
+  },
+  {
+    "number": "S01-2",
+    "question": "연말정산은 뭐야?",
+    "expected": "TAX_001",
+    "term": "연말정산"
+  },
+  {
+    "number": "S02-1",
+    "question": "원천징수",
+    "expected": "TAX_002",
+    "term": "원천징수"
+  },
+  {
+    "number": "S02-2",
+    "question": "원천징수는 무슨 뜻이야?",
+    "expected": "TAX_002",
+    "term": "원천징수"
+  },
+  {
+    "number": "S03-1",
+    "question": "원천징수의무자",
+    "expected": "TAX_003",
+    "term": "원천징수의무자"
+  },
+  {
+    "number": "S03-2",
+    "question": "원천징수의무자는 뭐야?",
+    "expected": "TAX_003",
+    "term": "원천징수의무자"
+  },
+  {
+    "number": "S04-1",
+    "question": "근로소득",
+    "expected": "TAX_004",
+    "term": "근로소득"
+  },
+  {
+    "number": "S04-2",
+    "question": "근로소득은 무슨 뜻이야?",
+    "expected": "TAX_004",
+    "term": "근로소득"
+  },
+  {
+    "number": "S05-1",
+    "question": "비과세소득",
+    "expected": "TAX_005",
+    "term": "비과세소득"
+  },
+  {
+    "number": "S05-2",
+    "question": "비과세소득은 뭐야?",
+    "expected": "TAX_005",
+    "term": "비과세소득"
+  },
+  {
+    "number": "S06-1",
+    "question": "총급여액",
+    "expected": "TAX_006",
+    "term": "총급여액"
+  },
+  {
+    "number": "S06-2",
+    "question": "총급여액은 무슨 뜻이야?",
+    "expected": "TAX_006",
+    "term": "총급여액"
+  },
+  {
+    "number": "S07-1",
+    "question": "근로소득공제",
+    "expected": "TAX_007",
+    "term": "근로소득공제"
+  },
+  {
+    "number": "S07-2",
+    "question": "근로소득공제는 뭐야?",
+    "expected": "TAX_007",
+    "term": "근로소득공제"
+  },
+  {
+    "number": "S08-1",
+    "question": "근로소득금액",
+    "expected": "TAX_008",
+    "term": "근로소득금액"
+  },
+  {
+    "number": "S08-2",
+    "question": "근로소득금액은 무슨 뜻이야?",
+    "expected": "TAX_008",
+    "term": "근로소득금액"
+  },
+  {
+    "number": "S09-1",
+    "question": "소득공제",
+    "expected": "TAX_009",
+    "term": "소득공제"
+  },
+  {
+    "number": "S09-2",
+    "question": "소득공제는 뭐야?",
+    "expected": "TAX_009",
+    "term": "소득공제"
+  },
+  {
+    "number": "S10-1",
+    "question": "세액공제",
+    "expected": "TAX_010",
+    "term": "세액공제"
+  },
+  {
+    "number": "S10-2",
+    "question": "세액공제는 무슨 뜻이야?",
+    "expected": "TAX_010",
+    "term": "세액공제"
+  },
+  {
+    "number": "S11-1",
+    "question": "세액감면",
+    "expected": "TAX_011",
+    "term": "세액감면"
+  },
+  {
+    "number": "S11-2",
+    "question": "세액감면은 뭐야?",
+    "expected": "TAX_011",
+    "term": "세액감면"
+  },
+  {
+    "number": "S12-1",
+    "question": "과세표준",
+    "expected": "TAX_012",
+    "term": "과세표준"
+  },
+  {
+    "number": "S12-2",
+    "question": "과세표준은 무슨 뜻이야?",
+    "expected": "TAX_012",
+    "term": "과세표준"
+  },
+  {
+    "number": "S13-1",
+    "question": "기본세율",
+    "expected": "TAX_013",
+    "term": "기본세율"
+  },
+  {
+    "number": "S13-2",
+    "question": "기본세율은 뭐야?",
+    "expected": "TAX_013",
+    "term": "기본세율"
+  },
+  {
+    "number": "S14-1",
+    "question": "산출세액",
+    "expected": "TAX_014",
+    "term": "산출세액"
+  },
+  {
+    "number": "S14-2",
+    "question": "산출세액은 무슨 뜻이야?",
+    "expected": "TAX_014",
+    "term": "산출세액"
+  },
+  {
+    "number": "S15-1",
+    "question": "결정세액",
+    "expected": "TAX_015",
+    "term": "결정세액"
+  },
+  {
+    "number": "S15-2",
+    "question": "결정세액은 뭐야?",
+    "expected": "TAX_015",
+    "term": "결정세액"
+  },
+  {
+    "number": "S16-1",
+    "question": "기납부세액",
+    "expected": "TAX_016",
+    "term": "기납부세액"
+  },
+  {
+    "number": "S16-2",
+    "question": "기납부세액은 무슨 뜻이야?",
+    "expected": "TAX_016",
+    "term": "기납부세액"
+  },
+  {
+    "number": "S17-1",
+    "question": "차감징수세액",
+    "expected": "TAX_017",
+    "term": "차감징수세액"
+  },
+  {
+    "number": "S17-2",
+    "question": "차감징수세액은 뭐야?",
+    "expected": "TAX_017",
+    "term": "차감징수세액"
+  },
+  {
+    "number": "S18-1",
+    "question": "기본공제",
+    "expected": "TAX_018",
+    "term": "기본공제"
+  },
+  {
+    "number": "S18-2",
+    "question": "기본공제는 무슨 뜻이야?",
+    "expected": "TAX_018",
+    "term": "기본공제"
+  },
+  {
+    "number": "S19-1",
+    "question": "부양가족",
+    "expected": "TAX_019",
+    "term": "부양가족"
+  },
+  {
+    "number": "S19-2",
+    "question": "부양가족은 뭐야?",
+    "expected": "TAX_019",
+    "term": "부양가족"
+  },
+  {
+    "number": "S20-1",
+    "question": "인적공제",
+    "expected": "TAX_020",
+    "term": "인적공제"
+  },
+  {
+    "number": "S20-2",
+    "question": "인적공제는 무슨 뜻이야?",
+    "expected": "TAX_020",
+    "term": "인적공제"
+  },
+  {
+    "number": "S21-1",
+    "question": "자녀세액공제",
+    "expected": "TAX_021",
+    "term": "자녀세액공제"
+  },
+  {
+    "number": "S21-2",
+    "question": "자녀세액공제는 뭐야?",
+    "expected": "TAX_021",
+    "term": "자녀세액공제"
+  },
+  {
+    "number": "S22-1",
+    "question": "국민연금보험료",
+    "expected": "TAX_022",
+    "term": "국민연금보험료"
+  },
+  {
+    "number": "S22-2",
+    "question": "국민연금보험료는 무슨 뜻이야?",
+    "expected": "TAX_022",
+    "term": "국민연금보험료"
+  },
+  {
+    "number": "S23-1",
+    "question": "건강보험료",
+    "expected": "TAX_023",
+    "term": "건강보험료"
+  },
+  {
+    "number": "S23-2",
+    "question": "건강보험료는 뭐야?",
+    "expected": "TAX_023",
+    "term": "건강보험료"
+  },
+  {
+    "number": "S24-1",
+    "question": "고용보험료",
+    "expected": "TAX_024",
+    "term": "고용보험료"
+  },
+  {
+    "number": "S24-2",
+    "question": "고용보험료는 무슨 뜻이야?",
+    "expected": "TAX_024",
+    "term": "고용보험료"
+  },
+  {
+    "number": "S25-1",
+    "question": "연금저축",
+    "expected": "TAX_025",
+    "term": "연금저축"
+  },
+  {
+    "number": "S25-2",
+    "question": "연금저축은 뭐야?",
+    "expected": "TAX_025",
+    "term": "연금저축"
+  },
+  {
+    "number": "S27-1",
+    "question": "개인형퇴직연금",
+    "expected": "TAX_026",
+    "term": "개인형퇴직연금"
+  },
+  {
+    "number": "S27-2",
+    "question": "개인형퇴직연금은 뭐야?",
+    "expected": "TAX_026",
+    "term": "개인형퇴직연금"
+  },
+  {
+    "number": "S28-1",
+    "question": "월세액 세액공제",
+    "expected": "TAX_027",
+    "term": "월세액 세액공제"
+  },
+  {
+    "number": "S28-2",
+    "question": "월세액 세액공제는 무슨 뜻이야?",
+    "expected": "TAX_027",
+    "term": "월세액 세액공제"
+  },
+  {
+    "number": "S29-1",
+    "question": "무주택 세대주",
+    "expected": "TAX_028",
+    "term": "무주택 세대주"
+  },
+  {
+    "number": "S29-2",
+    "question": "무주택 세대주는 뭐야?",
+    "expected": "TAX_028",
+    "term": "무주택 세대주"
+  },
+  {
+    "number": "S30-1",
+    "question": "신용카드",
+    "expected": "TAX_029",
+    "term": "신용카드"
+  },
+  {
+    "number": "S30-2",
+    "question": "신용카드는 무슨 뜻이야?",
+    "expected": "TAX_029",
+    "term": "신용카드"
+  },
+  {
+    "number": "S31-1",
+    "question": "체크카드",
+    "expected": "TAX_030",
+    "term": "체크카드"
+  },
+  {
+    "number": "S31-2",
+    "question": "체크카드는 뭐야?",
+    "expected": "TAX_030",
+    "term": "체크카드"
+  },
+  {
+    "number": "S32-1",
+    "question": "현금영수증",
+    "expected": "TAX_031",
+    "term": "현금영수증"
+  },
+  {
+    "number": "S32-2",
+    "question": "현금영수증은 무슨 뜻이야?",
+    "expected": "TAX_031",
+    "term": "현금영수증"
+  },
+  {
+    "number": "S33-1",
+    "question": "전통시장 사용분",
+    "expected": "TAX_032",
+    "term": "전통시장 사용분"
+  },
+  {
+    "number": "S33-2",
+    "question": "전통시장 사용분은 뭐야?",
+    "expected": "TAX_032",
+    "term": "전통시장 사용분"
+  },
+  {
+    "number": "S34-1",
+    "question": "대중교통 이용분",
+    "expected": "TAX_033",
+    "term": "대중교통 이용분"
+  },
+  {
+    "number": "S34-2",
+    "question": "대중교통 이용분은 무슨 뜻이야?",
+    "expected": "TAX_033",
+    "term": "대중교통 이용분"
+  },
+  {
+    "number": "S35-1",
+    "question": "문화비 소득공제",
+    "expected": "TAX_034",
+    "term": "문화비 소득공제"
+  },
+  {
+    "number": "S35-2",
+    "question": "문화비 소득공제는 뭐야?",
+    "expected": "TAX_034",
+    "term": "문화비 소득공제"
+  },
+  {
+    "number": "S36-1",
+    "question": "중소기업 취업자 소득세 감면",
+    "expected": "TAX_035",
+    "term": "중소기업 취업자 소득세 감면"
+  },
+  {
+    "number": "S36-2",
+    "question": "중소기업 취업자 소득세 감면은 무슨 뜻이야?",
+    "expected": "TAX_035",
+    "term": "중소기업 취업자 소득세 감면"
+  }
+]
