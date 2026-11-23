@@ -1,295 +1,130 @@
-# 희망환급 (Hope Refund) — Chatbot
+# 희망환급 (Hope Refund) — FAQ Chatbot
 
-희망환급 프로젝트의 **Python FastAPI 기반 AI 챗봇 서버**입니다.
+희망환급의 **Python FastAPI 기반 연말정산·세법 용어 FAQ 챗봇 서버**입니다.
 
-연말정산 및 청년 세제 혜택에 관한 질문에 답변하고, RAG(Retrieval-Augmented Generation)를 이용해 관련 참고 자료를 검색하여 AI 답변을 생성하도록 설계합니다.
+사용자는 카테고리·질문 **버튼**을 눌러 FAQ를 조회하거나, **자유 질문**을 입력할 수 있습니다. 자유 질문은 로컬 **Gemma 3**가 등록된 FAQ 항목으로 분류하고, 실제 답변은 사람이 작성·검증한 **고정 FAQ 데이터**에서 조회합니다. 모델이 세법 답변을 직접 생성하지 않습니다.
 
-> **현재 상태:** FastAPI 공통 초기 프로젝트 구성 완료 / Gemma3·RAG·Spring Boot 연동 개발 예정
+> **현재 상태:** FAQ 목록·카테고리·상세·자유 질문 분류, Spring Boot 연동, `X-Chatbot-Token` 내부 인증 코드 구현.
 
-## 1. 개발 환경
-
-| 구분 | 기술 |
-|---|---|
-| Language | Python 3.11.9 |
-| Framework | FastAPI |
-| ASGI Server | Uvicorn |
-| LLM | LangChain ChatOllama + Gemma3 |
-| PDF Processing | PyMuPDF |
-| RAG | PDF 전처리·청킹 구현 / Elasticsearch 검색·답변 연동 예정 |
-| Dependency Management | pip, requirements.txt |
-| Testing | pytest |
-| Code Quality | Ruff |
-| IDE | VS Code 권장 |
-
-세부 개발 규칙, RAG 처리 방식 및 서버 간 역할 구분은 [`AGENTS.md`](AGENTS.md)를 참고합니다.
-
-## 2. 프로젝트 구성
-
-희망환급은 다음과 같은 구조로 개발합니다.
+## 1. 전체 흐름
 
 ```text
-two-trillion/
-├── frontend/        # React + Vite
-├── backend/         # Spring Boot + MyBatis
-├── calc/            # Python 계산 서버
-└── chatbot/         # Python AI 챗봇 서버
+React (FAQ 버튼 / 자유 질문)
+  └─ Spring Boot :8080 (JWT 인증 · 공통 API 응답)
+       └─ X-Chatbot-Token → FastAPI :8001
+            ├─ FAQ 목록·카테고리·상세 → tax_terms.json
+            └─ 자유 질문 → 단순 용어 우선 매칭 / Ollama :11434 (Gemma 3) → FAQ ID 검증 → tax_terms.json
+       ← FAQ 데이터 / 매칭 결과
+  ← 고정 FAQ 답변
 ```
 
-현재 Chatbot 초기 프로젝트의 주요 구조는 다음과 같습니다.
+## 2. 구현된 파일
 
 ```text
 chatbot/
-├── .env.example
-├── README.md
-├── AGENTS.md
-├── requirements.txt
-├── requirements-dev.txt
-chatbot/
-├── .env.example
-├── README.md
-├── AGENTS.md
-├── requirements.txt
-├── requirements-dev.txt
-├── requirements-preprocess.txt
-├── pyproject.toml
-│
 ├── app/
-│   ├── main.py
-│   ├── api/                 # Health·상담·추천 내부 API
-│   ├── core/                # 환경설정·인증·오류 처리
-│   ├── llm/                 # Ollama·Gemma3 연동
-│   ├── rag/                 # PDF 추출·전처리·청킹
-│   ├── schemas/             # 요청·응답 DTO
-│   └── services/            # 상담·추천·생성 서비스
-│
-├── scripts/
-│   └── preprocess_documents.py
-│
-├── data/
-│   └── processed/           # PDF 전처리 결과
-│
-├── docs/                    # 설계·API 계약·개발 문서
-└── tests/                   # 단위·API·RAG 전처리 테스트
+│   ├── main.py                         # .env 읽기 · 기동 시 토큰 필수 검증
+│   ├── api/
+│   │   ├── health.py                  # /health (내부 인증 예외)
+│   │   ├── deps.py                    # X-Chatbot-Token 검사
+│   │   └── faq.py                     # FAQ HTTP 요청·응답 처리
+│   ├── repositories/
+│   │   └── faq_repository.py          # tax_terms.json 조회
+│   ├── services/
+│   │   ├── faq_service.py             # FAQ 조회·자유 질문 처리 업무 흐름
+│   │   ├── classifier.py              # 단순 용어 매칭 및 Gemma 3 FAQ ID 분류
+│   │   └── privacy_filter.py          # 자유 질문 개인정보 검사
+│   └── data/
+│       └── tax_terms.json             # 검증된 고정 FAQ 데이터
+├── tests/                              # FAQ·health 등 자동 테스트
+├── .env.example                       # 환경변수 예시 (.env는 Git 제외)
+├── requirements.txt
+├── requirements-dev.txt
+├── pyproject.toml
+├── README.md
+└── AGENTS.md
 ```
 
-현재 내부 상담·추천 API, 요청·응답 스키마, Ollama·Gemma3 연결, PDF 전처리·청킹 모듈까지 구현되어 있습니다. 향후 Elasticsearch 기반 문서 검색과 검색 결과를 활용한 RAG 답변 생성을 연동할 예정입니다.
 
-최종 개발 목표 구조는 `AGENTS.md`를 참고합니다.
+## 3. 설치와 실행 (Windows PowerShell)
 
-## 3. 개발환경 준비
+사전 준비: Python 3.11, Ollama, Gemma 3 모델. 프로젝트의 `chatbot/`에서 다음을 실행합니다.
 
-### 3.1 사전 준비
-
-- Python 3.11.9
-- Git
-- VS Code 또는 Python 개발이 가능한 IDE
-
-AI 답변 생성 기능을 사용하려면 로컬 환경에 Ollama와 gemma3:4b 모델을 준비해야 합니다.
-
-### 3.2 프로젝트 가져오기
-
-GitHub에서 공통 초기 프로젝트 브랜치를 Clone합니다.
-
-```bash
-git clone -b feature/project-base https://github.com/KH-Team2/two-trillion.git
-cd two-trillion/chatbot
-```
-
-이미 저장소를 Clone한 경우에는 현재 브랜치와 작업 상태를 먼저 확인합니다.
-
-### 3.3 Python 가상환경 생성
-
-Windows CMD에서 실행합니다.
-
-```cmd
+```powershell
 py -3.11 -m venv .venv
-```
-
-### 3.4 가상환경 활성화
-
-```cmd
-.venv\Scripts\activate
-```
-
-정상적으로 활성화되면 CMD 앞에 `(.venv)`가 표시됩니다.
-
-가상환경은 개발자별로 생성하며 GitHub에는 업로드하지 않습니다.
-
-### 3.5 패키지 설치
-
-```cmd
+.\.venv\Scripts\Activate.ps1
 python -m pip install -r requirements-dev.txt
 ```
+Ollama 공식 사이트에서 Windows용 프로그램을 설치합니다.
+Ollama가 실행되지 않았다면 다른 터미널에서 다음을 실행합니다. 이미 서비스로 실행 중이라면 중복 실행하지 않습니다.
 
-- `requirements.txt`: 서버 실행에 필요한 패키지
-- `requirements-dev.txt`: 개발 및 테스트 도구를 포함한 패키지
-
-Ollama·Gemma3 연동에 필요한 의존성은 requirements.txt에서 관리합니다. 
-PDF 전처리용 의존성은 requirements-preprocess.txt에서 별도로 관리합니다. 
-초기 RAG 검색은 Elasticsearch BM25를 사용할 예정이며, 임베딩 및 벡터·하이브리드 검색은 검색 품질 검증 후 별도로 결정합니다.
-
-## 4. 환경변수 설정
-
-환경변수 예시는 다음 파일에 있습니다.
-
-```text
-chatbot/.env.example
+```powershell
+ollama list
+ollama pull gemma3:4b
+ollama serve
 ```
 
-| 환경변수 | 설명 | 초기 기본값 |
-|---|---|---|
-| `CHATBOT_HOST` | FastAPI 실행 주소 | `127.0.0.1` |
-| `CHATBOT_PORT` | FastAPI 실행 포트 | `8001` |
-| `CHATBOT_API_TOKEN` | Spring Boot와 챗봇 서버 간 내부 인증 토큰 | 없음 |
-| `OLLAMA_BASE_URL` | Ollama 서버 주소 | `http://localhost:11434` |
-| `OLLAMA_MODEL` | Ollama에서 사용할 LLM | `gemma3` |
+`chatbot/.env.example`을 참고해 **`chatbot/.env`를 로컬에 직접 생성**합니다. 비밀값은 예시 문서나 Git에 넣지 않습니다.
 
-Ollama 연결 및 내부 API 인증 설정은 OS 환경변수를 통해 읽습니다. 
-CHATBOT_API_TOKEN이 설정되지 않은 경우 내부 상담·추천 POST 요청은 503 AUTH_NOT_CONFIGURED로 차단되며 /health는 유지됩니다. 
-.env.example은 설정 항목 안내용이며 파일을 복사하는 것만으로 자동 로딩되지는 않습니다.
+```dotenv
+CHATBOT_HOST=127.0.0.1
+CHATBOT_PORT=8001
+CHATBOT_API_TOKEN=<로컬에서 생성한 임의의 비밀값>
+OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=gemma3:4b
+```
 
-**주의:** 비밀번호 및 인증 토큰은 GitHub에 업로드하지 않습니다. 실제 값을 설정할 경우 `.gitignore`에서 제외되는 로컬 환경변수 파일 또는 실행 환경 설정을 사용합니다.
+`CHATBOT_API_TOKEN`은 Spring Boot의 `backend/.env`에 설정한 값과 동일해야 합니다. `.env`에 실제 비밀값을 넣은 다음 챗봇 서버를 실행합니다.
 
-## 5. FastAPI 서버 실행
-
-가상환경이 활성화된 상태에서 실행합니다.
-
-```cmd
+```powershell
 python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-정상 실행 후 브라우저에서 다음 주소를 확인합니다.
+상태 확인: <http://127.0.0.1:8001/health> · OpenAPI: <http://127.0.0.1:8001/docs> · 종료: `Ctrl+C`. `.env`가 바뀌면 서버를 완전히 종료 후 재실행합니다. `CHATBOT_API_TOKEN`이 설정되지 않으면 서버가 기동되지 않습니다.
 
-**Health API**
+## 4. 외부(Spring Boot) 및 내부(FastAPI) API
 
-```text
-http://127.0.0.1:8001/health
-```
+| Spring Boot 외부 API (JWT 필수) | FastAPI 내부 API (`X-Chatbot-Token` 필수) | 기능 |
+|---|---|---|
+| `GET /api/faqs` | `GET /faq` | FAQ 목록 (선택적 `category` 필터) |
+| `GET /api/faq-categories` | `GET /faq/categories` | 카테고리 목록 |
+| `GET /api/faqs/{faqId}` | `GET /faq/{faq_id}` | FAQ 상세 |
+| `POST /api/faq-matches` | `POST /faq/ask` | 자유 질문 FAQ 분류 (`question`: 1~100자) |
 
-정상 응답:
+FastAPI 내부 응답에는 Spring 공통 봉투를 씌우지 않습니다. Spring Boot가 외부 요청을 `{success, data, meta, error}`로 감싸서 반환합니다.
+
+분류 성공시 FastAPI의 `POST /faq/ask` 응답 예시 (ID는 설명용):
 
 ```json
 {
-  "status": "OK"
+  "matched": true,
+  "faqId": "TAX_001",
+  "faq": { "id": "TAX_001", "term": "총급여액", "answer": "등록된 답변 내용" }
 }
 ```
 
-**FastAPI 자동 API 문서**
+미매칭 시 `{"matched":false,"faqId":null,"faq":null}`. Ollama는 `classifier.py` 내부에서 `faq_id` 키를 사용해 응답하지만, **사용자에게 전달되는 API의 JSON 필드명은 `faqId`**입니다. FAQ 목록은 상세 답변이 아니라 `id`, `category`, `term`, `aliases`만 반환합니다.
 
-```text
-http://127.0.0.1:8001/docs
-```
+## 5. 인증·오류·보안
 
-현재 Health API는 FastAPI 서버의 기본 HTTP 응답을 확인합니다. Ollama 모델이나 RAG 검색 시스템의 정상 상태까지 검사하는 기능은 아닙니다.
+- 외부 API: Spring Security JWT 인증 (`Authorization: Bearer <accessToken>`).
+- 내부 API: `X-Chatbot-Token`; 누락·오류 시 FastAPI에서 401. `/health`는 내부 토큰 예외.
+- 질문: 최대 100자. 잘못된 입력은 Spring에서 400 `VALIDATION`, FastAPI Pydantic 유효성 검사는 422.
+- FAQ 없음: 외부 404 `NOT_FOUND`. 챗봇 연결 실패 또는 Gemma 분류 장애: 외부 503 `CHATBOT_UNAVAILABLE` 및 `errorId` (Spring 공통 처리기).
+- 내부 URL·토큰·개인정보·금액·질문 원문을 불필요하게 기록하지 않습니다. 오류 상세 스택은 사용자에게 노출하지 않습니다.
+- `chatbot/.env`, `backend/.env`, `.venv`, `__pycache__`는 버전 관리 대상이 아닙니다.
+- **개인정보 차단:** `ko-pii` 및 숫자 포함 여부를 검사하여 자유 질문을 차단합니다. 차단 시 HTTP 400 `PERSONAL_INFO_DETECTED`를 반환하며, Ollama에 질문을 전달하지 않습니다. 오탐·미탐 가능성이 있습니다.
 
-서버 종료는 `Ctrl + C`를 사용합니다.
+## 6. 테스트
 
-## 6. 테스트 및 코드 검사
-
-모든 명령은 `chatbot` 디렉터리에서 실행합니다.
-
-### pytest
-
-```cmd
+```powershell
 python -m pytest -v
-```
-
-### Ruff 코드 검사
-
-```cmd
 python -m ruff check .
-```
-
-### Ruff 형식 검사
-
-```cmd
 python -m ruff format --check .
 ```
 
-### Ruff 코드 자동 정리
+## 7. 관련 문서
 
-```cmd
-python -m ruff format .
-```
-
-현재 초기 프로젝트에서 다음 사항을 확인했습니다.
-
-- Python 3.11.9 환경 실행
-- FastAPI 서버 정상 실행
-- `/health` API 응답 확인
-- pytest Health 테스트 1개 통과
-- Ruff 코드 검사 통과
-
-Ruff 형식 검사 최종 통과 여부는 자동 정리 후 다시 확인해야 합니다.
-
-## 7. 전체 시스템에서의 역할
-
-```text
-React Frontend
-      │
-      │ 사용자 질문
-      ▼
-Spring Boot Backend
-      │
-      ├── 회원 인증 및 권한 확인
-      ├── 대화방 소유권 확인
-      ├── Oracle DB 대화 기록 조회·저장
-      │
-      │ 내부 HTTP 요청
-      ▼
-Python FastAPI Chatbot
-      │
-      ├── 질문 처리
-      ├── RAG 참고 자료 검색
-      └── Ollama / Gemma3 답변 생성
-```
-
-Frontend는 Spring Boot API를 호출합니다.
-
-Spring Boot는 회원 인증, 대화 기록 관리 및 DB 저장을 담당합니다.
-
-Python Chatbot은 전달받은 질문과 필요한 문맥을 기반으로 참고 자료를 검색하고 AI 답변을 생성합니다.
-
-Chatbot 내부 상담·추천 API와 인증은 구현되어 있으나, 
-Spring Boot와의 실제 서버 간 HTTP 연동 및 Elasticsearch 기반 RAG 검색 연동은 아직 완료되지 않았습니다.
-
-## 8. 현재 구현 상태
-
-### 구성 완료
-
-- Python 3.11.9 기반 FastAPI 애플리케이션
-- `/health` API
-- LangChain ChatOllama 기반 `gemma3:4b` 연결
-- 내부 상담 API `POST /internal/chat-responses`
-- 내부 추천 API `POST /internal/recommendations`
-- `X-Chatbot-Token` 기반 내부 인증
-- 요청·응답 DTO 및 오류 처리
-- PDF 8개 오프라인 텍스트 추출 및 전처리
-- 법령·안내서·개정세법 구조별 청킹
-- 전처리 결과 재현성·무결성 검증
-- pytest 테스트
-- Ruff 코드 검사 및 포맷 설정
-
-### 추후 구현 및 검증 예정
-
-- 전처리 결과 수동 검수
-- Elasticsearch BM25 색인 및 검색
-- 검색 결과와 Gemma3를 연결한 RAG 답변 생성
-- Spring Boot와 내부 HTTP 연동
-- 법령 출처 및 적용 귀속연도 검증
-- AI 답변 품질 및 예외 상황 검증
-- 필요 시 임베딩·벡터·하이브리드 검색 검토
-
-## 9. 관련 문서
-
-| 문서 | 용도 |
-|---|---|
-| `AGENTS.md` | AI 챗봇 개발 규칙 및 아키텍처 |
-| `.env.example` | 환경변수 예시 |
-| `requirements.txt` | 서버 실행 의존성 |
-| `requirements-dev.txt` | 개발 및 테스트 의존성 |
-| `pyproject.toml` | Ruff·pytest 설정 |
-
-기능 구현은 팀의 [희망환급 기능명세서 v1.13](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)을 기준으로 합니다.
-
-실제 API 주소와 요청·응답 데이터 구조는 팀 공식 API 명세서 및 Spring Boot 담당 영역과 협의하여 확정합니다.
+- [`AGENTS.md`](AGENTS.md): 챗봇 관련 코드/보안/테스트 규칙
+- `../backend/README.md`, `../frontend/README.md`: Spring 및 React 연동 안내
+- 팀 기능명세서 및 API 명세서: 외부 API 계약 확인

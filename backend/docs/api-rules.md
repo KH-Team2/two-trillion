@@ -114,3 +114,7 @@
 | PUT | `/api/members/me` | 회원정보 · 자격 정보 저장 · 본문 `{gender, militaryMonths, hireDate, companySize, homelessHeadYn}` (모든 칸) → 저장된 회원정보 · 군 복무 음수 400 「0 이상으로 입력해 주세요」 · `ROLE` · `STATUS` 안 바뀜 (F-01-04 · 제안 주소) |
 | PUT | `/api/members/me/password` | 비밀번호 변경 · 본문 `{currentPassword, newPassword, newPasswordConfirm}` → `null` · 현재 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` (F-01-04 · 제안 주소) |
 | POST | `/api/members/me/withdrawal` | 회원 탈퇴 · 본문 `{password}` (D-05 재확인) → `null` · `STATUS=WITHDRAWN` · `WITHDRAWN_AT=SYSDATE` · `ROLE=USER` · 아이디 · 이메일은 30일 유지 · 지금 토큰 무효 · 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` · 이미 탈퇴 404 (F-01-05 · 제안 주소) |
+| GET | `/api/faqs` | FAQ 목록 조회 |
+| GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
+| GET | `/api/faqs/{faqId}` | FAQ 상세 조회 |
+| POST | `/api/faq-matches` | 자유 질문을 등록된 FAQ에 매칭 |
