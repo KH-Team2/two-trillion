@@ -8,6 +8,11 @@ import { initial, normalizeTaxData, userService, taxService } from '@/api/servic
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
 import { AUTH_EXPIRED_EVENT, canUseDemo, demoFallbackAllowed } from '@/api/api-client.js';
+import {
+  calculationMessage,
+  deadlineMessage,
+  openNotificationStream,
+} from '@/api/notification-stream.js';
 import { cardTotalsByMethod, fetchCardTotals, simulate } from '@/api/prediction-service.js';
 import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
@@ -53,6 +58,8 @@ export default function App() {
   const [saved, setSaved] = useState([]);
   const [inquiries, setInquiries] = useState([]);
   const [notification, setNotification] = useState(false);
+  // 받은 서버 알림 목록 (TT-151 · 최근 20개 · 새로고침하면 비워짐) · 상단 종 아이콘에서 보여 줘요
+  const [alerts, setAlerts] = useState([]);
   const [profileTab, setProfileTab] = useState('개인정보');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('전체');
@@ -97,6 +104,31 @@ export default function App() {
       window.removeEventListener(AUTH_EXPIRED_EVENT, expired);
     };
   }, []);
+  // 서버 알림(SSE · TT-151): 로그인한 동안 연결해 두고, 계산 완료 · 마감 안내 알림이 오면 토스트로 보여 줘요
+  // 다른 탭에서 계산해도 이 탭에 알림이 와요 · 로그아웃 · 계정 바뀜 · 화면 닫힘이면 연결을 끊어요
+  useEffect(() => {
+    setAlerts([]); // 계정이 바뀌면 이전 계정 알림은 지움
+    if (!session?.server) return undefined; // 체험(브라우저 저장) 계정은 서버 토큰이 없음
+    return openNotificationStream({
+      onEvent: (event, data) => {
+        // [수정 11/20 · 이우진 · TT-152] 마감 안내(deadline) 알림도 같은 토스트 · 종 목록에 표시
+        const message =
+          event === 'calculation'
+            ? calculationMessage(data)
+            : event === 'deadline'
+              ? deadlineMessage(data)
+              : null;
+        if (!message) return;
+        setToast(message);
+        setAlerts((prev) =>
+          [
+            { id: `${Date.now()}-${prev.length}`, message, at: new Date(), read: false },
+            ...prev,
+          ].slice(0, 20),
+        );
+      },
+    });
+  }, [session?.id, session?.server]);
   // 로그인한 계정에 해당하는 입력·거래·이력을 불러옵니다.
   useEffect(() => {
     const fallback = {
@@ -421,6 +453,8 @@ export default function App() {
               mobile={mobile}
               setMobile={setMobile}
               notification={notification}
+              alerts={alerts}
+              onReadAlerts={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))}
               setNotification={setNotification}
               go={go}
             />

@@ -37,7 +37,8 @@ export function uploadCardFile(file, { payMethod, allowDuplicate = false } = {},
 
 /** 업로드 1건의 거래 목록 + 분류 근거 (최근 사용일부터) */
 export function fetchUploadExpenses(uploadId, options = {}) {
-  if (!Number.isInteger(Number(uploadId))) throw apiError('VALIDATION', '업로드 번호를 확인해주세요.');
+  if (!Number.isInteger(Number(uploadId)))
+    throw apiError('VALIDATION', '업로드 번호를 확인해주세요.');
   return apiRequest(`/api/expenses?uploadId=${encodeURIComponent(uploadId)}`, {
     ...options,
     offlineMessage: '거래 내역 서버에 연결할 수 없어요.',
@@ -87,7 +88,7 @@ export function fetchUploads(options = {}) {
 
 /**
  * 업로드 1건 삭제 (그 업로드의 거래도 서버가 같이 지움)
- * - 성공하면 204(본문 없음) → null
+ * - 성공하면 200 {success: true, data: null} → null  ([수정 11/23 고은] 서버가 204 → 200으로 바뀜 · 팀 API 규칙)
  * - 없거나 남의 업로드면 code 'NOT_FOUND' 오류
  */
 export function deleteUpload(uploadId, options = {}) {

@@ -6,11 +6,11 @@ server:
 spring:
   application:
     name: hope-refund-backend
-
+# [수정 11/20 고은] 정수 칸(금액 · 인원 등)에 소수(예: 1.5)가 오면 거부 (400)
+# 이유: 기본 설정은 소수점을 몰래 버리고 1로 저장해서, 잘못 입력한 값이 그대로 들어감	
   jackson:
     deserialization:
       accept-float-as-int: false
-
 # DB 접속 정보 등은 backend 폴더의 .env 파일에서도 읽음 (.env는 커밋하지 않음 · 항목 이름은 .env.example 참고)
 # 환경변수(STS Run Configurations)로 넣어도 되고, .env 파일로 넣어도 됨. 둘 다 있으면 환경변수가 우선.
   config:
