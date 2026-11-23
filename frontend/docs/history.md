@@ -23,5 +23,10 @@
   - `prettier --check "src/**/*.{js,jsx,css,json}" "tests/*.mjs"` 통과
   - ESLint(no-undef · no-unused-vars) 검사: 새 오류 없음 (남은 경고는 develop에 원래 있던 것)
   - import 검사 스크립트: 지운 파일 · 이름을 가져오는 곳 없음
-  - 미검증: `npm test` · `npm run build` · 브라우저 화면 확인 (작업 환경에 node_modules 설치 불가) → PR 전에 꼭 실행 필요
+  - `npm test` 통과 (9개 테스트 파일 · 화면 22개 렌더링 · 전체 모듈 109개 번들) · `npm run build` 통과
+  - 브라우저 확인 (시크릿 창 · `npm run dev`):
+    - 로그인 전 주소를 `#dashboard`로 바꾸면 → 로그인 화면으로 이동
+    - 새로 회원가입 → 로그인 → 대시보드에 「아직 계산 결과가 없어요」 안내 표시
+  - 미검증: 「준비 중」 화면(AI 상담 · 관리자 · 고객센터 문의 · 마이페이지 개인정보 등) 브라우저 확인 (`render-pages` 테스트로만 확인)
+  - 참고: 확인 중 백엔드 로그에 `HttpMessageNotWritableException … text/event-stream` 경고가 나옴 → SSE 알림 연결이 끊길 때 공통 오류 처리기가 JSON 응답을 쓰려다 나는 것으로, 이번 변경(프론트만)과 관계없음 · SSE 담당자에게 따로 전달
   - 참고: `xlsx` 패키지는 이제 `src`에서 쓰지 않음 (package.json에서 뺄지는 팀 확인 후)
