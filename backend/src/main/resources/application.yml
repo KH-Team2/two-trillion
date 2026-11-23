@@ -80,11 +80,12 @@ calc:
 prediction:
   save-enabled: ${SAVE_ENABLED:false}
 
-# Python AI 챗봇 서버 연결 설정
-# Gemma3 + RAG 기반 AI 답변 생성에 사용
-# TODO: 챗봇 서버 구현 후 실제 API 주소 및 인증 방식 확정
-chatbot:
+# Python FAQ 챗봇 서버 연결 설정
+# FastAPI FAQ 조회 및 Gemma 3 기반 FAQ ID 분류에 사용
+# X-Chatbot-Token 내부 인증을 사용하며, CHATBOT_API_TOKEN은 chatbot/.env와 같은 값으로 설정
+chatbot: 
   base-url: ${CHATBOT_BASE_URL:http://localhost:8001}
   api-token: ${CHATBOT_API_TOKEN:}
   connect-timeout: 3s
+  faq-read-timeout: 5s
   read-timeout: 60s
