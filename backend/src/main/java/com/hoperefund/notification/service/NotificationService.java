@@ -55,7 +55,7 @@ public class NotificationService {
     }
 
     // [추가 11/20 · 이우진 · TT-152] 접속 중인 모든 회원에게 보내요 (마감 안내용)
-    // 알림 DB가 아직 없어서, 지금 접속해 있지 않은 회원은 받지 못해요
+    // 알림을 DB(NOTIFICATION)에 저장하는 기능은 아직 없어서, 지금 접속해 있지 않은 회원은 받지 못해요
     public void sendToAll(String eventName, Object data) {
         emitters.forEach(
                 (memberId, set) -> {
