@@ -1,0 +1,164 @@
+import assert from 'node:assert/strict';
+import { build } from 'esbuild';
+import fs from 'node:fs';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+// 서버 알림(SSE) 연결 검사 (TT-151) · 서버 없이 가짜 fetch 로 확인
+const dir = fs.mkdtempSync(path.join(process.cwd(), 'tests/.notification-'));
+try {
+  await build({
+    entryPoints: ['src/api/notification-stream.js'],
+    outfile: `${dir}/notification.mjs`,
+    platform: 'node',
+    format: 'esm',
+    bundle: true,
+    logLevel: 'silent',
+  });
+  const {
+    parseSseBlock,
+    splitSseBuffer,
+    calculationMessage,
+    deadlineMessage,
+    openNotificationStream,
+    NOTIFICATION_STREAM_PATH,
+  } = await import(pathToFileURL(`${dir}/notification.mjs`));
+
+  // 1. 덩어리 읽기
+  assert.deepEqual(parseSseBlock('event:connected\ndata:ok'), { event: 'connected', data: 'ok' });
+  assert.deepEqual(parseSseBlock('data:hi'), { event: 'message', data: 'hi' });
+  assert.equal(parseSseBlock('event:ping'), null);
+
+  // 2. 빈 줄 기준 자르기 · 덜 온 조각은 다음으로
+  assert.deepEqual(splitSseBuffer('event:a\ndata:1\n\nevent:b\nda'), {
+    blocks: ['event:a\ndata:1'],
+    rest: 'event:b\nda',
+  });
+  assert.deepEqual(splitSseBuffer('event:a\r\ndata:1\r\n\r\n').blocks, ['event:a\r\ndata:1']);
+
+  // 3. 토스트 문구 · 금액은 넣지 않음 (금융 정보 X)
+  assert.equal(
+    calculationMessage('{"taxYear":2026,"predictionId":75,"expectedRefund":446240}'),
+    '2026년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.',
+  );
+  assert.ok(!calculationMessage('{"taxYear":2026,"expectedRefund":-12000}').includes('12,000'));
+  assert.equal(calculationMessage('not json'), null);
+  assert.equal(calculationMessage('{"expectedRefund":1000}'), null);
+
+  // 3-1. 마감 안내 문구 · 빈 글이면 null
+  assert.equal(deadlineMessage(' 마감 7일 전이에요. '), '마감 7일 전이에요.');
+  assert.equal(deadlineMessage(''), null);
+
+  // 가짜 저장소 · 가짜 fetch
+  const store = new Map();
+  globalThis.localStorage = {
+    getItem: (k) => store.get(k) ?? null,
+    setItem: (k, v) => store.set(k, v),
+    removeItem: (k) => store.delete(k),
+  };
+  const encoder = new TextEncoder();
+  const streamOf = (chunks) =>
+    new ReadableStream({
+      start(c) {
+        for (const ch of chunks) c.enqueue(encoder.encode(ch));
+        c.close();
+      },
+    });
+
+  // 4. 토큰이 없으면 연결하지 않음
+  let calls = 0;
+  const close0 = openNotificationStream({ fetchImpl: async () => (calls++, new Response('')) });
+  await new Promise((r) => setTimeout(r, 10));
+  assert.equal(calls, 0);
+  close0();
+
+  // 5. 토큰이 있으면 Bearer 헤더로 연결 · 쪼개져 온 이벤트도 순서대로
+  store.set('hope-refund.accessToken', 'header.payload.sig');
+  const seen = [];
+  let req;
+  const close1 = openNotificationStream({
+    retryMs: 100000,
+    fetchImpl: async (url, init) => {
+      req = { url, init };
+      return new Response(
+        streamOf(['event:connected\ndata:ok\n\nevent:calcul', 'ation\ndata:{"taxYear":2026}\n\n']),
+        { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
+      );
+    },
+    onEvent: (event, data) => seen.push([event, data]),
+  });
+  await new Promise((r) => setTimeout(r, 30));
+  close1();
+  assert.equal(req.url, NOTIFICATION_STREAM_PATH);
+  assert.equal(req.init.headers.Authorization, 'Bearer header.payload.sig');
+  assert.deepEqual(seen, [
+    ['connected', 'ok'],
+    ['calculation', '{"taxYear":2026}'],
+  ]);
+
+  // 6. 401 → 로그인 정보를 지우고 다시 연결하지 않음
+  calls = 0;
+  const close2 = openNotificationStream({
+    retryMs: 5,
+    fetchImpl: async () => (calls++, new Response('', { status: 401 })),
+  });
+  await new Promise((r) => setTimeout(r, 40));
+  close2();
+  assert.equal(calls, 1);
+  assert.equal(store.has('hope-refund.accessToken'), false);
+
+  // 7. 연결이 끊기면 다시 연결 · 끊은(close) 뒤에는 멈춤
+  store.set('hope-refund.accessToken', 'header.payload.sig');
+  calls = 0;
+  const close3 = openNotificationStream({
+    retryMs: 5,
+    fetchImpl: async () => (calls++, new Response(streamOf(['event:connected\ndata:ok\n\n']))),
+  });
+  await new Promise((r) => setTimeout(r, 40));
+  close3();
+  const after = calls;
+  assert.ok(after >= 2, `다시 연결해야 함 (${after}번)`);
+  await new Promise((r) => setTimeout(r, 30));
+  assert.equal(calls, after);
+
+  // 8. 하트비트(": ping")는 이벤트로 넘기지 않고, 연결은 살아 있는 걸로 봄
+  const seen8 = [];
+  calls = 0;
+  const close4 = openNotificationStream({
+    retryMs: 100000,
+    idleMs: 1000,
+    fetchImpl: async () => (
+      calls++,
+      new Response(streamOf([': ping\n\n', 'event:connected\ndata:ok\n\n']))
+    ),
+    onEvent: (event, data) => seen8.push([event, data]),
+  });
+  await new Promise((r) => setTimeout(r, 30));
+  close4();
+  assert.deepEqual(seen8, [['connected', 'ok']]);
+
+  // 9. 열린 채로 아무것도 안 오면(서버가 죽었는데 프록시가 안 닫아 줌) idleMs 뒤 끊고 다시 연결
+  calls = 0;
+  const close5 = openNotificationStream({
+    retryMs: 5,
+    idleMs: 20,
+    fetchImpl: async (url, init) => {
+      calls++;
+      return new Response(
+        new ReadableStream({
+          start(c) {
+            c.enqueue(encoder.encode('event:connected\ndata:ok\n\n'));
+            init.signal.addEventListener('abort', () => c.error(new Error('aborted')));
+          },
+        }),
+      );
+    },
+  });
+  await new Promise((r) => setTimeout(r, 120));
+  close5();
+  assert.ok(calls >= 2, `조용하면 다시 연결해야 함 (${calls}번)`);
+
+  console.log('notification-stream: 9개 검사 통과');
+} finally {
+  fs.rmSync(dir, { recursive: true, force: true });
+}

@@ -12,8 +12,16 @@ export default function Topbar({
   setMobile,
   notification,
   setNotification,
+  alerts = [],
+  onReadAlerts,
   go,
 }) {
+  // [수정 11/20 · 이우진 · TT-151] 고정 안내 문구 → 서버 실시간 알림(SSE) 목록 · 안 읽은 알림이 있을 때만 점 표시
+  const unread = alerts.filter((a) => !a.read).length;
+  const toggle = () => {
+    if (!notification) onReadAlerts?.(); // 열면 읽음 처리
+    setNotification(!notification);
+  };
   return (
     <header className="topbar">
       <div>
@@ -29,9 +37,13 @@ export default function Topbar({
       </div>
       <div>
         <span className="year">{taxYear ?? getTaxYear(data)}년 귀속</span>
-        <button className="bell" aria-label="알림" onClick={() => setNotification(!notification)}>
+        <button
+          className={unread > 0 ? 'bell has-unread' : 'bell'}
+          aria-label={unread ? `알림 (안 읽은 알림 ${unread}개)` : '알림'}
+          onClick={toggle}
+        >
           <Bell size={19} />
-          <i />
+          {unread > 0 && <i aria-hidden="true">{unread > 9 ? '9+' : unread}</i>}
         </button>
         <button className="top-profile" onClick={() => go('profile')}>
           <span className="avatar">희</span>
@@ -41,16 +53,28 @@ export default function Topbar({
       </div>
       {notification && (
         <div className="notification card">
-          <b>새로운 소식</b>
-          <p>예상 환급액을 확인할 준비가 되었어요.</p>
-          <button
-            onClick={() => {
-              setNotification(false);
-              go('benefits');
-            }}
-          >
-            청년 감면 자격 확인하기 →
-          </button>
+          <b>알림</b>
+          {alerts.length === 0 ? (
+            <p>새 알림이 없어요. 계산이 끝나면 여기에 알려 드려요.</p>
+          ) : (
+            <ul className="notification-list">
+              {alerts.map((a) => (
+                <li key={a.id}>
+                  <button
+                    onClick={() => {
+                      setNotification(false);
+                      go('dashboard');
+                    }}
+                  >
+                    <span>{a.message}</span>
+                    <small>
+                      {a.at.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })}
+                    </small>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       )}
     </header>

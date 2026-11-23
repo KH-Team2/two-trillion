@@ -44,7 +44,7 @@ class PredictionControllerTest {
 
     /** 정해 둔 결과(또는 오류)를 돌려주는 가짜 계산 서비스 */
     private CalculationService calculationService(Supplier<CalculationResponseDTO> answer) {
-        return new CalculationService(null, null, null, null, false, "mock") {
+        return new CalculationService(null, null, null, null, null, false, "mock") {
             @Override
             public CalculationResponseDTO calculate(long memberId, int taxYear) {
                 receivedMemberId = memberId;
