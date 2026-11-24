@@ -70,7 +70,8 @@
 | 400 | `CALC_REJECTED` | 계산 서버가 입력을 거부 |
 | 401 | `UNAUTHORIZED` | 로그인 안 함 (토큰 없음 · 위조 · 만료 · 로그아웃됨) |
 | 401 | `LOGIN_FAILED` · `WITHDRAWN_MEMBER` · `LOGIN_LOCKED` | 로그인 실패 (`POST /api/auth/login`만 · 화면은 이 401에서 로그인 화면으로 보내지 않는다) |
-| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출) · ACCESS_LOG `DENIED` 기록은 아직 안 함 |
+| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출) · ACCESS_LOG `DENIED` 기록은 아직 안 함 (IP 차단 429만 `DENIED` 기록) |
+| 429 | `LOGIN_IP_BLOCKED` | 한 IP가 1분에 로그인 50번 이상 실패 → 12시간 로그인 막음 (`POST /api/auth/login`만 · D-16 · 따로 차단 목록 없이 ACCESS_LOG로 판단 · D-15 · 막힌 동안의 시도는 `DENIED`로 기록해 차단 시간이 늘지 않음) |
 | 404 | `NOT_FOUND` | 데이터 · 주소 없음 · **남의 데이터도 404** (없는 것과 같은 응답 · F-09-02) |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |

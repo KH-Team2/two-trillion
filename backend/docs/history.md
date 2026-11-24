@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-24] IP 기준 로그인 제한 (D-15 · D-16 · F-09-01)
+- **작업 내용**
+  - D-15: IP 차단 목록(관리자가 IP 차단) 기능은 만들지 않음 → `BLOCKED_IP` 테이블 추가 없음
+  - D-16: 한 IP가 1분에 50번 이상 로그인 실패 → 12시간 동안 그 IP 로그인 429 `LOGIN_IP_BLOCKED`
+  - `AccessLogMapper.countIpBlockTriggers`: ACCESS_LOG 실패 기록을 `COUNT(*) OVER (RANGE 1분)`으로 세서 최근 12시간 안에 50번이 된 적 있는지 확인 (인덱스 `IX_ACCESS_LOG_IP`)
+  - `LoginService`: 회원 조회 전에 IP 확인 · 막힌 동안의 시도는 `DENIED` 기록(FAIL로 남기면 다시 세어져 차단이 늘어나서 · 회원 잠금처럼 처음 막힌 때부터 정확히 12시간) · IP 없음 · 확인 중 DB 오류면 막지 않음
+  - 테스트: `LoginServiceTest` 3건 추가
+- **변경 사유**: 기능명세서 결정 필요 항목 D-15(IP 차단 기능 없음) · D-16(1분 50번 → 12시간) 확정
+- **검증 결과**: 미검증 (Oracle에서 `countIpBlockTriggers` 실행 · `mvnw verify` 필요)
+
 ### [2026-11-23] 관리자 접근 기록 조회 리뷰 반영 · 화면 연결 (F-21 · F-08-02 ③ · TT-156 · TT-157)
 - **작업 내용**
   - `GET /api/admin/access-logs`: 날짜를 `LocalDate`로 받기(형식 틀리면 400) · page 1부터(`@Min(1)`) · size `@Min(1) @Max(100)` · 응답 `ApiResponse.ok(목록, PageMeta)`
