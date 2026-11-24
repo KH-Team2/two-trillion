@@ -2,6 +2,18 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-23] 관리자 회원 관리 · 권한 부여/해제 (F-20 · F-01-06 · F-08-02 ① · TT-156 · TT-157)
+- **작업 내용** (`feature/admin-2`의 홍은님 코드를 바탕으로 고침)
+  - `GET /api/admin/members`: 이메일 일부를 가린 목록 + 계정 상태 · 권한 · 가입일 · 검색(이메일 일부 · 권한 · 상태) · page 1부터 · size 1~100 · 응답 `ApiResponse.ok(목록, PageMeta)` · 조회한 것도 `ACCESS_LOG`에 기록
+  - `PUT /api/admin/members/{id}/role` 본문 `{"role":"ADMIN"|"USER"}`: 관리자 번호를 `@AuthenticationPrincipal`(토큰)에서 · 성공하면 `ACCESS_LOG`에 `/api/admin/members/{id}/role` 기록
+  - 거절(409): 자기 자신 해제 `SELF_DEMOTE`(D-06) · 성별 없는 관리자 → 일반 회원 `GENDER_REQUIRED`(10/28) · 이미 그 권한 `SAME_ROLE` · 탈퇴 회원 `WITHDRAWN_MEMBER` · 없는 회원 404 · role 값이 틀리면 400
+  - 이름(NAME) 마스킹 · 검색 삭제 (v3.5부터 이름 안 받음) · 이메일 마스킹은 @ 앞이 2글자 이하여도 가려지게
+  - 화면: `admin-member-service.js` 신규 · `AdminTools.jsx`에 서버 연결 `MemberManagement` 추가 · `AdminPage.jsx`가 그쪽을 쓰도록 (`AccountForms.jsx`의 체험용은 그대로 둠)
+  - 테스트: `AdminMemberServiceTest` 9건 · `tests/admin-member-service.mjs`
+- **변경 사유**: 원래 코드는 `@RequestAttribute("currentAdminId")`를 넣어 주는 곳이 없어 권한 변경이 항상 400 · 실패 응답이 팀 공통 모양이 아님 · 명세의 「계정 상태 · 권한 표시」 「변경 작업 기록」이 빠져 있었음
+- **리뷰에서 정할 것**: 탈퇴 회원 권한 변경 막기(명세에 없음) · 같은 권한 요청을 409로 할지 · 목록에 아이디(LOGIN_ID)를 보일지
+- **검증 결과**: `mvnw verify` 222건 통과 · `npm test` · Prettier 통과 · Talend로 목록 200 · 이메일 마스킹 · role/size 값 오류 400 · 일반 회원 403 · 권한 부여 200 · 같은 권한 409(SAME_ROLE) · 자기 자신 해제 409(SELF_DEMOTE) · 없는 회원 404 · ACCESS_LOG 조회/변경 기록 확인 · 화면 검색 · 권한 부여/해제 · 쪽 이동 확인 · 탈퇴 회원 버튼은 탈퇴 기능 병합 후 확인 예정
+
 ### [2026-11-23] 관리자 접근 기록 조회 리뷰 반영 · 화면 연결 (F-21 · F-08-02 ③ · TT-156 · TT-157)
 - **작업 내용**
   - `GET /api/admin/access-logs`: 날짜를 `LocalDate`로 받기(형식 틀리면 400) · page 1부터(`@Min(1)`) · size `@Min(1) @Max(100)` · 응답 `ApiResponse.ok(목록, PageMeta)`
@@ -11,18 +23,6 @@
   - 테스트: `AdminAccessLogServiceTest` 6건 · `tests/access-log-service.mjs`
 - **변경 사유**: PR #45 리뷰 4개(size 최대값 · 날짜 형식 · 전체 개수 · 회원 없는 기록) · 명세 F-08-02 비고 「관리자가 목록을 조회한 것도 ACCESS_LOG에 기록」
 - **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인
-### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
-- **작업 내용**:
-  - `backend/README.md`: `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`을 4.2 추가 환경변수 → 4.1 필수 환경변수로 이동 · 4.3 STS 등록 목록과 5.2 CMD 실행 안내를 필수 6개 기준으로 수정
-  - `backend/README.md`: 4.2 추가 환경변수 표에 `EMAIL_DEV_CODE_ENABLED` · `EMAIL_VERIFICATION_REQUIRED` 추가 (둘 다 기본 `false`)
-  - `backend/.env.example`: 「필수」 · 「기본값 있음(바꿀 때만)」 두 묶음으로 정리 · `CALC_API_TOKEN=` · `CHATBOT_API_TOKEN=`을 주석 없이 필수 묶음으로 이동 (예전에는 「기본값이 있어서 바꿀 때만」 아래에 주석으로 있었음) · 선택 묶음에 이메일 인증 설정 2개 추가
-- **변경 사유**:
-  - `FaqClient`(챗봇)는 항상 만들어지고 `CHATBOT_API_TOKEN`이 비면 서버 시작 때 예외 → 기본값이 없는 필수 값인데 「추가 · 기본값 있음」으로 안내돼 있었음
-  - `CardParseClient`(카드 업로드)는 `CALC_MODE`와 관계없이 항상 `X-Calc-Token`으로 계산 서버를 호출 → 비어 있으면 업로드가 실패 · `CALC_MODE=http`면 `HttpCalcClient`가 서버 시작을 막음
-  - `application.yml`에는 이메일 인증 설정 2개(`member.email-verification.dev-code-enabled` · `required`)가 있는데 README 4.2 · `.env.example`에 빠져 있었음 (리뷰 의견 반영)
-- **검증 결과**:
-  - 문서 수정만 (코드 변경 없음) · `application.yml` · `FaqClient` · `HttpCalcClient` · `CardParseClient`의 토큰 처리와 문구가 맞는지 대조
-  - 이메일 인증 설정 이름 · 기본값이 `application.yml`(`EMAIL_DEV_CODE_ENABLED:false` · `EMAIL_VERIFICATION_REQUIRED:false`)과 같은지 대조
 
 ### [2026-11-23] 업로드 삭제 성공 응답 204 → 200 (팀 API 규칙)
 - **작업 내용**

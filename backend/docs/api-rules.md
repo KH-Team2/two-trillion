@@ -107,6 +107,8 @@
 | GET | `/api/predictions?year={taxYear}` | 결과 이력 목록 · 현재와 시나리오 함께 · 최신순 · 없으면 빈 목록 (F-04-02) |
 | GET | `/api/predictions/{predictionId}` | 결과 하나 다시 열기 · 항목별 내역 포함 · 없거나 남의 것이면 404 (F-04-02) |
 | GET | `/api/group-stats/{taxYear}` | 내 성별·연령대 그룹과 총급여 구간 그룹의 통계 평균 · 못 찾은 그룹은 null (F-06-02) |
+| GET | `/api/admin/members?keyword=&role=&status=&page=&size=` | 관리자 전용 회원 목록 · 이메일 일부 가림 · 계정 상태 · 권한 · 가입일 · `meta`에 쪽 정보 · 조회한 것도 기록 (F-08-02 ①) |
+| PUT | `/api/admin/members/{memberId}/role` | 관리자 권한 부여 · 해제 · 본문 `{"role":"ADMIN"\|"USER"}` · 200 `data: null` · 자기 자신 해제 · 성별 없는 관리자 해제 · 같은 권한 · 탈퇴 회원이면 409 · 없으면 404 · 기록 남김 (F-01-06) |
 | GET | `/api/admin/access-logs?startDate=&endDate=&ipAddress=&page=&size=` | 관리자 전용 접근 기록 목록 · 최신순 · `meta`에 쪽 정보 · 같은 IP 실패 수 포함 · 날짜 형식 · page(1~) · size(1~100) 틀리면 400 · 조회한 것도 기록 (F-08-02 ③) |
 | GET | `/api/faqs` | FAQ 목록 조회 |
 | GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
