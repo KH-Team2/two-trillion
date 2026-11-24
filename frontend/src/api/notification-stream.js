@@ -4,6 +4,7 @@
 // 브라우저 기본 EventSource 는 Authorization 헤더를 못 붙여요.
 // 주소에 토큰을 붙이면(?token=) 서버 로그 · 방문 기록에 남으니, fetch 로 직접 읽어서 다른 API 와 같은 Bearer 헤더를 써요.
 import { bearerHeader, expireLogin, readAccessToken } from './api-client.js';
+import { toAlert } from './notification-service.js';
 
 export const NOTIFICATION_STREAM_PATH = '/api/notifications/stream';
 const RETRY_MS = 5000; // 연결이 끊기면 5초 뒤 다시 연결 (서버 재시작 · 30분 시간 초과)
@@ -11,15 +12,18 @@ const RETRY_MS = 5000; // 연결이 끊기면 5초 뒤 다시 연결 (서버 재
 // (서버가 꺼져도 중간 프록시가 연결을 안 닫아 주면 브라우저는 끊긴 걸 모르기 때문)
 const IDLE_MS = 60000;
 
-/** SSE 덩어리 하나("event:이름\ndata:내용") → { event, data } · data 가 없으면 null */
+/** SSE 덩어리 하나("id:번호\nevent:이름\ndata:내용") → { event, data, id? } · data 가 없으면 null */
 export function parseSseBlock(block) {
   let event = 'message';
+  let id;
   const data = [];
   for (const line of block.split(/\r?\n/)) {
     if (line.startsWith('event:')) event = line.slice(6).trim();
     else if (line.startsWith('data:')) data.push(line.slice(5).replace(/^ /, ''));
+    else if (line.startsWith('id:')) id = line.slice(3).trim(); // [추가 11/23 · TT-159] 알림 번호
   }
-  return data.length ? { event, data: data.join('\n') } : null;
+  if (!data.length) return null;
+  return id ? { event, data: data.join('\n'), id } : { event, data: data.join('\n') };
 }
 
 /** 받은 글을 빈 줄 기준으로 잘라서, 완성된 덩어리(blocks)와 아직 덜 온 조각(rest)으로 나눠요 */
@@ -30,23 +34,17 @@ export function splitSseBuffer(buffer) {
 }
 
 /**
- * 계산 완료 알림(data JSON) → 토스트 문구 · 모양이 다르면 null
- * [수정 11/20 · 이우진 · TT-151] 금액은 문구에 넣지 않음 (강사님 SSE 자료: 알림 문구에 금융 정보 X)
- * → 알림 목록 · 로그에 금액이 남지 않게 하고, 금액은 눌러서 이동한 대시보드에서 봄
+ * [수정 11/23 · 이우진 · TT-159] 서버 알림(notification 이벤트 · data = 저장된 알림 JSON) → 종 아이콘 목록 한 줄 · 모양이 다르면 null
+ * 문구는 서버가 만든 그대로 씀 (서버에서 금액 등 금융 정보를 넣지 않음 · 11/20 계산 완료 · 마감 안내 따로 만들던 문구를 서버로 옮김)
  */
-export function calculationMessage(data) {
+export function notificationFromEvent(data) {
   try {
-    const { taxYear } = JSON.parse(data);
-    if (!Number.isInteger(taxYear)) return null;
-    return `${taxYear}년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.`;
+    const n = JSON.parse(data);
+    if (typeof n?.content !== 'string' || !n.content.trim()) return null;
+    return toAlert(n);
   } catch {
     return null;
   }
-}
-
-/** 마감 안내 알림(TT-152) → 서버가 보낸 글을 그대로 씀 · 비어 있으면 null */
-export function deadlineMessage(data) {
-  return typeof data === 'string' && data.trim() ? data.trim() : null;
 }
 
 /**
@@ -58,13 +56,18 @@ export function deadlineMessage(data) {
  * - 그 밖의 4xx: 서버에 알림 기능이 없음 등 → 다시 시도하지 않아요.
  * - 연결 끊김 · 5xx · 네트워크 오류: retryMs 뒤 다시 연결해요.
  * - idleMs 동안 아무것도 안 오면(하트비트도 없음) 연결이 죽은 걸로 보고 끊은 뒤 다시 연결해요.
+ * - [추가 11/23 · TT-159] 마지막으로 받은 알림 번호를 기억했다가, 다시 연결할 때 Last-Event-ID 헤더로 보내요
+ *   → 끊겨 있던 동안 생긴 알림을 서버가 다시 보내 줘요. lastEventId 로 처음 값을 줄 수 있어요(목록을 먼저 불러온 경우).
  */
 export function openNotificationStream({
   onEvent,
   fetchImpl = globalThis.fetch,
   retryMs = RETRY_MS,
   idleMs = IDLE_MS,
+  lastEventId,
 } = {}) {
+  let lastId =
+    lastEventId != null && /^\d+$/.test(String(lastEventId)) ? String(lastEventId) : null;
   let closed = false;
   let controller = null;
   let timer = null;
@@ -77,6 +80,7 @@ export function openNotificationStream({
   async function connect() {
     const headers = { Accept: 'text/event-stream', ...bearerHeader(readAccessToken()) };
     if (!headers.Authorization) return;
+    if (lastId) headers['Last-Event-ID'] = lastId;
     controller = new AbortController();
     const current = controller;
     // 받은 게 있을 때마다 다시 잼 · idleMs 넘게 조용하면 이 연결을 끊음 → 아래 catch → 다시 연결
@@ -111,7 +115,9 @@ export function openNotificationStream({
         buffer = rest;
         for (const block of blocks) {
           const message = parseSseBlock(block);
-          if (message) onEvent?.(message.event, message.data);
+          if (!message) continue;
+          if (message.id && /^\d+$/.test(message.id)) lastId = message.id;
+          onEvent?.(message.event, message.data);
         }
       }
     } catch {

@@ -1,12 +1,13 @@
-# DB 작업 파일 — Oracle 적재용 (ERD v4.2)
+# DB 작업 파일 — Oracle 적재용 (ERD v4.3)
 
-희망환급 DB(ERD v4.2 · ERDCloud 기준)를 새 Oracle 계정에 만들고 기준값을 넣는 SQL이에요.
-팀 노션 「DB 작업 파일 — Oracle 적재용 (v4.1)」의 `DB_v4.2.zip`에서 스키마 · 기준데이터만 저장소에 둬요.
+희망환급 DB(ERD v4.3 · ERDCloud 기준)를 새 Oracle 계정에 만들고 기준값을 넣는 SQL이에요.
+팀 노션 「DB 작업 파일 — Oracle 적재용 (v4.1)」의 `DB_v4.3.zip`에서 스키마 · 기준데이터만 저장소에 둬요.
 
 - 공용 DB에는 03(데이터 적재)까지 이미 적재되어 있어요. 팀원은 따로 실행하지 않아도 돼요.
 - v4.2(11/20): 알림 테이블 `NOTIFICATION` 추가 (계산 완료 · 마감 안내 · 채팅 알림 · 읽음 여부 `READ_YN` Y/N + 읽은 시각 `READ_AT` · 문구에 금융 정보 X). 이미 만든 계정은 DB 담당이 `78_v4.1에서_v4.2로.sql`로 올려요 (교육원 공용 DB는 11/20 적용 완료).
+- v4.3(11/24): 관리자 상담 채팅 테이블 `CONSULT_ROOM`(회원당 방 1개) · `CONSULT_MESSAGE`(보낸 사람 `SENDER_ID` · 내용 1000자) 추가 (관리자 여러 명이 답함 · 참여자 테이블 없음 · AI 챗봇 `CHAT_SESSION` · `CHAT_MESSAGE`와 따로). 이미 만든 계정은 DB 담당이 `77_v4.2에서_v4.3로.sql`로 올려요.
 - `03_데이터적재.sql`(가맹점 공공 데이터 · 가상 회원 · 소득 · 카드 내역 · 약 9만 줄)과 `cp949/` 복사본은 크기 때문에 저장소에 올리지 않고 팀 노션 zip으로만 공유해요.
-- 다운로드: 팀 노션 [🗄️ DB 작업 파일 — Oracle 적재용 (v4.1)](https://app.notion.com/p/3f899fb7397c80e3b37ef5308d3489a5)의 `DB_v4.2.zip`
+- 다운로드: 팀 노션 [🗄️ DB 작업 파일 — Oracle 적재용 (v4.1)](https://app.notion.com/p/3f899fb7397c80e3b37ef5308d3489a5)의 `DB_v4.3.zip`
 
 ## 파일
 
@@ -14,7 +15,7 @@
 |---|---|---|---|
 | 계정 1 | `계정_1_생성.sql` | DB 관리자 | 주인 계정 · 계산 서버 계정 만들기 + 최소 권한 (이름 · 비밀번호는 실행할 때 입력) |
 | 0 | `00_초기화.sql` | 주인 | 기존 테이블·시퀀스 전부 삭제 (처음 만들 때는 건너뛰어도 됨) |
-| 1 | `01_schema.sql` | 주인 | 테이블 21개 · 제약조건 · 시퀀스 · 인덱스 (v4.2: 알림 `NOTIFICATION` 추가) |
+| 1 | `01_schema.sql` | 주인 | 테이블 23개 · 제약조건 · 시퀀스 · 인덱스 (v4.2: 알림 `NOTIFICATION` · v4.3: 상담 `CONSULT_ROOM` · `CONSULT_MESSAGE` 추가) |
 | 2 | `02_기준데이터.sql` | 주인 | 기준값 (`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION` · `SPEND_CATEGORY` · `GROUP_STAT` 등) |
 | 3 | `03_데이터적재.sql` | 주인 | **팀 노션 zip에만 있음** · 가맹점 목록(`MERCHANT_LIST` · 공공 데이터) · 가상 회원 · 소득 · 카드 내역 |
 | 4 | `04_분류함수.sql` | 주인 | 가맹점명 정제 함수 `FN_NORMALIZE_NAME` (카드 내역 자동 분류용) |
@@ -38,7 +39,7 @@
 
 | 계정 | 용도 | 쓰는 곳 | 할 수 있는 것 |
 |---|---|---|---|
-| 주인 계정 | 테이블 소유 · 백엔드 접속 | Spring(`backend/.env`) · DB 담당의 스키마 작업 | 자기 테이블 21개 조회 · 저장 · 수정 + 테이블 · 시퀀스 · 함수 만들기 |
+| 주인 계정 | 테이블 소유 · 백엔드 접속 | Spring(`backend/.env`) · DB 담당의 스키마 작업 | 자기 테이블 23개 조회 · 저장 · 수정 + 테이블 · 시퀀스 · 함수 만들기 |
 | 계산 서버 계정 | 읽기 전용 | 계산 서버(`calc/.env`) | 기준값 테이블 3개(`DEDUCTION_TYPE` · `TAX_BRACKET` · `BENEFIT_CONDITION`) + 카드 분류 목록 2개(`MERCHANT_LIST` · `SPEND_CATEGORY`) **읽기만** |
 
 - 관리자는 DB 계정이 아니에요. 서비스 회원(`MEMBER`) 중 관리자 권한으로 올린 계정이에요 (화면 · Spring에서 구분)
@@ -55,7 +56,7 @@
 | 권한 | 쓰는 곳 |
 |---|---|
 | `CREATE SESSION` | 접속 |
-| `CREATE TABLE` | 테이블 21개 (인덱스 · LOB은 자기 테이블에 딸린 것이라 따로 권한 필요 없음) |
+| `CREATE TABLE` | 테이블 23개 (인덱스 · LOB은 자기 테이블에 딸린 것이라 따로 권한 필요 없음) |
 | `CREATE SEQUENCE` | 시퀀스 |
 | `CREATE PROCEDURE` | 분류 함수 `FN_NORMALIZE_NAME` (`04_분류함수.sql`) |
 
@@ -130,5 +131,5 @@ CREATE SYNONYM <계산서버계정>.SPEND_CATEGORY    FOR <주인계정>.SPEND_C
 
 ## 규칙
 
-- 테이블·칸 이름은 ERD v4.2가 기준이에요. 구조를 바꿀 때는 ERD를 먼저 고치고 DB 담당(이우진)에게 알려 주세요.
+- 테이블·칸 이름은 ERD v4.3이 기준이에요. 구조를 바꿀 때는 ERD를 먼저 고치고 DB 담당(이우진)에게 알려 주세요.
 - 기준값(`DEDUCTION_TYPE`)은 번호(`TYPE_ID`)가 아니라 `TAX_YEAR` + `TYPE_CODE`로 찾아요. 계정마다 번호가 달라요.
