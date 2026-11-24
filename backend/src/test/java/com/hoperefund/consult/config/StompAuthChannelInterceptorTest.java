@@ -144,11 +144,48 @@ class StompAuthChannelInterceptorTest {
     }
 
     @Test
+    @DisplayName("SEND: /pub/consult/{번호} 만 통과 · 브로커 주소(/sub · /user)로 직접 보내면 막는다")
+    void sendOnlyToApplicationDestination() {
+        interceptor.preSend(
+                frame(StompCommand.SEND, "/pub/consult/11", login(1003L, "USER")), null);
+
+        for (String destination :
+                List.of(
+                        "/sub/consult/11",
+                        "/user/1002/queue/errors",
+                        "/user/queue/errors",
+                        "/queue/errors",
+                        "/pub/other",
+                        "/pub/consult/abc",
+                        "/pub/consult/0")) {
+            assertThatThrownBy(
+                            () ->
+                                    interceptor.preSend(
+                                            frame(
+                                                    StompCommand.SEND,
+                                                    destination,
+                                                    login(1003L, "USER")),
+                                            null))
+                    .as(destination)
+                    .isInstanceOf(AccessDeniedException.class);
+        }
+        // 주소 없는 SEND 도 막음
+        assertThatThrownBy(
+                        () ->
+                                interceptor.preSend(
+                                        frame(StompCommand.SEND, null, login(1003L, "USER")), null))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
     @DisplayName("방 번호 꺼내기: /sub/consult/12 → 12 · 형식이 다르면 null")
     void roomIdOfParsesOnlyPositiveNumbers() {
         assertThat(StompAuthChannelInterceptor.roomIdOf("/sub/consult/12")).isEqualTo(12L);
         assertThat(StompAuthChannelInterceptor.roomIdOf("/sub/consult/-1")).isNull();
         assertThat(StompAuthChannelInterceptor.roomIdOf("/sub/consult/1/2")).isNull();
         assertThat(StompAuthChannelInterceptor.roomIdOf(null)).isNull();
+        assertThat(StompAuthChannelInterceptor.roomIdOf("/pub/consult/12")).isNull();
+        assertThat(StompAuthChannelInterceptor.numberAfter("/pub/consult/12", "/pub/consult/"))
+                .isEqualTo(12L);
     }
 }

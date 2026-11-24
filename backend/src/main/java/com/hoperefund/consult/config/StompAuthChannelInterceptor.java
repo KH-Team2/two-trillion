@@ -25,7 +25,9 @@ import org.springframework.stereotype.Component;
  *       없거나 틀리면 막음 (STOMP ERROR 후 연결 종료)
  *   <li>SUBSCRIBE: /sub/consult/{roomId} 는 방 주인 회원 또는 관리자만 · /user/queue/errors 는 누구나(로그인한 사람)
  *       · 그 밖의 주소는 막음 (방 번호만 바꿔 남의 대화를 엿보는 것 방지)
- *   <li>SEND: 로그인 정보가 없으면 막음 · 방 권한은 ConsultService.send 에서 다시 확인
+ *   <li>SEND: 로그인 정보가 없으면 막음 · 주소는 /pub/consult/{roomId} 만 (방 권한은 ConsultService.send 에서 다시 확인)
+ *       · [추가 11/24 · 코드 리뷰] /sub/... · /user/... 로 직접 SEND 하면 기본 브로커가 컨트롤러(저장 · 권한 · 글자 수 확인)를
+ *       거치지 않고 구독자에게 그대로 뿌림 → 남의 방에 상담사인 척 가짜 메시지 · 남의 오류 창에 가짜 문구를 보낼 수 있어서 막음
  * </ul>
  */
 @Component
@@ -33,6 +35,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
 
     static final String ROOM_TOPIC_PREFIX = "/sub/consult/";
     static final String ERROR_QUEUE = "/user/queue/errors";
+    static final String SEND_PREFIX = "/pub/consult/"; // [추가 11/24] 보내기는 이 주소만
 
     private static final String BEARER_PREFIX = TokenService.TOKEN_TYPE + " ";
 
@@ -59,6 +62,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
             checkSubscribe(loginUser(accessor.getUser()), accessor.getDestination());
         } else if (command == StompCommand.SEND) {
             loginUser(accessor.getUser());
+            checkSend(accessor.getDestination());
         }
         return message;
     }
@@ -96,12 +100,24 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
     }
 
+    // [추가 11/24 · 코드 리뷰] SEND 는 /pub/consult/{번호} 만 · 그 밖의 주소(/sub · /user 등)는 막음
+    private void checkSend(String destination) {
+        if (numberAfter(destination, SEND_PREFIX) == null) {
+            throw new AccessDeniedException("보낼 수 없는 주소예요");
+        }
+    }
+
     // /sub/consult/12 → 12 · 형식이 다르면 null
     static Long roomIdOf(String destination) {
-        if (destination == null || !destination.startsWith(ROOM_TOPIC_PREFIX)) {
+        return numberAfter(destination, ROOM_TOPIC_PREFIX);
+    }
+
+    // 주소가 prefix + 1 이상 숫자면 그 숫자 · 아니면 null (/pub/consult/12 · /sub/consult/12 공통)
+    static Long numberAfter(String destination, String prefix) {
+        if (destination == null || !destination.startsWith(prefix)) {
             return null;
         }
-        String value = destination.substring(ROOM_TOPIC_PREFIX.length());
+        String value = destination.substring(prefix.length());
         if (value.isEmpty()
                 || value.length() > 18
                 || !value.chars().allMatch(c -> c >= '0' && c <= '9')) {

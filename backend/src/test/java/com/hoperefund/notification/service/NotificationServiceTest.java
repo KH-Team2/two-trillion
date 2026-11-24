@@ -136,4 +136,16 @@ class NotificationServiceTest {
                 service.notifyMemberUnlessUnread(
                         81, NotificationService.TYPE_CHAT, "상담", "support"));
     }
+
+    @Test
+    @DisplayName("[코드 리뷰] 한 회원 연결은 최대 5개 · 넘으면 가장 오래된 연결을 닫는다")
+    void keepsAtMostFiveConnectionsPerMember() {
+        for (int i = 0; i < NotificationService.MAX_CONNECTIONS_PER_MEMBER + 3; i++) {
+            assertNotNull(service.subscribe(81, null));
+        }
+        service.subscribe(82, null);
+
+        assertEquals(NotificationService.MAX_CONNECTIONS_PER_MEMBER, service.connectionCount(81));
+        assertEquals(1, service.connectionCount(82)); // 다른 회원은 따로 셈
+    }
 }
