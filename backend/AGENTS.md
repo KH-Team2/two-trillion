@@ -38,7 +38,7 @@ src/main/java/com/hoperefund/
 ├── expense/      # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY (계산 서버가 정리·분류한 결과 저장)
 ├── prediction/   # PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL (계산 서버 호출 → 결과 · 입력값 · 항목별 내역을 한 트랜잭션으로 저장)
 ├── statistics/   # GROUP_STAT · STAT_FILE
-├── chat/         # CHAT_SESSION · CHAT_MESSAGE · RECOMMENDATION (대화 저장)
+├── chatbot/      # FAQ 목록·카테고리·상세·질문 분류 (Controller / Service / FaqClient; )
 ├── inquiry/      # INQUIRY
 ├── admin/        # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION 수정
 └── common/       # ACCESS_LOG · 보안 · 예외 처리
@@ -55,7 +55,7 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 - 관리자 API는 `ROLE = 'ADMIN'`을 확인한다. 회원정보 수정에서 `ROLE` · `STATUS`는 바꾸지 않는다.
 - 기준값(`DEDUCTION_TYPE`)은 번호(`TYPE_ID`)가 아니라 `TAX_YEAR` + `TYPE_CODE`(+ 총급여 구간)로 찾는다. 공용 DB와 새 계정의 번호가 다르다.
 - 기본값이 있는 칸은 INSERT에서 빼고 넣는다 (NULL을 넣으면 오류).
-- DB 이름 규칙: 테이블·칸은 대문자 SNAKE_CASE(예: `CARD_UPLOAD`, `MEMBER_ID`) · PK는 `테이블명_ID` 또는 `테이블명_NO` · Oracle 예약어 금지. 테이블·칸은 ERD v4.1(ERDCloud)이 기준이다: https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
+- DB 이름 규칙: 테이블·칸은 대문자 SNAKE_CASE(예: `CARD_UPLOAD`, `MEMBER_ID`) · PK는 `테이블명_ID` 또는 `테이블명_NO` · Oracle 예약어 금지. 테이블·칸은 ERD v4.2(ERDCloud)가 기준이다: https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 - 금액은 원 단위 정수(`long`)로 다룬다.
 - DTO 이름: 화면에서 받는 값은 `…RequestDTO`, 화면에 돌려주는 값은 `…ResponseDTO` (예: `IncomeRequestDTO` · `IncomeResponseDTO`). 받는 DTO에는 화면이 넣어야 하는 칸만 둔다 (번호·작성일 같은 칸을 요청으로 바꿀 수 없게).
 - 새 기능에는 `src/test/java`에 같은 패키지로 `*Test.java`를 함께 작성한다.
@@ -77,6 +77,10 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 - `prediction/`의 `CalcClient`가 계산 서버의 `POST /calculate` · `POST /benefit`을 부른다 (`X-Calc-Token` 헤더 · 연결 3초 · 응답 10초 제한).
 - 계산 서버 연결 불가 → 503 `CALC_UNAVAILABLE` · 입력 거부 → 400 `CALC_REJECTED` · 기준값 없는 연도 → 400 `NO_CRITERIA`
 - 계산 서버 호출은 트랜잭션 밖에서 하고, 저장(`PredictionSaveService`)만 트랜잭션으로 묶는다.
+
+## FAQ 챗봇 연동
+- `chatbot/controller/ChatbotController` → `ChatbotService` → `FaqClient` → Python FastAPI(`:8001`)로 연결한다. React에서 FastAPI를 직접 호출하지 않는다.
+- 외부 요청은 JWT로 인증한다. 내부 요청은 `X-Chatbot-Token` 헤더와 `CHATBOT_API_TOKEN`으로 검증한다. JWT와 내부 토큰은 서로 다른 값이다.
 
 ## 도메인 용어 사전
 
@@ -115,7 +119,7 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 
 ## 보안
 
-- DB 비밀번호 · 계산 서버 토큰(`CALC_API_TOKEN`) · JWT Secret · 이메일 인증 Secret은 코드에 쓰지 않는다. `.env`에만 쓰고 `.env.example`에는 이름만 적는다.
+- DB 비밀번호 · 계산 서버 토큰(`CALC_API_TOKEN`) · 챗봇 내부 토큰(`CHATBOT_API_TOKEN`) · JWT Secret · 이메일 인증 Secret은 코드에 쓰지 않는다. `.env`에만 쓰고 `.env.example`에는 이름만 적는다.
 - 오류 응답에 SQL · 스택 트레이스 · DB 주소를 넣지 않는다 (`application.yml`의 `include-stacktrace: never` 유지).
 
 ## 작업 방식

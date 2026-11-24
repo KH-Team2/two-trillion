@@ -5,8 +5,8 @@ import com.hoperefund.expense.dto.CardUploadResponseDTO;
 import com.hoperefund.expense.service.CardUploadService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestPart;
@@ -33,7 +33,10 @@ import org.springframework.web.multipart.MultipartFile;
  *   <li>400 PAY_METHOD_REQUIRED → 화면이 신용/체크 선택 창 → payMethod를 붙여 다시 보냄
  * </ul>
  *
- * <p>회원번호: 로그인 기능이 붙기 전까지는 개발용 헤더 X-Member-Id로 받는다 (소득 API와 같음)
+ * <p>회원번호: 로그인 토큰(JWT)에서 꺼낸다 (@AuthenticationPrincipal · 주소 · 헤더로 받지 않음)
+ *
+ * <p>[수정 11/19 고은] X-Member-Id 헤더 → 로그인 토큰 · 이유: 헤더 숫자만 바꾸면 남의 거래를 보고 지울 수 있었음 (회원
+ * 기능 F-01-02 · 소득 · 계산 API와 같은 방식)
  */
 @RestController
 @RequiredArgsConstructor
@@ -45,7 +48,8 @@ public class CardUploadController {
     /** 카드 내역 업로드 (consumes: multipart 요청만 받음) */
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<CardUploadResponseDTO> upload(
-            @RequestHeader("X-Member-Id") long memberId,
+            // [수정 11/19 고은] 로그인 토큰에서 꺼낸 회원번호 (SecurityConfig의 JWT 필터가 넣어 줌)
+            @AuthenticationPrincipal Long memberId,
             // @RequestPart: multipart 요청에서 "file"이라는 이름의 파일 조각을 꺼냄 · 없으면 400 (공통 처리기)
             @RequestPart("file") MultipartFile file,
             // @RequestParam(required = false): 없어도 되는 값 · 없으면 null

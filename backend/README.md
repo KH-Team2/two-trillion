@@ -4,7 +4,7 @@
 
 본 프로젝트는 **Spring Boot 기반 백엔드 API 서버**로, React 프론트엔드의 요청 처리, Oracle Database 조회·저장, Python 계산 서버 및 AI 챗봇 서버 연동을 담당합니다.
 
-> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중
+> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중 / 챗봇 용어 사전 완료 · LLM 절세 추천 개발 중
 
 ## 1. 개발 환경
 
@@ -68,6 +68,10 @@ backend/
     │   │   │   └── exception/
     │   │   │       ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
     │   │   │       └── *Exception.java           # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
+    │   │   ├── chatbot/                          # FAQ 외부 API · FastAPI 연동 (controller / service / client)
+    │   │   │   ├── controller/
+    │   │   │   ├── service/
+    │   │   │   └── client/
     │   │   ├── income/                           # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
     │   │   │   ├── controller/
     │   │   │   ├── service/
@@ -154,8 +158,10 @@ src/main/resources/application.yml
 | `DB_USERNAME` | Oracle DB 사용자 계정 |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `JWT_SECRET` | 로그인 토큰 서명 비밀키 (32바이트 이상 · 없으면 서버가 켜지지 않음 · `CALC_API_TOKEN`과 다른 값) |
+| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값 · `X-Calc-Token`) · 카드 업로드(`POST /card/parse`)는 `CALC_MODE`와 관계없이 항상 이 토큰으로 계산 서버를 호출 · `CALC_MODE=http`인데 비어 있으면 서버가 시작되지 않음 |
+| `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 (`chatbot/.env`와 같은 값 · `X-Chatbot-Token`) · 비어 있으면 서버가 시작되지 않음 |
 
-Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
+Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다. `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`은 각 서버(`calc/.env` · `chatbot/.env`)와 같은 값이어야 합니다.
 
 ### 4.2 추가 환경변수
 
@@ -164,25 +170,21 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
 | `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 (카드 업로드는 모드와 관계없이 항상 계산 서버 `POST /card/parse`를 호출) | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
-| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) · `CALC_MODE=http`면 필수 (비우면 서버가 시작되지 않음 · 계산 서버도 같은 규칙) | 없음 |
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
-| `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 | 없음 |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
+| `EMAIL_DEV_CODE_ENABLED` | 개발용: 이메일 인증번호를 발송 API 응답(`devCode`)에 담아 줌 (메일 발송 구현 전 테스트용 · 운영에서는 반드시 `false`) | `false` |
+| `EMAIL_VERIFICATION_REQUIRED` | 가입 때 이메일 인증을 꼭 마쳐야 하는지 (켤 때는 화면 `frontend/src/api/member-api.js`의 `EMAIL_VERIFICATION_REQUIRED`도 `true`로) | `false` |
 
 환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
-
-Python Chatbot 서버와의 실제 통신은 아직 구현되지 않았습니다.
-
-챗봇 서버의 내부 인증 세부 방식은 실제 연동 구현 시 확정합니다.
 
 ### 4.3 STS 환경변수 등록 방법
 
 1. `Run → Run Configurations...`를 선택합니다.
 2. `Spring Boot App`에서 Backend 프로젝트를 선택합니다.
 3. `Environment` 탭으로 이동합니다.
-4. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`를 추가합니다.
+4. 4.1 필수 환경변수(`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `CALC_API_TOKEN`, `CHATBOT_API_TOKEN`)를 추가합니다.
 5. `Apply → Run`을 선택합니다.
 
 > **주의:** DB 비밀번호, API 토큰 등 민감정보는 GitHub에 업로드하거나 화면 캡처에 노출하지 않습니다.
@@ -205,7 +207,7 @@ Run As → Spring Boot App
 mvnw spring-boot:run
 ```
 
-CMD에서도 DB 환경변수가 설정되어 있어야 합니다. STS에 등록한 실행 환경변수는 CMD에 자동으로 전달되지 않습니다.
+CMD에서도 4.1 필수 환경변수가 설정되어 있어야 합니다 (`backend/.env` 파일을 쓰면 CMD에서도 같이 읽힙니다). STS에 등록한 실행 환경변수는 CMD에 자동으로 전달되지 않습니다.
 
 ### 5.3 정상 실행 확인
 
@@ -284,13 +286,13 @@ mvnw -B verify
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
 - 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
+- 세금 용어 FAQ 챗봇 연동
 - JUnit 자동 테스트 및 코드 품질 검사 환경
 
 ### 추후 구현 예정
 
 - Spring Security 인증·권한 처리
 - 회원·관리자 API
-- Python AI 챗봇 서버 HTTP 통신
 - 공통 오류 처리 확장
 - API 및 DB 통합 테스트
 
@@ -305,9 +307,9 @@ mvnw -B verify
 | `docs/decisions/` | 주요 결정 사항 |
 | `docs/tasks.md` | 작업 현황 및 예정 작업 |
 
-기능 요구사항은 [희망환급 기능명세서 v1.13](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
+기능 요구사항은 [희망환급 기능명세서 v1.14](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
 
-ERD는 팀에서 공유한 v4.1을 기준으로 합니다.
+ERD는 팀에서 공유한 v4.2를 기준으로 합니다.
 https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
 일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.

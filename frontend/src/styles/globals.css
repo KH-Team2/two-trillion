@@ -949,6 +949,27 @@ footer > span:last-child {
   right: 5px;
   border: 1px solid white;
 }
+/* [수정 11/20 · TT-151] 안 읽은 알림: 종을 파랗게 + 개수 배지 (빨강은 「추가 납부」 색이라 쓰지 않음 · TT-126) */
+.bell.has-unread {
+  color: var(--blue);
+}
+.bell.has-unread i {
+  display: grid;
+  place-items: center;
+  width: auto;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  top: -2px;
+  right: -4px;
+  border: 2px solid white;
+  border-radius: 999px;
+  color: white;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 700;
+  line-height: 1;
+}
 .notification {
   position: absolute;
   right: 70px;
@@ -960,6 +981,38 @@ footer > span:last-child {
 }
 .notification button {
   color: var(--blue);
+  font-size: 12px;
+}
+/* [추가 11/20 · TT-151] 실시간 알림 목록 */
+.notification p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.notification-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.notification-list button {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 8px;
+  text-align: left;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.notification-list button:hover {
+  background: var(--bg);
+}
+.notification-list small {
+  color: var(--muted);
   font-size: 12px;
 }
 .content {

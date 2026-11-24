@@ -169,12 +169,13 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       {/* [수정 11/17 고은] 안내 문구를 서버 처리 기준으로 바꿈 · 이유: 이제 실제 목록으로 분류하고 DB에 저장함 */}
       <p>
         지원: CSV(UTF-8·한글 인코딩) · XLSX · 홈택스 현금영수증 XLS · 첫 행에 거래일자/승인일시,
-        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당 10,000건까지
-        올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
+        가맹점명, 이용금액 칸이 있어야 합니다. 사용구분(신용/체크) 칸은 없어도 됩니다. 파일당
+        10,000건까지 올릴 수 있고, 암호가 걸린 파일은 읽을 수 없습니다.
       </p>
       <p>
-        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역 저장 →
-        세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지 않습니다.
+        파일 업로드 → 서버에서 가맹점명을 공공데이터 목록(약 8만 곳)과 대조해 자동 분류 → 거래내역
+        저장 → 세액 계산에 반영. 원본 파일과 카드번호는 저장하지 않습니다. 머신러닝은 사용하지
+        않습니다.
       </p>
       <div className="form-grid">
         <label className="field">
@@ -217,7 +218,18 @@ export function ExpenseUpload({ rows, meta, onChange }) {
               let nextRows = [...rows],
                 nextFiles = [...files];
               const messages = [];
+              // [추가 11/19 고은] 지원하지 않는 형식 파일 이름을 모아 두는 곳
+              // 이유: 전에는 pdf 등도 파일 목록에 「처리 실패」로 올라가서 업로드된 것처럼 보였음
+              //   → 이제 목록에 넣지 않고, 다 끝난 뒤 alert 창으로 한 번만 알려 줌
+              const rejected = [];
               for (const file of selected) {
+                // [추가 11/19 고은] 확장자(파일 이름 끝 .csv 등) 검사 → 서버에 보내지 않고 건너뜀
+                // /\.(csv|xlsx|xls)$/i : 이름이 .csv · .xlsx · .xls로 끝나는지 (i = 대소문자 구분 안 함)
+                // continue : 이 파일은 여기서 끝내고 다음 파일로 넘어감
+                if (!/\.(csv|xlsx|xls)$/i.test(file.name)) {
+                  rejected.push(file.name);
+                  continue;
+                }
                 const id = Array.from(crypto.getRandomValues(new Uint8Array(16)))
                     .map((n) => n.toString(16).padStart(2, '0'))
                     .join(''),
@@ -260,6 +272,12 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     messages.push(`${file.name}: ${err.message}`);
                     continue;
                   }
+                  // [추가 11/19 고은] 확장자는 맞지만 서버가 읽을 수 없는 양식(UNSUPPORTED_FORMAT)도 목록에 넣지 않음
+                  // 예: 이름만 .csv로 바꾼 파일, 거래일자 · 가맹점명 · 금액 칸을 못 찾는 파일
+                  if (err.code === 'UNSUPPORTED_FORMAT') {
+                    rejected.push(file.name);
+                    continue;
+                  }
                   nextFiles.push({
                     id,
                     name: file.name,
@@ -287,6 +305,12 @@ export function ExpenseUpload({ rows, meta, onChange }) {
               setError(messages.join('\n'));
               input.value = '';
               setBusy(false);
+              // [추가 11/19 고은] 지원하지 않는 파일이 있었으면 알림 창 (여러 개면 이름을 줄바꿈으로 나열)
+              if (rejected.length) {
+                alert(
+                  `지원하지 않는 형식입니다.\nCSV · XLSX · XLS 파일만 올릴 수 있어요.\n\n${rejected.join('\n')}`,
+                );
+              }
             }}
           />
         </label>
@@ -296,8 +320,8 @@ export function ExpenseUpload({ rows, meta, onChange }) {
       {payAsk && (
         <div className="duplicate-note" role="dialog" aria-label="결제수단 선택">
           <p role="status">
-            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을
-            골라 주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
+            <b>{payAsk.fileName}</b>에는 신용/체크 구분 칸이 없어요. 이 파일의 결제수단을 골라
+            주세요. 파일 안의 모든 거래에 같은 결제수단이 적용돼요.
           </p>
           <div className="actions">
             <button type="button" className="btn" onClick={() => payAsk.answer('CREDIT')}>
@@ -416,7 +440,7 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                     return;
                   if (file.serverSaved) {
                     try {
-                      await deleteUpload(file.id); // 성공하면 204 → 다음 줄로
+                      await deleteUpload(file.id); // 성공하면 200 (data: null) → 다음 줄로 · [수정 11/23 고은] 204 → 200
                     } catch (err) {
                       // NOT_FOUND: 이미 서버에서 지워진 업로드 → 화면에서만 마저 지우면 됨
                       // 그 밖의 오류: 서버에 남아 있으므로 화면에서도 지우지 않고 안내
