@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 알림 저장 · 조회 (NOTIFICATION · ERD v4.2 · TT-158) · 조회 · 읽음 처리는 모두 본인 MEMBER_ID 조건 -->
+<mapper namespace="com.hoperefund.notification.mapper.NotificationMapper">
+
+    <select id="nextNotificationId" resultType="long">
+        SELECT SEQ_NOTIFICATION.NEXTVAL FROM DUAL
+    </select>
+
+    <!-- 기본값 있는 칸(READ_YN = 'N' · CREATED_AT = SYSDATE)은 INSERT 에서 빼요 · LINK_URL 은 null 일 수 있어 jdbcType 지정 -->
+    <insert id="insertNotification">
+        INSERT INTO NOTIFICATION (NOTIFICATION_ID, MEMBER_ID, NOTI_TYPE, CONTENT, LINK_URL)
+        VALUES (#{notificationId}, #{memberId}, #{notiType}, #{content}, #{linkUrl,jdbcType=VARCHAR})
+    </insert>
+
+    <!-- 마감 안내: 탈퇴(WITHDRAWN) 회원은 빼고 활동 중인 회원 모두에게 한 문장으로 저장 -->
+    <insert id="insertForActiveMembers">
+        INSERT INTO NOTIFICATION (NOTIFICATION_ID, MEMBER_ID, NOTI_TYPE, CONTENT, LINK_URL)
+        SELECT SEQ_NOTIFICATION.NEXTVAL, MEMBER_ID, #{notiType}, #{content}, #{linkUrl,jdbcType=VARCHAR}
+          FROM MEMBER
+         WHERE STATUS = 'ACTIVE'
+    </insert>
+
+    <select id="findLatest" resultType="com.hoperefund.notification.dto.NotificationDTO">
+        SELECT NOTIFICATION_ID, NOTI_TYPE, CONTENT, LINK_URL, READ_YN, CREATED_AT
+          FROM NOTIFICATION
+         WHERE MEMBER_ID = #{memberId}
+           AND NOTI_TYPE = #{notiType}
+         ORDER BY NOTIFICATION_ID DESC
+         FETCH FIRST 1 ROWS ONLY
+    </select>
+
+    <!-- 알림 번호는 시퀀스라 번호가 클수록 나중에 만든 알림 -->
+    <select id="findRecent" resultType="com.hoperefund.notification.dto.NotificationDTO">
+        SELECT NOTIFICATION_ID, NOTI_TYPE, CONTENT, LINK_URL, READ_YN, CREATED_AT
+          FROM NOTIFICATION
+         WHERE MEMBER_ID = #{memberId}
+         ORDER BY NOTIFICATION_ID DESC
+         FETCH FIRST #{limit} ROWS ONLY
+    </select>
+
+    <select id="countUnread" resultType="long">
+        SELECT COUNT(*)
+          FROM NOTIFICATION
+         WHERE MEMBER_ID = #{memberId}
+           AND READ_YN = 'N'
+    </select>
+
+    <select id="findAfter" resultType="com.hoperefund.notification.dto.NotificationDTO">
+        SELECT NOTIFICATION_ID, NOTI_TYPE, CONTENT, LINK_URL, READ_YN, CREATED_AT
+          FROM NOTIFICATION
+         WHERE MEMBER_ID = #{memberId}
+           AND NOTIFICATION_ID &gt; #{lastId}
+         ORDER BY NOTIFICATION_ID
+         FETCH FIRST 50 ROWS ONLY
+    </select>
+
+    <!-- 읽음이면 읽은 시각 필수 (CK_NOTIFICATION_READ_AT) → 두 칸을 같이 바꿔요 -->
+    <update id="markAllRead">
+        UPDATE NOTIFICATION
+           SET READ_YN = 'Y',
+               READ_AT = SYSDATE
+         WHERE MEMBER_ID = #{memberId}
+           AND READ_YN = 'N'
+    </update>
+</mapper>

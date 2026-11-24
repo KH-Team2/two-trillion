@@ -11,6 +11,7 @@ import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.mapper.IncomeMapper;
 import com.hoperefund.income.service.IncomeServiceImpl;
+import com.hoperefund.notification.service.FakeNotificationMapper;
 import com.hoperefund.notification.service.NotificationService;
 import com.hoperefund.prediction.client.CalcClient;
 import com.hoperefund.prediction.client.MockCalcClient;
@@ -191,7 +192,7 @@ class CalculationServiceTest {
                 calcClient,
                 new PredictionSaveService(predictionMapper),
                 predictionMapper,
-                new NotificationService(),
+                new NotificationService(new FakeNotificationMapper()),
                 saveEnabled,
                 calcMode);
     }
