@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- [추가 11/24 · 이우진 · TT-153] 상담 방 · 메시지 (CONSULT_ROOM · CONSULT_MESSAGE · ERD v4.3) -->
+<mapper namespace="com.hoperefund.consult.mapper.ConsultMapper">
+
+    <select id="findRoomIdByMember" resultType="java.lang.Long">
+        SELECT ROOM_ID
+          FROM CONSULT_ROOM
+         WHERE MEMBER_ID = #{memberId}
+    </select>
+
+    <select id="findRoomOwner" resultType="java.lang.Long">
+        SELECT MEMBER_ID
+          FROM CONSULT_ROOM
+         WHERE ROOM_ID = #{roomId}
+    </select>
+
+    <select id="nextRoomId" resultType="long">
+        SELECT SEQ_CONSULT_ROOM.NEXTVAL FROM DUAL
+    </select>
+
+    <!-- CREATED_AT 은 기본값 SYSDATE -->
+    <insert id="insertRoom">
+        INSERT INTO CONSULT_ROOM (ROOM_ID, MEMBER_ID)
+        VALUES (#{roomId}, #{memberId})
+    </insert>
+
+    <select id="nextMessageId" resultType="long">
+        SELECT SEQ_CONSULT_MESSAGE.NEXTVAL FROM DUAL
+    </select>
+
+    <insert id="insertMessage">
+        INSERT INTO CONSULT_MESSAGE (MESSAGE_ID, ROOM_ID, SENDER_ID, CONTENT)
+        VALUES (#{messageId}, #{roomId}, #{senderId}, #{content})
+    </insert>
+
+    <!-- 시각은 문자열로 (STOMP 로 보낼 때 날짜가 배열로 나가지 않게) · 보낸 사람 역할은 MEMBER.ROLE -->
+    <sql id="messageColumns">
+        c.MESSAGE_ID, c.ROOM_ID, c.SENDER_ID, m.ROLE AS SENDER_ROLE, c.CONTENT,
+        TO_CHAR(c.CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') AS CREATED_AT
+    </sql>
+
+    <select id="findMessage" resultType="com.hoperefund.consult.dto.ConsultMessageDTO">
+        SELECT <include refid="messageColumns"/>
+          FROM CONSULT_MESSAGE c
+          JOIN MEMBER m ON m.MEMBER_ID = c.SENDER_ID
+         WHERE c.MESSAGE_ID = #{messageId}
+    </select>
+
+    <!-- 새것부터 limit 개 (화면에는 Service 가 오래된 순으로 뒤집어 줌) · 인덱스 IX_CONSULT_MESSAGE_ROOM (ROOM_ID, MESSAGE_ID) -->
+    <select id="findMessagesBefore" resultType="com.hoperefund.consult.dto.ConsultMessageDTO">
+        SELECT <include refid="messageColumns"/>
+          FROM CONSULT_MESSAGE c
+          JOIN MEMBER m ON m.MEMBER_ID = c.SENDER_ID
+         WHERE c.ROOM_ID = #{roomId}
+        <if test="beforeId != null">
+           AND c.MESSAGE_ID &lt; #{beforeId}
+        </if>
+         ORDER BY c.MESSAGE_ID DESC
+         FETCH FIRST #{limit} ROWS ONLY
+    </select>
+
+    <!--
+        관리자 방 목록: 활동 중(ACTIVE) 회원 방만 · 마지막 메시지 번호가 큰 순 (메시지 없는 방은 뒤)
+        아이디는 그대로 꺼내고 ConsultService 가 일부 가림
+    -->
+    <select id="findRoomsForAdmin" resultType="com.hoperefund.consult.dto.ConsultRoomSummaryDTO">
+        SELECT r.ROOM_ID,
+               m.LOGIN_ID AS CUSTOMER,
+               TO_CHAR(r.CREATED_AT, 'YYYY-MM-DD"T"HH24:MI:SS') AS CREATED_AT,
+               TO_CHAR(MAX(c.CREATED_AT), 'YYYY-MM-DD"T"HH24:MI:SS') AS LAST_MESSAGE_AT
+          FROM CONSULT_ROOM r
+          JOIN MEMBER m ON m.MEMBER_ID = r.MEMBER_ID AND m.STATUS = 'ACTIVE'
+          LEFT JOIN CONSULT_MESSAGE c ON c.ROOM_ID = r.ROOM_ID
+         GROUP BY r.ROOM_ID, m.LOGIN_ID, r.CREATED_AT
+         ORDER BY MAX(c.MESSAGE_ID) DESC NULLS LAST, r.ROOM_ID DESC
+         FETCH FIRST #{limit} ROWS ONLY
+    </select>
+</mapper>

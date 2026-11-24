@@ -2,6 +2,8 @@ import React from 'react';
 import { Plus, Search, Send, Mail } from 'lucide-react';
 import { inquiryService, inquiryLabels } from '@/api/prototype-records.js';
 import { Btn, Tag, Field } from '@/components/common/site-primitives.jsx';
+// [추가 11/24 · 이우진 · TT-154] 관리자 상담 채팅 탭 (화면 코드는 ConsultChat.jsx)
+import ConsultChat from '@/pages/support/ConsultChat.jsx';
 
 // FAQ·문의 작성·내 문의 목록을 보여줍니다.
 export default function SupportPage({
@@ -29,7 +31,7 @@ export default function SupportPage({
         </Btn>
       </div>
       <div className="tabs">
-        {['자주 묻는 질문', '문의 내역', '문의 작성'].map((t) => (
+        {['자주 묻는 질문', '문의 내역', '문의 작성', '상담 채팅'].map((t) => (
           <button
             key={t}
             className={supportTab === t ? 'active' : ''}
@@ -40,7 +42,9 @@ export default function SupportPage({
         ))}
       </div>
       <section className="card">
-        {supportTab === '자주 묻는 질문' ? (
+        {supportTab === '상담 채팅' ? (
+          <ConsultChat notify={notify} />
+        ) : supportTab === '자주 묻는 질문' ? (
           <>
             <div className="search wide">
               <Search size={18} />
