@@ -1,33 +1,60 @@
 package com.hoperefund.notification.service;
 
+import com.hoperefund.notification.dto.NotificationDTO;
+import com.hoperefund.notification.dto.NotificationListDTO;
+import com.hoperefund.notification.mapper.NotificationMapper;
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 /**
- * SSE 알림 (2차 미션 · TT-150).
+ * SSE 알림 (2차 미션 · TT-150) + 알림 저장 · 목록 (TT-158).
  *
  * <p>회원 번호 → 열려 있는 연결 목록을 메모리에 보관해요. 같은 회원이 탭을 여러 개 열면 연결도 여러 개예요. 서버를 재시작하면 목록이 사라지고,
  * 화면이 다시 연결해요.
+ *
+ * <p>[추가 11/23 · 이우진 · TT-158] 알림은 보내기 전에 NOTIFICATION 에 먼저 저장해요 → 접속 안 한 회원도 다음에 종 아이콘 목록에서 볼
+ * 수 있고, 연결이 끊겼던 동안의 알림은 다시 연결할 때(Last-Event-ID) 받아 가요.
  */
 @Service
 public class NotificationService {
 
+    /** SSE 이벤트 이름 · data 는 NotificationDTO(JSON) · id 는 알림 번호 */
+    public static final String EVENT = "notification";
+
+    public static final String TYPE_CALCULATION = "CALCULATION";
+    public static final String TYPE_DEADLINE = "DEADLINE";
+
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private static final long TIMEOUT_MS = 30L * 60 * 1000; // 30분 지나면 연결을 닫음 → 화면이 다시 연결
     private static final long HEARTBEAT_MS = 25_000; // 할 말이 없어도 25초마다 신호 (화면은 60초 조용하면 다시 연결)
+    private static final int LIST_LIMIT = 20; // 종 아이콘 목록에 보여 줄 최근 알림 개수
+
+    private final NotificationMapper notificationMapper;
 
     // 여러 요청이 동시에 넣고 빼도 안전한 Map · Set
     private final Map<Long, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
-    // 구독: 연결을 하나 만들어 목록에 넣고 돌려줘요
-    public SseEmitter subscribe(long memberId) {
+    public NotificationService(NotificationMapper notificationMapper) {
+        this.notificationMapper = notificationMapper;
+    }
+
+    /**
+     * 구독: 연결을 하나 만들어 목록에 넣고 돌려줘요.
+     *
+     * @param lastEventId 화면이 마지막으로 받은 알림 번호 (다시 연결할 때 Last-Event-ID 헤더 · 처음이면 null) → 그 뒤 알림을 바로
+     *     다시 보내요
+     */
+    public SseEmitter subscribe(long memberId, String lastEventId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
         emitters.computeIfAbsent(memberId, id -> ConcurrentHashMap.newKeySet()).add(emitter);
 
@@ -38,31 +65,87 @@ public class NotificationService {
         emitter.onError(e -> remove.run());
 
         // 연결되자마자 한 번 보내야 브라우저가 「연결됨」을 바로 알아요
-        send(memberId, emitter, "connected", "ok");
+        send(memberId, emitter, SseEmitter.event().name("connected").data("ok"));
+        replay(memberId, emitter, parseId(lastEventId));
         log.info("알림 연결 member={} 연결 수={}", memberId, emitters.get(memberId).size());
         return emitter;
     }
 
-    // 그 회원의 모든 연결(탭)에 보내요 · 연결이 없으면 아무것도 안 함
-    public void sendToMember(long memberId, String eventName, Object data) {
+    /** 계산 완료 알림 · 문구에 금액은 넣지 않아요 (금액은 눌러서 이동한 대시보드에서) */
+    public void notifyCalculation(long memberId, int taxYear) {
+        notifyMember(
+                memberId, TYPE_CALCULATION, taxYear + "년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.", "dashboard");
+    }
+
+    /**
+     * 한 회원에게: 저장 → 열려 있는 연결(탭)에 보내기.
+     *
+     * <p>저장이 실패해도(DB 오류) 예외를 밖으로 던지지 않아요 → 알림 때문에 계산 요청이 실패하면 안 되니까요. 그때는 번호 없이 지금 열린 화면에만
+     * 보내요.
+     */
+    public void notifyMember(long memberId, String type, String content, String linkUrl) {
+        Long id = null;
+        try {
+            id = notificationMapper.nextNotificationId();
+            notificationMapper.insertNotification(id, memberId, type, content, linkUrl);
+        } catch (RuntimeException e) {
+            id = null;
+            log.warn("알림 저장 실패 member={} type={}", memberId, type, e);
+        }
+        NotificationDTO n =
+                new NotificationDTO(id, type, content, linkUrl, "N", LocalDateTime.now());
         Set<SseEmitter> set = emitters.get(memberId);
         if (set == null) {
-            return;
+            return; // 접속 중이 아니면 저장만 (다음에 목록에서 봄)
         }
         for (SseEmitter emitter : set) {
-            send(memberId, emitter, eventName, data);
+            sendNotification(memberId, emitter, n);
         }
     }
 
-    // [추가 11/20 · 이우진 · TT-152] 접속 중인 모든 회원에게 보내요 (마감 안내용)
-    // 알림을 DB(NOTIFICATION)에 저장하는 기능은 아직 없어서, 지금 접속해 있지 않은 회원은 받지 못해요
-    public void sendToAll(String eventName, Object data) {
+    /**
+     * 활동 중인 모든 회원에게: 한 번에 저장 → 지금 접속 중인 회원에게만 보내기 (마감 안내 · TT-152).
+     *
+     * <p>회원마다 알림 번호가 달라서, 접속 중인 회원은 방금 저장한 자기 행을 다시 읽어 그 번호로 보내요.
+     *
+     * @return 저장한 행 수 (저장 실패면 0)
+     */
+    public int notifyAllActive(String type, String content, String linkUrl) {
+        int saved;
+        try {
+            saved = notificationMapper.insertForActiveMembers(type, content, linkUrl);
+        } catch (RuntimeException e) {
+            log.warn("알림 전체 저장 실패 type={}", type, e);
+            NotificationDTO live =
+                    new NotificationDTO(null, type, content, linkUrl, "N", LocalDateTime.now());
+            emitters.forEach(
+                    (memberId, set) -> set.forEach(em -> sendNotification(memberId, em, live)));
+            return 0;
+        }
         emitters.forEach(
                 (memberId, set) -> {
+                    NotificationDTO n = findLatestQuietly(memberId, type);
+                    if (n == null) {
+                        return; // 탈퇴 회원 등 저장 대상이 아니었던 연결
+                    }
                     for (SseEmitter emitter : set) {
-                        send(memberId, emitter, eventName, data);
+                        sendNotification(memberId, emitter, n);
                     }
                 });
+        log.info("알림 전체 저장 type={} 행={}", type, saved);
+        return saved;
+    }
+
+    /** 내 알림 목록 (종 아이콘) · 안 읽은 개수 + 최근 20개 */
+    public NotificationListDTO getMyNotifications(long memberId) {
+        return new NotificationListDTO(
+                notificationMapper.countUnread(memberId),
+                notificationMapper.findRecent(memberId, LIST_LIMIT));
+    }
+
+    /** 내 안 읽은 알림을 모두 읽음으로 (종 아이콘 목록을 열 때) */
+    public void markAllRead(long memberId) {
+        notificationMapper.markAllRead(memberId);
     }
 
     /**
@@ -76,18 +159,60 @@ public class NotificationService {
         emitters.forEach(
                 (memberId, set) -> {
                     for (SseEmitter emitter : set) {
-                        try {
-                            emitter.send(SseEmitter.event().comment("ping"));
-                        } catch (IOException | IllegalStateException e) {
-                            removeEmitter(memberId, emitter);
-                        }
+                        send(memberId, emitter, SseEmitter.event().comment("ping"));
                     }
                 });
     }
 
-    private void send(long memberId, SseEmitter emitter, String eventName, Object data) {
+    /** Last-Event-ID 헤더 → 알림 번호 · 없거나 숫자가 아니면 null (화면이 보낸 값이라 믿지 않고 검사) */
+    static Long parseId(String lastEventId) {
+        if (lastEventId == null || lastEventId.isBlank()) {
+            return null;
+        }
         try {
-            emitter.send(SseEmitter.event().name(eventName).data(data));
+            long id = Long.parseLong(lastEventId.trim());
+            return id > 0 ? id : null;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    // 끊겨 있던 동안 생긴 본인 알림을 이 연결에만 다시 보내요 (실패해도 연결은 그대로)
+    private void replay(long memberId, SseEmitter emitter, Long lastId) {
+        if (lastId == null) {
+            return;
+        }
+        try {
+            List<NotificationDTO> missed = notificationMapper.findAfter(memberId, lastId);
+            for (NotificationDTO n : missed) {
+                sendNotification(memberId, emitter, n);
+            }
+        } catch (RuntimeException e) {
+            log.warn("놓친 알림 조회 실패 member={}", memberId, e);
+        }
+    }
+
+    private NotificationDTO findLatestQuietly(long memberId, String type) {
+        try {
+            return notificationMapper.findLatest(memberId, type);
+        } catch (RuntimeException e) {
+            log.warn("알림 조회 실패 member={} type={}", memberId, type, e);
+            return null;
+        }
+    }
+
+    private void sendNotification(long memberId, SseEmitter emitter, NotificationDTO n) {
+        SseEmitter.SseEventBuilder event =
+                SseEmitter.event().name(EVENT).data(n, MediaType.APPLICATION_JSON);
+        if (n.getNotificationId() != null) {
+            event.id(String.valueOf(n.getNotificationId())); // 화면이 다시 연결할 때 Last-Event-ID 로 돌려줌
+        }
+        send(memberId, emitter, event);
+    }
+
+    private void send(long memberId, SseEmitter emitter, SseEmitter.SseEventBuilder event) {
+        try {
+            emitter.send(event);
         } catch (IOException | IllegalStateException e) {
             // 브라우저가 이미 닫혔으면 보내기가 실패해요 → 목록에서 빼요
             removeEmitter(memberId, emitter);

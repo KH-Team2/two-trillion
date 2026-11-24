@@ -16,7 +16,6 @@ import org.springframework.stereotype.Component;
 @Component
 public class DeadlineNotificationScheduler {
 
-    static final String EVENT = "deadline";
     private static final ZoneId SEOUL = ZoneId.of("Asia/Seoul");
     private static final Set<Long> NOTICE_DAYS = Set.of(30L, 7L, 1L);
 
@@ -38,7 +37,8 @@ public class DeadlineNotificationScheduler {
         if (message == null) {
             return false;
         }
-        notificationService.sendToAll(EVENT, message);
+        // [수정 11/23 · 이우진 · TT-158] 활동 중인 회원 모두에게 저장 → 접속 중인 회원에게는 바로 보내요
+        notificationService.notifyAllActive(NotificationService.TYPE_DEADLINE, message, "input");
         return true;
     }
 
