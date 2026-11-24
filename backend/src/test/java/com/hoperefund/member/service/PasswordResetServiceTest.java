@@ -211,6 +211,34 @@ class PasswordResetServiceTest {
         verify(passwordResetMapper, never()).insertReset(any());
     }
 
+    // 1시간 안에 4번 받았으면 5번째는 보냄 (60분 기준으로 셈)
+    @Test
+    void sendCodeAllowedBelowLimit() {
+
+        given(passwordResetMapper.countRecentResets(MEMBER_ID, 60)).willReturn(4);
+
+        service.sendCode(EMAIL);
+
+        verify(emailSender).sendPasswordResetCode(eq(EMAIL), anyString());
+        verify(passwordResetMapper).insertReset(any());
+    }
+
+    // 1시간 안에 이미 5번 받았으면 → 429 · 메일 · 저장 모두 안 함
+    @Test
+    void sendCodeBlockedAtLimit() {
+
+        given(passwordResetMapper.countRecentResets(MEMBER_ID, 60)).willReturn(5);
+
+        Throwable e = catchThrowable(() -> service.sendCode(EMAIL));
+        assertError(
+                e,
+                HttpStatus.TOO_MANY_REQUESTS,
+                "RESET_SEND_LIMIT",
+                "인증 코드를 너무 많이 요청했어요. 1시간 뒤에 다시 시도해 주세요");
+        verify(emailSender, never()).sendPasswordResetCode(anyString(), anyString());
+        verify(passwordResetMapper, never()).insertReset(any());
+    }
+
     // ---------- 코드 확인 · 새 비밀번호 저장 ----------
 
     // 정상: 사용 처리 · 새 비밀번호를 BCrypt 로 저장

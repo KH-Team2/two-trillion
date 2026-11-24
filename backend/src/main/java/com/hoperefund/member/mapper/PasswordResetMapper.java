@@ -2,6 +2,7 @@ package com.hoperefund.member.mapper;
 
 import com.hoperefund.member.dto.PasswordResetDTO;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 /** PASSWORD_RESET 테이블 조회 · 저장 (F-01-03). SQL 은 resources/mapper/member/PasswordResetMapper.xml 에 있다. */
 @Mapper
@@ -9,6 +10,9 @@ public interface PasswordResetMapper {
 
     // 실행 후 reset.resetId 에 새 번호가 채워진다 (XML 의 selectKey · SEQ_PASSWORD_RESET)
     int insertReset(PasswordResetDTO reset);
+
+    // 최근 minutes 분 동안 그 회원에게 발급한 코드 수 (발송 횟수 제한용)
+    int countRecentResets(@Param("memberId") long memberId, @Param("minutes") int minutes);
 
     // 회원의 가장 최근 재설정 번호. 없으면 null (예전 코드는 쓰지 않는다)
     Long selectLatestResetId(long memberId);

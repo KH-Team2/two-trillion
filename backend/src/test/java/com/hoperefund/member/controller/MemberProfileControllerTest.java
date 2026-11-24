@@ -173,6 +173,26 @@ class MemberProfileControllerTest {
                 .andExpect(jsonPath("$.error.message").value("무주택 세대주 여부를 선택해 주세요"));
     }
 
+    // 입사일이 내일(아직 오지 않은 날짜) → 400 · Service 안 부름
+    @Test
+    void futureHireDateReturns400() throws Exception {
+        String tomorrow = LocalDate.now().plusDays(1).toString();
+        putJson(URL, PROFILE_BODY.replace("2023-03-01", tomorrow))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("VALIDATION"))
+                .andExpect(jsonPath("$.error.message").value("입사일은 오늘 이후로 입력할 수 없어요"));
+        verify(memberProfileService, never()).updateProfile(anyLong(), any());
+    }
+
+    // 입사일이 오늘이면 저장됨 (오늘 입사도 가능)
+    @Test
+    void todayHireDateReturns200() throws Exception {
+        given(memberProfileService.updateProfile(eq(MEMBER_ID), any())).willReturn(profile());
+
+        putJson(URL, PROFILE_BODY.replace("2023-03-01", LocalDate.now().toString()))
+                .andExpect(status().isOk());
+    }
+
     // 입사일 · 회사 규모는 비워도 됨 (null 로 저장)
     @Test
     void optionalFieldsCanBeNull() throws Exception {

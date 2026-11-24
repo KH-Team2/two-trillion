@@ -8,6 +8,7 @@ import {
   signupFormError,
   toProfileRequest,
   toSignupRequest,
+  todayDate,
 } from './member-api.js';
 
 const form = {
@@ -216,6 +217,7 @@ for (const [change, message] of [
   [{ militaryMonths: '' }, '군 복무 개월 수를 입력해 주세요'],
   [{ militaryMonths: '-1' }, '0 이상으로 입력해 주세요'],
   [{ militaryMonths: '1.5' }, '군 복무 개월 수를 확인해 주세요'],
+  [{ hireDate: '2999-01-01' }, '입사일은 오늘 이후로 입력할 수 없어요'],
   [{ companySize: 'HUGE' }, '회사 규모를 선택해 주세요'],
   [{ homelessHeadYn: '' }, '무주택 세대주 여부를 선택해 주세요'],
 ]) {
@@ -242,3 +244,7 @@ for (const [change, message] of [
 console.log(
   'PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정',
 );
+
+// 오늘 날짜는 지역 시각 기준 yyyy-MM-dd · 오늘 입사일은 허용
+assert.equal(todayDate(new Date(2026, 0, 5, 1, 0)), '2026-01-05');
+assert.equal(profileFormError({ ...profileForm, hireDate: todayDate() }), '');

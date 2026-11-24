@@ -4,6 +4,7 @@ import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.PastOrPresent;
 import jakarta.validation.constraints.Pattern;
 import java.time.LocalDate;
 import lombok.AllArgsConstructor;
@@ -33,7 +34,8 @@ public class MemberProfileRequestDTO {
     @Max(value = 999, message = "군 복무 개월 수를 확인해 주세요")
     private Integer militaryMonths;
 
-    // yyyy-MM-dd · 비우면 null 로 저장
+    // yyyy-MM-dd · 비우면 null 로 저장 · 오늘 이후(아직 오지 않은 날짜)는 받지 않는다 (계산 서버 혜택 판정에 쓰임)
+    @PastOrPresent(message = "입사일은 오늘 이후로 입력할 수 없어요")
     private LocalDate hireDate;
 
     // SME · MID · LARGE (CK_MEMBER_COMPANY_SIZE) · 비우면 null 로 저장

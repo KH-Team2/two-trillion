@@ -8,6 +8,7 @@ import {
   memberApi,
   passwordChangeFormError,
   profileFormError,
+  todayDate,
 } from '@/api/member-api.js';
 import { Btn, Field } from '@/components/common/site-primitives.jsx';
 
@@ -107,7 +108,7 @@ export function ServerProfileDetails({ onSaved }) {
           />
         </Field>
         <Field label="입사일">
-          <input type="date" value={form.hireDate} onChange={set('hireDate')} />
+          <input type="date" max={todayDate()} value={form.hireDate} onChange={set('hireDate')} />
         </Field>
         <Field label="회사 규모">
           <select value={form.companySize} onChange={set('companySize')}>

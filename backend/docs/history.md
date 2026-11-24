@@ -2,6 +2,21 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-24] 재설정 코드 발송 횟수 제한 · 입사일 미래 날짜 막기 (리뷰 의견 반영)
+- **작업 내용**:
+  - `PasswordResetService.sendCode`: 최근 60분 동안 받은 코드가 5개 이상이면 429 `RESET_SEND_LIMIT` 「인증 코드를 너무 많이 요청했어요. 1시간 뒤에 다시 시도해 주세요」 · 메일 · 저장 안 함
+  - `PasswordResetMapper`(+ XML): `countRecentResets` 추가 (기존 `PASSWORD_RESET.CREATED_AT` · 인덱스 `IX_PASSWORD_RESET_MEMBER` 사용 · 테이블 변경 없음)
+  - `MemberProfileRequestDTO.hireDate`: `@PastOrPresent` → 오늘 이후 날짜면 400 `VALIDATION` 「입사일은 오늘 이후로 입력할 수 없어요」 (오늘은 허용)
+  - 화면: `member-api.js`에 `todayDate()`(지역 시각 기준 오늘) · `profileFormError`에 같은 검사 추가 · `ProfileDetails.jsx` 입사일 칸에 `max` 추가
+  - 테스트: `PasswordResetServiceTest`(이미 4번 받았으면 5번째 발송 · 이미 5번이면 429) · `MemberProfileControllerTest`(내일 400 · 오늘 200) · `member-api.test.js`
+- **변경 사유**:
+  - 코드 1개당 5번만 틀릴 수 있어도 새 코드를 끝없이 받으면 계속 맞혀 볼 수 있었음 (메일도 무제한 발송)
+  - 입사일에 아직 오지 않은 날짜가 저장돼 계산 서버 혜택 판정에 그대로 쓰일 수 있었음
+- **검증 결과**:
+  - `mvnw spotless:check` 통과 · `mvnw -B verify` 통과 (feature/member 266건 · feature/backend-common 277건) (`CHATBOT_API_TOKEN` · `CALC_API_TOKEN`에 임시 값을 넣고 실행 · 값이 없으면 `contextLoads` 1건 실패 — 수정 전에도 같음)
+  - 화면 `npm test` 통과
+  - 미검증: 실제 Oracle DB에서 `countRecentResets` 쿼리 실행 (Mock 테스트만)
+
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
 - **작업 내용**:
   - `backend/README.md`: `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`을 4.2 추가 환경변수 → 4.1 필수 환경변수로 이동 · 4.3 STS 등록 목록과 5.2 CMD 실행 안내를 필수 6개 기준으로 수정
