@@ -1,16 +1,13 @@
 package com.hoperefund.admin.service;
 
-import java.util.List;
-
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
 import com.hoperefund.admin.dto.AdminInquiryResponseDto;
 import com.hoperefund.admin.dto.InquiryCreateRequestDto;
 import com.hoperefund.admin.mapper.AdminInquiryMapper;
 import com.hoperefund.common.exception.NotFoundException;
-
+import java.util.List;
 import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * F-17, F-18 비즈니스 로직 구현체
@@ -46,7 +43,8 @@ public class AdminInquiryServiceImpl implements AdminInquiryService {
     public AdminInquiryResponseDto getInquiryDetail(Long memberId, Long inquiryId) {
         AdminInquiryResponseDto detail = adminInquiryMapper.selectInquiryById(inquiryId, memberId);
         if (detail == null) {
-            // [수정 11/20] IllegalArgumentException("존재하지 않는 문의 내역입니다.") → NotFoundException (500 → 404)
+            // [수정 11/20] IllegalArgumentException("존재하지 않는 문의 내역입니다.") → NotFoundException (500 →
+            // 404)
             throw new NotFoundException("문의를 찾을 수 없어요");
         }
         return detail;

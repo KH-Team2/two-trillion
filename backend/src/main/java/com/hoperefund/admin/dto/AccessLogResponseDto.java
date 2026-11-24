@@ -1,17 +1,20 @@
 package com.hoperefund.admin.dto;
 
+import java.time.LocalDateTime;
 import lombok.Getter;
 import lombok.Setter;
 
+/**
+ * F-21: 관리자 접근 기록 조회 응답 DTO
+ * - ERD ACCESS_LOG 테이블 컬럼 기준 매핑
+ */
 @Getter
 @Setter
 public class AccessLogResponseDto {
-    /* F-21 (접근 기록 및 failCount) */
-
-    private Long accessId; // 접근 기록 고유 ID
-    private Long memberId; // 회원 고유 ID
-    private String accessedAt; // 접근 시각
-    private String ipAddress; // 접속 IP 주소
-    private String result; // 접근 결과 (SUCCESS / FAIL 등)
-    private Integer failCount; // 로그인 실패 횟수 모니터링
+    private Long accessId; // 접근 번호 (ACCESS_ID)
+    private Long memberId; // 회원 번호 (MEMBER_ID)
+    private String screen; // 접근 화면 (SCREEN)
+    private LocalDateTime accessedAt; // 접근 일시 (ACCESSED_AT)
+    private String ipAddress; // 접속 IP 주소 (IP_ADDRESS)
+    private String result; // 접근 결과 (RESULT)
 }

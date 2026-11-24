@@ -3,30 +3,41 @@
 
 <mapper namespace="com.hoperefund.admin.mapper.AdminAccessLogMapper">
 
-    <!-- F-21: 접근 기록 및 로그인 실패 모니터링 조회 -->
-    <select id="selectAccessLogs" resultType="com.hoperefund.admin.dto.AccessLogResponseDto">
-        SELECT 
-            ACCESS_ID AS LOG_ID,
-            MEMBER_ID AS memberId,
-            ACCESSED_AT AS accessedAt,
-            IP_ADDRESS AS ipAddress,
-            RESULT AS result,
-			NVL(M.LOGIN_FAIL_COUNT, 0) AS failCount        
-			FROM ACCESS_LOG
-
+    <!-- 공통 검색 조건: 시작일, 종료일(당일 포함을 위해 + 1일 미만), IP 부분 일치 -->
+    <sql id="accessLogWhere">
         <where>
-            <if test="startDate != null and startDate != ''">
-                AND ACCESSED_AT >= TO_DATE(#{startDate}, 'YYYY-MM-DD')
+            <if test="startDate != null">
+                AND ACCESSED_AT &gt;= #{startDate}
             </if>
-            <if test="endDate != null and endDate != ''">
-                AND ACCESSED_AT &lt; TO_DATE(#{endDate}, 'YYYY-MM-DD') + 1
+            <if test="endDate != null">
+                AND ACCESSED_AT &lt; #{endDate} + 1
             </if>
             <if test="ipAddress != null and ipAddress != ''">
                 AND IP_ADDRESS LIKE '%' || #{ipAddress} || '%'
             </if>
         </where>
-        ORDER BY LOG_ID DESC
+    </sql>
+
+    <!-- F-21: 접근 기록 목록 페이징 조회 -->
+    <select id="selectAccessLogs" resultType="com.hoperefund.admin.dto.AccessLogResponseDto">
+        SELECT
+            ACCESS_ID AS accessId,
+            MEMBER_ID AS memberId,
+            SCREEN AS screen,
+            ACCESSED_AT AS accessedAt,
+            IP_ADDRESS AS ipAddress,
+            RESULT AS result
+        FROM ACCESS_LOG
+        <include refid="accessLogWhere"/>
+        ORDER BY ACCESS_ID DESC
         OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+    </select>
+
+    <!-- F-21: 조건별 전체 데이터 수 조회 -->
+    <select id="countAccessLogs" resultType="long">
+        SELECT COUNT(*)
+        FROM ACCESS_LOG
+        <include refid="accessLogWhere"/>
     </select>
 
 </mapper>
