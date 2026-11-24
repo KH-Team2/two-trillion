@@ -79,6 +79,12 @@ export const COMPANY_SIZE_OPTIONS = [
 
 // 회원정보 저장 버튼을 누르기 전 화면 검사: 문제가 있으면 안내 문구, 없으면 ''
 // 서버도 같은 항목을 다시 검사합니다.
+// 오늘 날짜 yyyy-MM-dd (브라우저 지역 시각 · toISOString 은 UTC 라 한국 오전 9시 전에는 어제가 됨)
+export function todayDate(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
 export function profileFormError(form) {
   if (!['M', 'F'].includes(form.gender)) return '성별을 선택해 주세요';
   const months = String(form.militaryMonths ?? '').trim();
@@ -86,6 +92,7 @@ export function profileFormError(form) {
   if (!/^-?\d+$/.test(months)) return '군 복무 개월 수를 확인해 주세요';
   if (Number(months) < 0) return '0 이상으로 입력해 주세요';
   if (Number(months) > 999) return '군 복무 개월 수를 확인해 주세요';
+  if (form.hireDate && form.hireDate > todayDate()) return '입사일은 오늘 이후로 입력할 수 없어요';
   if (form.companySize && !COMPANY_SIZE_OPTIONS.some(([code]) => code === form.companySize))
     return '회사 규모를 선택해 주세요';
   if (!['Y', 'N'].includes(form.homelessHeadYn)) return '무주택 세대주 여부를 선택해 주세요';

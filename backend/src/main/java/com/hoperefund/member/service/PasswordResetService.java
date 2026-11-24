@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
  *
  * <pre>
  * 아이디 찾기: 이메일 → 대상 회원 확인 → 일부를 가린 아이디 (예: te******)
- * 재설정: ① 이메일 → ② 6자리 코드 생성 · 메일 발송 · BCrypt 해시로 PASSWORD_RESET 저장 (10분 유효)
+ * 재설정: ① 이메일 → ② (1시간에 5번까지) 6자리 코드 생성 · 메일 발송 · BCrypt 해시로 PASSWORD_RESET 저장 (10분 유효)
  *        → ③ 코드 확인 (틀릴 때마다 FAIL_COUNT + 1 · 5번이면 무효) → ④ 새 비밀번호 BCrypt 저장 → ⑤ USED_YN = 'Y'
  * </pre>
  *
@@ -41,10 +41,13 @@ public class PasswordResetService {
     static final int CODE_VALID_MINUTES = 10; // 인증 코드 유효 시간 (분)
     static final int MAX_FAIL_COUNT = 5; // 이 횟수만큼 틀리면 그 코드는 무효
     static final int VISIBLE_LOGIN_ID_CHARS = 2; // 아이디 찾기에서 보여 줄 앞글자 수
+    static final int SEND_LIMIT_MINUTES = 60; // 발송 횟수를 세는 기간 (분)
+    static final int MAX_SEND_COUNT = 5; // 이 기간에 받을 수 있는 코드 수
 
     static final String NOT_FOUND_MESSAGE = "가입 정보를 찾을 수 없어요";
     static final String RESEND_MESSAGE = "인증 코드를 다시 받아 주세요";
     static final String CODE_FAILED = "인증 코드가 맞지 않아요";
+    static final String SEND_LIMIT_MESSAGE = "인증 코드를 너무 많이 요청했어요. 1시간 뒤에 다시 시도해 주세요";
 
     private static final String STATUS_WITHDRAWN = "WITHDRAWN";
     private static final String EMAIL_VERIFIED = "Y";
@@ -104,6 +107,15 @@ public class PasswordResetService {
     public PasswordResetResponseDTO sendCode(String rawEmail) {
         String email = normalize(rawEmail);
         PasswordResetMemberDTO member = findTarget(email);
+
+        // 코드 1개당 5번만 틀릴 수 있어도, 새 코드를 끝없이 받으면 계속 맞혀 볼 수 있다 → 1시간에 5번까지만 발송
+        int recent =
+                passwordResetMapper.countRecentResets(member.getMemberId(), SEND_LIMIT_MINUTES);
+        if (recent >= MAX_SEND_COUNT) {
+            log.warn("비밀번호 재설정 코드 발송 횟수 초과: memberId={}", member.getMemberId());
+            throw new BusinessException(
+                    HttpStatus.TOO_MANY_REQUESTS, "RESET_SEND_LIMIT", SEND_LIMIT_MESSAGE);
+        }
 
         String code = String.format("%06d", random.nextInt(1_000_000)); // 000000 ~ 999999
 
