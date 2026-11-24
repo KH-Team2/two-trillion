@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+    문의(INQUIRY) SQL · 값은 #{}로만 넣는다 (${} 금지 · SQL 삽입 방지)
+    [수정 11/20] 첫 줄에 <?xml ...?> 선언 추가 · 이유: 다른 매퍼 XML(common/AccessLogMapper.xml)과 모양을 맞추고 한글 주석 인코딩을 분명히
+-->
+<mapper namespace="com.hoperefund.admin.mapper.AdminInquiryMapper">
+
+    <!--
+        [추가 11/20] F-17: 문의 작성
+        - 번호는 시퀀스 SEQ_INQUIRY (01_schema.sql)
+        - STATUS(WAITING) · CREATED_AT(SYSDATE)은 DB 기본값이 있어 INSERT에서 뺀다 (백엔드 규칙: NULL을 넣으면 오류)
+        - 답변 3칸(ANSWER · ANSWERED_AT · ANSWERED_BY)도 빼서 비워 둔다 (CK_INQUIRY_ANSWER: WAITING이면 셋 다 비어야 함)
+    -->
+    <insert id="insertInquiry">
+        INSERT INTO INQUIRY (
+            INQUIRY_ID,
+            MEMBER_ID,
+            TITLE,
+            CONTENT,
+            INQUIRY_TYPE
+        ) VALUES (
+            SEQ_INQUIRY.NEXTVAL,
+            #{memberId},
+            #{dto.title},
+            #{dto.content},
+            #{dto.inquiryType}
+        )
+    </insert>
+
+    <!--
+        F-17 : 내 문의 목록 (최신순)
+        [수정 11/20] <where><if test="status ..."> → WHERE MEMBER_ID = #{memberId}
+          이유(PR #44 리뷰): ① memberId 조건이 없어 모든 회원 문의가 조회됨
+                             ② 매퍼 메서드가 status를 넘기지 않아 'Parameter status not found' 오류가 남
+        [수정 11/20] MEMBER_ID 조회 칸 삭제 · 이유: 본인 목록이라 필요 없음
+    -->
+    <select id="selectInquiryList" resultType="com.hoperefund.admin.dto.AdminInquiryResponseDto">
+        SELECT
+            INQUIRY_ID AS inquiryId,
+            INQUIRY_TYPE AS inquiryType,
+            TITLE AS title,
+            CONTENT AS content,
+            STATUS AS status,
+            ANSWER AS answer,
+            CREATED_AT AS createdAt,
+            ANSWERED_AT AS answeredAt
+        FROM INQUIRY
+        WHERE MEMBER_ID = #{memberId}
+        ORDER BY INQUIRY_ID DESC
+    </select>
+
+    <!--
+        [추가 11/20] F-18: 관리자용 전체 문의 목록 (최신순 · 상태로 거르기)
+        - 원래 selectInquiryList에 있던 status 조건을 여기로 옮김
+        - <where>: 안의 <if>가 하나라도 맞으면 WHERE를 붙이고, 맨 앞 AND는 알아서 지움 (하나도 안 맞으면 WHERE 자체를 안 붙임)
+    -->
+    <select id="selectAdminInquiryList" resultType="com.hoperefund.admin.dto.AdminInquiryResponseDto">
+        SELECT
+            INQUIRY_ID AS inquiryId,
+            MEMBER_ID AS memberId,
+            INQUIRY_TYPE AS inquiryType,
+            TITLE AS title,
+            CONTENT AS content,
+            STATUS AS status,
+            ANSWER AS answer,
+            CREATED_AT AS createdAt,
+            ANSWERED_AT AS answeredAt,
+            ANSWERED_BY AS answererId
+        FROM INQUIRY
+        <where>
+            <if test="status != null and status != ''">
+                AND STATUS = #{status}
+            </if>
+        </where>
+        ORDER BY INQUIRY_ID DESC
+    </select>
+
+    <!--
+        F-17 : 내 문의 상세 조회
+        [수정 11/20] WHERE INQUIRY_ID = #{inquiryId} 뒤에 AND MEMBER_ID = #{memberId} 추가
+          이유(PR #44 리뷰): 문의 번호만 맞으면 남의 문의도 보였음 → 남의 문의는 결과가 없어 Service가 404로 숨김
+        [수정 11/20] MEMBER_ID 조회 칸 삭제 · 이유: 본인 문의라 필요 없음
+    -->
+    <select id="selectInquiryById" resultType="com.hoperefund.admin.dto.AdminInquiryResponseDto">
+        SELECT
+            INQUIRY_ID AS inquiryId,
+            INQUIRY_TYPE AS inquiryType,
+            TITLE AS title,
+            CONTENT AS content,
+            STATUS AS status,
+            ANSWER AS answer,
+            CREATED_AT AS createdAt,
+            ANSWERED_AT AS answeredAt
+        FROM INQUIRY
+        WHERE INQUIRY_ID = #{inquiryId}
+          AND MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- [추가 11/20] F-18: 문의의 지금 상태 (없는 번호면 결과 없음 → Java에서 null) -->
+    <select id="selectInquiryStatus" resultType="string">
+        SELECT STATUS
+        FROM INQUIRY
+        WHERE INQUIRY_ID = #{inquiryId}
+    </select>
+
+    <!--
+        F-18: 관리자 [확인 중] 처리 · 답변 등록 (UPDATE 한 번에)
+        [수정 11/20] 리뷰(PR #44) 반영 3가지
+          ① #{answer} → #{dto.answer} · 이유: 매퍼에서 @Param("dto")로 넘겨서 dto. 를 붙여야 값을 찾음
+          ② STATUS = 'ANSWERED' 고정 → 요청한 상태(#{dto.status}) · 이유: 고정이라 CHECKING(확인 중)으로 못 바꿨음
+          ③ ANSWERED_BY = #{adminId} 추가 · 이유: CK_INQUIRY_ANSWER 규칙상 ANSWERED면 답변 · 답변일 · 답변자 3칸 모두 필수
+        - <choose>는 Java의 if / else 와 같음
+            ANSWERED(답변 완료)  → 답변 3칸 채움
+            그 밖(WAITING · CHECKING) → 답변 3칸 비움 (CK_INQUIRY_ANSWER: 확인 중이면 3칸 모두 비어야 함 · 임시 안내는 화면 고정 문구)
+        - test 안의 '"ANSWERED".equals(dto.status)': 작은따옴표로 test 전체를 감싸고, 그 안의 큰따옴표가 Java 문자열
+        - AND STATUS != 'ANSWERED': 이미 답변 완료된 문의는 바꾸지 않음 (확인 중으로 되돌리며 답변이 지워지는 것 방지)
+          → 바뀐 행이 0이면 Service가 409로 알림
+    -->
+    <update id="updateInquiryAnswer">
+        UPDATE INQUIRY
+        SET STATUS = #{dto.status},
+        <choose>
+            <when test='"ANSWERED".equals(dto.status)'>
+                ANSWER = #{dto.answer},
+                ANSWERED_AT = SYSDATE,
+                ANSWERED_BY = #{adminId}
+            </when>
+            <otherwise>
+                ANSWER = NULL,
+                ANSWERED_AT = NULL,
+                ANSWERED_BY = NULL
+            </otherwise>
+        </choose>
+        WHERE INQUIRY_ID = #{inquiryId}
+          AND STATUS != 'ANSWERED'
+    </update>
+
+</mapper>
