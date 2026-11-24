@@ -29,6 +29,7 @@ class ConsultServiceTest {
         final Map<Long, Long> roomOwners = new HashMap<>(); // roomId → memberId
         final List<ConsultMessageDTO> messages = new ArrayList<>();
         final List<ConsultRoomSummaryDTO> adminRooms = new ArrayList<>();
+        final List<Long> activeAdmins = new ArrayList<>(); // findActiveAdminIds
         long roomSeq = 10;
         long messageSeq = 100;
         boolean duplicateOnInsert; // 동시에 두 번 눌린 상황 흉내
@@ -99,6 +100,11 @@ class ConsultServiceTest {
         @Override
         public List<ConsultRoomSummaryDTO> findRoomsForAdmin(int limit) {
             return adminRooms;
+        }
+
+        @Override
+        public List<Long> findActiveAdminIds() {
+            return activeAdmins;
         }
     }
 

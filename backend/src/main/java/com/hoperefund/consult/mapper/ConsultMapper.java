@@ -43,4 +43,7 @@ public interface ConsultMapper {
 
     /** 관리자 방 목록 · 활동 중인 회원 방만 · 최근 메시지 순 (메시지 없는 방은 뒤) · limit 개 */
     List<ConsultRoomSummaryDTO> findRoomsForAdmin(@Param("limit") int limit);
+
+    /** [추가 11/24 · 6단계] 활동 중인 관리자 회원번호 (회원이 보낸 메시지 알림을 받을 사람) */
+    List<Long> findActiveAdminIds();
 }

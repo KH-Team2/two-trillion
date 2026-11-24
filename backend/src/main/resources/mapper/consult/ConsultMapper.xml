@@ -76,4 +76,13 @@
          ORDER BY MAX(c.MESSAGE_ID) DESC NULLS LAST, r.ROOM_ID DESC
          FETCH FIRST #{limit} ROWS ONLY
     </select>
+
+    <!-- [추가 11/24 · 6단계] 활동 중인 관리자 (회원이 보낸 메시지 알림 받을 사람) -->
+    <select id="findActiveAdminIds" resultType="java.lang.Long">
+        SELECT MEMBER_ID
+          FROM MEMBER
+         WHERE ROLE = 'ADMIN'
+           AND STATUS = 'ACTIVE'
+         ORDER BY MEMBER_ID
+    </select>
 </mapper>

@@ -4,6 +4,7 @@ import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.consult.dto.ConsultMessageDTO;
 import com.hoperefund.consult.dto.ConsultSendRequestDTO;
+import com.hoperefund.consult.service.ConsultNotifier;
 import com.hoperefund.consult.service.ConsultService;
 import com.hoperefund.consult.service.ConsultUser;
 import java.security.Principal;
@@ -30,11 +31,15 @@ public class ConsultMessageController {
 
     private final ConsultService consultService;
     private final SimpMessagingTemplate messagingTemplate;
+    private final ConsultNotifier consultNotifier;
 
     public ConsultMessageController(
-            ConsultService consultService, SimpMessagingTemplate messagingTemplate) {
+            ConsultService consultService,
+            SimpMessagingTemplate messagingTemplate,
+            ConsultNotifier consultNotifier) {
         this.consultService = consultService;
         this.messagingTemplate = messagingTemplate;
+        this.consultNotifier = consultNotifier;
     }
 
     @MessageMapping("/consult/{roomId}")
@@ -46,7 +51,8 @@ public class ConsultMessageController {
         ConsultMessageDTO saved =
                 consultService.send(user, roomId, request == null ? null : request.getContent());
         messagingTemplate.convertAndSend(ROOM_TOPIC_PREFIX + roomId, saved);
-        // TODO(TT-153 6단계 · PR #51 머지 후): 상대가 이 방을 구독 중이 아니면 CHAT 알림 (회원 → 관리자 전원 · 관리자 → 그 회원)
+        // [추가 11/24 · 6단계] 상대가 이 방을 보고 있지 않으면 종 알림 (회원 → 관리자 전원 · 관리자 → 그 회원)
+        consultNotifier.afterSend(user, roomId);
     }
 
     /** 업무 규칙 오류 (빈 메시지 · 1000자 초과 · 남의 방) → 보낸 사람에게만 */

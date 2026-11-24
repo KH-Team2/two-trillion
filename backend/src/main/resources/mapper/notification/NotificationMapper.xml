@@ -46,6 +46,15 @@
            AND READ_YN = 'N'
     </select>
 
+    <!-- [추가 11/24 · 이우진 · TT-153] 그 종류의 안 읽은 알림 개수 (상담 알림 CHAT 이 쌓이지 않게) -->
+    <select id="countUnreadByType" resultType="long">
+        SELECT COUNT(*)
+          FROM NOTIFICATION
+         WHERE MEMBER_ID = #{memberId}
+           AND NOTI_TYPE = #{notiType}
+           AND READ_YN = 'N'
+    </select>
+
     <select id="findAfter" resultType="com.hoperefund.notification.dto.NotificationDTO">
         SELECT NOTIFICATION_ID, NOTI_TYPE, CONTENT, LINK_URL, READ_YN, CREATED_AT
           FROM NOTIFICATION

@@ -2,6 +2,7 @@ package com.hoperefund.notification.service;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -104,5 +105,35 @@ class NotificationServiceTest {
         mapper.fail = true;
 
         assertNotNull(service.subscribe(81, "1"));
+    }
+
+    @Test
+    @DisplayName("[TT-153] 같은 종류의 안 읽은 알림이 있으면 또 만들지 않는다")
+    void skipsWhenSameTypeUnreadExists() {
+        String chat = NotificationService.TYPE_CHAT;
+        assertTrue(service.notifyMemberUnlessUnread(81, chat, "상담 1", "support"));
+        assertFalse(service.notifyMemberUnlessUnread(81, chat, "상담 2", "support"));
+        assertEquals(1, mapper.rows.size());
+
+        // 다른 종류 · 다른 회원은 따로 셈
+        service.notifyCalculation(81, 2026);
+        assertTrue(service.notifyMemberUnlessUnread(82, chat, "상담 1", "support"));
+        assertEquals(3, mapper.rows.size());
+
+        // 읽고 나면 다시 만들어짐
+        service.markAllRead(81);
+        assertTrue(service.notifyMemberUnlessUnread(81, chat, "상담 3", "support"));
+        assertEquals(4, mapper.rows.size());
+    }
+
+    @Test
+    @DisplayName("[TT-153] 안 읽은 알림 확인이 실패해도 예외 없이 보내기를 시도한다")
+    void triesToNotifyWhenUnreadCheckFails() {
+        mapper.fail = true;
+
+        // 예외가 나면 테스트가 실패 · 확인을 못 했으니 보내기 쪽(true)으로
+        assertTrue(
+                service.notifyMemberUnlessUnread(
+                        81, NotificationService.TYPE_CHAT, "상담", "support"));
     }
 }

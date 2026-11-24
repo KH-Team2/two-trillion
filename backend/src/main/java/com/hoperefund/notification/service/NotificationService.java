@@ -33,6 +33,7 @@ public class NotificationService {
 
     public static final String TYPE_CALCULATION = "CALCULATION";
     public static final String TYPE_DEADLINE = "DEADLINE";
+    public static final String TYPE_CHAT = "CHAT"; // [추가 11/24 · 이우진 · TT-153] 상담 채팅
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private static final long TIMEOUT_MS = 30L * 60 * 1000; // 30분 지나면 연결을 닫음 → 화면이 다시 연결
@@ -101,6 +102,26 @@ public class NotificationService {
         for (SseEmitter emitter : set) {
             sendNotification(memberId, emitter, n);
         }
+    }
+
+    /**
+     * [추가 11/24 · 이우진 · TT-153] 같은 종류의 안 읽은 알림이 없을 때만 notifyMember (상담 메시지마다 알림이 쌓이지 않게).
+     *
+     * <p>확인 조회가 실패하면(DB 오류) 알림을 빼먹지 않도록 그냥 보내요.
+     *
+     * @return 보냈으면 true · 안 읽은 알림이 있어서 건너뛰면 false
+     */
+    public boolean notifyMemberUnlessUnread(
+            long memberId, String type, String content, String linkUrl) {
+        try {
+            if (notificationMapper.countUnreadByType(memberId, type) > 0) {
+                return false;
+            }
+        } catch (RuntimeException e) {
+            log.warn("안 읽은 알림 확인 실패 member={} type={}", memberId, type, e);
+        }
+        notifyMember(memberId, type, content, linkUrl);
+        return true;
     }
 
     /**
