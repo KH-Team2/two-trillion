@@ -158,8 +158,10 @@ src/main/resources/application.yml
 | `DB_USERNAME` | Oracle DB 사용자 계정 |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `JWT_SECRET` | 로그인 토큰 서명 비밀키 (32바이트 이상 · 없으면 서버가 켜지지 않음 · `CALC_API_TOKEN`과 다른 값) |
+| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값 · `X-Calc-Token`) · 카드 업로드(`POST /card/parse`)는 `CALC_MODE`와 관계없이 항상 이 토큰으로 계산 서버를 호출 · `CALC_MODE=http`인데 비어 있으면 서버가 시작되지 않음 |
+| `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 (`chatbot/.env`와 같은 값 · `X-Chatbot-Token`) · 비어 있으면 서버가 시작되지 않음 |
 
-Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
+Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다. `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`은 각 서버(`calc/.env` · `chatbot/.env`)와 같은 값이어야 합니다.
 
 ### 4.2 추가 환경변수
 
@@ -168,18 +170,16 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
 | `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 (카드 업로드는 모드와 관계없이 항상 계산 서버 `POST /card/parse`를 호출) | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
-| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) · `CALC_MODE=http`면 필수 (비우면 서버가 시작되지 않음 · 계산 서버도 같은 규칙) | 없음 |
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
-| `CHATBOT_API_TOKEN` | `chatbot/.env`와 동일해야 하는 Spring→FastAPI 내부 인증 토큰 (`X-Chatbot-Token`) | 설정 필요 |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
 | `MAIL_MODE` | 인증번호 메일 발송 방식 · `log`: 메일을 보내지 않고 로그만 · `smtp`: 실제 발송 (`CALC_MODE`와 같은 구조 · `member/client/EmailSender`) | `log` |
 | `MAIL_USERNAME` · `MAIL_PASSWORD` | 메일 계정 · Gmail은 「앱 비밀번호」 · `MAIL_MODE=smtp`일 때 필요 | 없음 |
 | `MAIL_FROM` | 보내는 주소 (`MAIL_MODE=smtp`인데 이것과 `MAIL_USERNAME`이 모두 비면 서버가 시작되지 않음) | `MAIL_USERNAME` |
 | `MAIL_HOST` · `MAIL_PORT` | 메일 서버 주소 · 포트 | `smtp.gmail.com` · `587` |
-| `EMAIL_VERIFICATION_REQUIRED` | 가입 때 이메일 인증 필수 (켜면 화면 `frontend/.env`의 `VITE_EMAIL_VERIFICATION_REQUIRED=true`도 같이) | `false` |
-| `EMAIL_DEV_CODE_ENABLED` | 인증번호를 발송 API 응답(`devCode`)에 담음 · 개발용 · 운영 금지 | `false` |
+| `EMAIL_DEV_CODE_ENABLED` | 개발용: 이메일 인증번호를 발송 API 응답(`devCode`)에 담아 줌 (메일 발송 구현 전 테스트용 · 운영에서는 반드시 `false`) | `false` |
+| `EMAIL_VERIFICATION_REQUIRED` | 가입 때 이메일 인증을 꼭 마쳐야 하는지 (켤 때는 화면 `frontend/src/api/member-api.js`의 `EMAIL_VERIFICATION_REQUIRED`도 `true`로) | `false` |
 
 환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
 
@@ -188,7 +188,7 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 1. `Run → Run Configurations...`를 선택합니다.
 2. `Spring Boot App`에서 Backend 프로젝트를 선택합니다.
 3. `Environment` 탭으로 이동합니다.
-4. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`를 추가합니다.
+4. 4.1 필수 환경변수(`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `CALC_API_TOKEN`, `CHATBOT_API_TOKEN`)를 추가합니다.
 5. `Apply → Run`을 선택합니다.
 
 > **주의:** DB 비밀번호, API 토큰 등 민감정보는 GitHub에 업로드하거나 화면 캡처에 노출하지 않습니다.
@@ -211,7 +211,7 @@ Run As → Spring Boot App
 mvnw spring-boot:run
 ```
 
-CMD에서도 DB 환경변수가 설정되어 있어야 합니다. STS에 등록한 실행 환경변수는 CMD에 자동으로 전달되지 않습니다.
+CMD에서도 4.1 필수 환경변수가 설정되어 있어야 합니다 (`backend/.env` 파일을 쓰면 CMD에서도 같이 읽힙니다). STS에 등록한 실행 환경변수는 CMD에 자동으로 전달되지 않습니다.
 
 ### 5.3 정상 실행 확인
 
