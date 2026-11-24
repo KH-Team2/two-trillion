@@ -1,13 +1,14 @@
 import React from 'react';
 import { ShieldCheck } from 'lucide-react';
 import { userService, categories } from '@/api/services.js';
-import { MemberManagement } from '@/pages/auth/AccountForms.jsx';
+// [수정 11/23 고은] MemberManagement를 AccountForms.jsx(브라우저 체험) → AdminTools.jsx(서버 API · F-20)에서 가져와요
 import { accountService } from '@/api/account-service.js';
 import {
   CriteriaManagement,
   AccessLog,
   Predictions,
   InquiryManagement,
+  MemberManagement,
 } from '@/pages/admin/AdminTools.jsx';
 import { recordAccess } from '@/api/prototype-records.js';
 import { Btn, Tag, Field } from '@/components/common/site-primitives.jsx';
