@@ -174,6 +174,8 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
+| `EMAIL_DEV_CODE_ENABLED` | 개발용: 이메일 인증번호를 발송 API 응답(`devCode`)에 담아 줌 (메일 발송 구현 전 테스트용 · 운영에서는 반드시 `false`) | `false` |
+| `EMAIL_VERIFICATION_REQUIRED` | 가입 때 이메일 인증을 꼭 마쳐야 하는지 (켤 때는 화면 `frontend/src/api/member-api.js`의 `EMAIL_VERIFICATION_REQUIRED`도 `true`로) | `false` |
 
 환경변수 대신 `backend/.env` 파일로 넣어도 됩니다 (`.env.example` 참고 · `.env`는 커밋하지 않음). 둘 다 있으면 환경변수가 우선입니다.
 
