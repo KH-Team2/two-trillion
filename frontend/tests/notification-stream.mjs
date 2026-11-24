@@ -18,8 +18,7 @@ try {
   const {
     parseSseBlock,
     splitSseBuffer,
-    calculationMessage,
-    deadlineMessage,
+    notificationFromEvent,
     openNotificationStream,
     NOTIFICATION_STREAM_PATH,
   } = await import(pathToFileURL(`${dir}/notification.mjs`));
@@ -36,18 +35,32 @@ try {
   });
   assert.deepEqual(splitSseBuffer('event:a\r\ndata:1\r\n\r\n').blocks, ['event:a\r\ndata:1']);
 
-  // 3. 토스트 문구 · 금액은 넣지 않음 (금융 정보 X)
-  assert.equal(
-    calculationMessage('{"taxYear":2026,"predictionId":75,"expectedRefund":446240}'),
-    '2026년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.',
-  );
-  assert.ok(!calculationMessage('{"taxYear":2026,"expectedRefund":-12000}').includes('12,000'));
-  assert.equal(calculationMessage('not json'), null);
-  assert.equal(calculationMessage('{"expectedRefund":1000}'), null);
+  // 1-1. 알림 번호(id:) 읽기 (TT-159)
+  assert.deepEqual(parseSseBlock('id:7\nevent:notification\ndata:{}'), {
+    event: 'notification',
+    data: '{}',
+    id: '7',
+  });
 
-  // 3-1. 마감 안내 문구 · 빈 글이면 null
-  assert.equal(deadlineMessage(' 마감 7일 전이에요. '), '마감 7일 전이에요.');
-  assert.equal(deadlineMessage(''), null);
+  // 3. 서버 알림(notification) → 목록 한 줄 · 문구는 서버가 준 그대로 (금액은 서버에서 넣지 않음)
+  const a3 = notificationFromEvent(
+    JSON.stringify({
+      notificationId: 7,
+      notiType: 'CALCULATION',
+      content: ' 2026년 계산이 끝났어요. 눌러서 결과를 확인해 보세요. ',
+      linkUrl: 'dashboard',
+      readYn: 'N',
+      createdAt: '2026-11-23T10:00:00',
+    }),
+  );
+  assert.equal(a3.id, 7);
+  assert.equal(a3.message, '2026년 계산이 끝났어요. 눌러서 결과를 확인해 보세요.');
+  assert.equal(a3.link, 'dashboard');
+  assert.equal(a3.read, false);
+  assert.equal(notificationFromEvent('not json'), null);
+  assert.equal(notificationFromEvent('{"content":"  "}'), null);
+  // 서버 저장이 실패해 번호가 없으면 화면 임시 번호
+  assert.ok(String(notificationFromEvent('{"content":"안내"}').id).startsWith('live-'));
 
   // 가짜 저장소 · 가짜 fetch
   const store = new Map();
@@ -81,7 +94,7 @@ try {
     fetchImpl: async (url, init) => {
       req = { url, init };
       return new Response(
-        streamOf(['event:connected\ndata:ok\n\nevent:calcul', 'ation\ndata:{"taxYear":2026}\n\n']),
+        streamOf(['event:connected\ndata:ok\n\nevent:notifi', 'cation\ndata:{"content":"a"}\n\n']),
         { status: 200, headers: { 'Content-Type': 'text/event-stream' } },
       );
     },
@@ -93,7 +106,7 @@ try {
   assert.equal(req.init.headers.Authorization, 'Bearer header.payload.sig');
   assert.deepEqual(seen, [
     ['connected', 'ok'],
-    ['calculation', '{"taxYear":2026}'],
+    ['notification', '{"content":"a"}'],
   ]);
 
   // 6. 401 → 로그인 정보를 지우고 다시 연결하지 않음
@@ -158,7 +171,26 @@ try {
   close5();
   assert.ok(calls >= 2, `조용하면 다시 연결해야 함 (${calls}번)`);
 
-  console.log('notification-stream: 9개 검사 통과');
+  // 10. 받은 알림 번호를 기억했다가 다시 연결할 때 Last-Event-ID 로 보냄 · 처음 값(lastEventId)도 받음 (TT-159)
+  const sentIds = [];
+  const close6 = openNotificationStream({
+    retryMs: 5,
+    lastEventId: 3,
+    fetchImpl: async (url, init) => {
+      sentIds.push(init.headers['Last-Event-ID']);
+      return new Response(
+        streamOf(
+          sentIds.length === 1 ? ['id:5\nevent:notification\ndata:{"content":"a"}\n\n'] : [''],
+        ),
+      );
+    },
+  });
+  await new Promise((r) => setTimeout(r, 40));
+  close6();
+  assert.equal(sentIds[0], '3');
+  assert.equal(sentIds[1], '5');
+
+  console.log('notification-stream: 11개 검사 통과');
 } finally {
   fs.rmSync(dir, { recursive: true, force: true });
 }

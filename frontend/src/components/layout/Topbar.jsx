@@ -4,6 +4,9 @@ import { ChevronRight, Bell, Menu, ChevronDown } from 'lucide-react';
 import { nav } from '@/components/common/site-primitives.jsx';
 
 // 기존 상단바의 구조·버튼·알림 상태를 유지합니다.
+// 알림을 눌렀을 때 갈 수 있는 화면 (서버가 준 값을 그대로 쓰지 않고 이 목록 안에서만)
+const ALERT_PAGES = ['dashboard', 'input', 'support'];
+
 export default function Topbar({
   page,
   taxYear,
@@ -13,11 +16,13 @@ export default function Topbar({
   notification,
   setNotification,
   alerts = [],
+  unreadCount,
   onReadAlerts,
   go,
 }) {
   // [수정 11/20 · 이우진 · TT-151] 고정 안내 문구 → 서버 실시간 알림(SSE) 목록 · 안 읽은 알림이 있을 때만 점 표시
-  const unread = alerts.filter((a) => !a.read).length;
+  // [수정 11/23 · TT-159] 서버 안 읽은 개수가 있으면 그걸로 (목록 20개 밖의 안 읽은 알림도 셈) · 없으면 목록에서 셈
+  const unread = Number.isInteger(unreadCount) ? unreadCount : alerts.filter((a) => !a.read).length;
   const toggle = () => {
     if (!notification) onReadAlerts?.(); // 열면 읽음 처리
     setNotification(!notification);
@@ -55,7 +60,7 @@ export default function Topbar({
         <div className="notification card">
           <b>알림</b>
           {alerts.length === 0 ? (
-            <p>새 알림이 없어요. 계산이 끝나면 여기에 알려 드려요.</p>
+            <p>새 알림이 없어요. 계산이 끝나거나 마감이 다가오면 여기에 알려 드려요.</p>
           ) : (
             <ul className="notification-list">
               {alerts.map((a) => (
@@ -63,7 +68,8 @@ export default function Topbar({
                   <button
                     onClick={() => {
                       setNotification(false);
-                      go('dashboard');
+                      // [수정 11/23 · TT-159] 알림마다 갈 화면(서버 LINK_URL) · 모르는 값이면 대시보드
+                      go(ALERT_PAGES.includes(a.link) ? a.link : 'dashboard');
                     }}
                   >
                     <span>{a.message}</span>

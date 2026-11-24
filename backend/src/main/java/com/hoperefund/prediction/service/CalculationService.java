@@ -5,7 +5,6 @@ import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.income.dto.IncomeRequestDTO;
 import com.hoperefund.income.dto.IncomeResponseDTO;
 import com.hoperefund.income.service.IncomeService;
-import com.hoperefund.notification.dto.CalculationNotificationDTO;
 import com.hoperefund.notification.service.NotificationService;
 import com.hoperefund.prediction.client.CalcClient;
 import com.hoperefund.prediction.dto.BenefitResponseDTO;
@@ -98,11 +97,9 @@ public class CalculationService {
                 result.getPredictionId(),
                 System.currentTimeMillis() - started);
 
-        // 4. 열려 있는 화면에 계산 완료 알림 (연결이 없으면 아무 일도 안 해요 · 실패해도 계산 결과에는 영향 없음)
-        notificationService.sendToMember(
-                memberId,
-                "calculation",
-                new CalculationNotificationDTO(taxYear, result.getPredictionId()));
+        // 4. 계산 완료 알림: 저장 후 열려 있는 화면에 보내요 (접속 중이 아니면 저장만 · 실패해도 계산 결과에는 영향 없음)
+        // [수정 11/23 · 이우진 · TT-158] NOTIFICATION 에 저장 · 문구에 금액 X
+        notificationService.notifyCalculation(memberId, taxYear);
         return result;
     }
 
