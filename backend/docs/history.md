@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-25] 구조도에 알림 · 상담 채팅 추가 · ERD 버전 표기 v4.4 (TT-185)
+- **작업 내용**:
+  - `README.md`(루트) 구조도: 백엔드 `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가 · 화면 `api/`에 계산 · 혜택 진단 · 시뮬레이션 · 통계 · 알림 · 상담 호출 파일 9개 · `pages/support/ConsultChat.jsx` · 화면 테스트 5개 추가
+  - `backend/README.md` 구조도: `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가
+  - `backend/AGENTS.md` 폴더 구조: `notification/` · `consult/` 두 줄 추가
+  - ERD 버전 표기 v4.2 → v4.4: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+- **변경 사유**: PR #46 · #51 · #58로 들어간 알림 · 상담 채팅과 ERD v4.3 · v4.4가 구조도 · 버전 표기에 빠져 있었음
+- **검증 결과**: 문서만 바꿈 (코드 변경 없음) · 폴더 · 파일 이름은 develop(e19fb07)의 실제 경로와 대조
+
+
 ### [2026-11-25] API 규칙 문서 7번 표에 알림 · 상담 API 추가 (TT-184)
 - **작업 내용**: `backend/docs/api-rules.md` 7번 표에 알림 3개(`/api/notifications/stream` · `/api/notifications` · `/api/notifications/read`) · 상담 3개(`/api/consult/rooms` · `/api/consult/rooms/{roomId}/messages` · `/api/admin/consult/rooms`) 행 추가 · 표 아래에 WebSocket(`/ws` · `/sub` · `/pub` · `/user/queue/errors`) 주소 규칙 한 줄
 - **변경 사유**: 계산 · 회원 API는 표에 있는데 PR #51 · #58로 들어간 알림 · 상담 API가 빠져 있었음
