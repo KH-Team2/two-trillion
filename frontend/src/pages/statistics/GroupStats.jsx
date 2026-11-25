@@ -2,10 +2,10 @@
 import React from 'react';
 import { Info, ArrowRight } from 'lucide-react';
 import { groupComparison } from '@/utils/group-model.js';
-// result: 서버 계산 결과(없으면 체험용 계산으로 그림) · groupStats: 서버가 찾은 내 그룹(없으면 통계 스냅샷에서 찾음)
+// result: 서버 계산 결과 · groupStats: 서버가 찾은 내 그룹(없으면 통계 스냅샷에서 찾음)
+// [수정 11/23] 체험용 계산(isDemo) 분기 삭제 · 이유: 체험판 기능 삭제 결정 (결과가 없으면 App이 이 화면 대신 안내를 띄워요)
 export default function GroupStats({ data, go, result, groupStats = null }) {
-  const isDemo = !result;
-  const m = groupComparison(data, result, groupStats, isDemo);
+  const m = groupComparison(data, result, groupStats);
   return (
     <>
       <div className="heading">
@@ -25,9 +25,8 @@ export default function GroupStats({ data, go, result, groupStats = null }) {
           {m.fromServer
             ? '서버(DB)에 저장된 통계에서 내가 속한 집단을 조회했습니다.'
             : '서버에 연결되지 않아 화면에 보관한 통계로 표시합니다.'}{' '}
-          사용자·체험 회원 계산은 공식 집단 평균에 합산하지 않습니다. 나의 값은 {m.taxYear}년{' '}
-          {isDemo ? '체험용 계산' : '계산 결과'}으로 귀속연도·계산 방식이 달라 직접적인 우열이나
-          절세 효과로 해석할 수 없습니다.
+          사용자 계산은 공식 집단 평균에 합산하지 않습니다. 나의 값은 {m.taxYear}년 계산 결과로
+          귀속연도·계산 방식이 달라 직접적인 우열이나 절세 효과로 해석할 수 없습니다.
         </span>
       </div>
       <div className="two-col">
@@ -37,9 +36,7 @@ export default function GroupStats({ data, go, result, groupStats = null }) {
             <section className="card" key={key}>
               <div className="card-heading">
                 <h3>{key === 'decidedTax' ? '평균 결정세액 비교' : '평균 환급세액 비교'}</h3>
-                <span className="tag gray">
-                  원 · 집단 평균 / 나의 {isDemo ? '데모' : '계산 결과'}
-                </span>
+                <span className="tag gray">원 · 집단 평균 / 나의 계산 결과</span>
               </div>
               <div
                 className="comparison-bars"
