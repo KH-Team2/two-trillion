@@ -2,6 +2,30 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-25] 관리자 상담 채팅 (WebSocket · STOMP) · 종 알림 (TT-153 · TT-154 · PR #58)
+- **작업 내용**:
+  - `pom.xml`: `spring-boot-starter-websocket` 추가
+  - `consult/config/WebSocketConfig`: 연결 `/ws` · 보내기 `/pub/...` → `@MessageMapping` 컨트롤러 · 받기 `/sub/...` → 구독자 모두 · 나에게만 `/user/queue/...` · Spring 기본 브로커(서버 메모리)
+  - `consult/config/StompAuthChannelInterceptor`: CONNECT 헤더 토큰 확인 → 이 연결의 사용자 = 회원번호 · SUBSCRIBE `/sub/consult/{roomId}`는 방 주인 회원 · 관리자만 · SEND는 `/pub/consult/{숫자}`만
+  - `consult/controller/ConsultController`: `POST /api/consult/rooms`(내 방 · 있으면 그 방) · `GET /api/consult/rooms/{roomId}/messages?beforeId=`(30개씩) · `GET /api/admin/consult/rooms`(최근 대화 순 최대 100개 · 아이디 일부 가림 `test****`)
+  - `consult/controller/ConsultMessageController`: SEND → 저장 → `/sub/consult/{roomId}` 방송 · 업무 오류는 `/user/queue/errors`로 보낸 사람에게만
+  - `consult/service/ConsultService` · `ConsultUser` · `consult/mapper/ConsultMapper`(+ XML) · `consult/dto` 4개: 회원당 방 1개(UNIQUE 충돌이면 먼저 만든 방) · 메시지 1~1000자 · 남의 방 404
+  - `consult/service/ConsultNotifier`: 받는 사람이 그 방을 구독 중이 아니면 종 알림(CHAT) · 회원 → 활동 중인 관리자 전원 · 관리자 → 방 주인 · 문구에 메시지 내용 없음
+  - `notification/service/NotificationService` · `NotificationMapper`: `TYPE_CHAT` · `notifyMemberUnlessUnread`(안 읽은 CHAT 알림이 있으면 안 만듦) · `countUnreadByType` · SSE 연결 회원당 최대 5개(넘으면 가장 오래된 연결 닫음)
+  - 화면: `ConsultChat.jsx`(+ CSS) · `consult-socket.js`(`@stomp/stompjs` 7.3.0 · 끊기면 5초 뒤 다시 연결) · `consult-service.js` · `SupportPage.jsx` 「상담 채팅」 탭 · `vite.config.js` `/ws` 프록시 · `tests/consult-chat.mjs`
+  - 리뷰 반영: SEND 주소 제한 · SSE 연결 5개 제한(`4fa053a`) · 구독 거절 문구 「내 채팅방이 아니에요」(`5a6cbf8`)
+  - **알려진 한계**:
+    - 서버 메모리 안 기본 브로커 → 서버 1대 기준 (SSE 알림과 같음 · 여러 대면 외부 브로커 필요)
+    - 토큰은 CONNECT 때만 확인 → 연결 중 토큰이 만료돼도 그 연결은 유지
+    - 메시지 보내기 횟수 제한 없음
+    - 관리자 방 목록은 최근 대화 순 100개까지 → 오래 조용한 방을 찾는 페이지 넘기기 · 검색은 없음 (대화 중인 방은 새 메시지가 오면 맨 위로 · 알림도 감)
+    - 허용 화면 주소(Origin)가 `localhost:5173`으로 고정 → 설정 파일 분리는 PR #59 (TT-182)
+    - 사진 · 파일 첨부 없음 (민감 정보 사진 보관 책임 · CONTENT 1000자 칸)
+- **변경 사유**: 2차 미션(실시간 알림 · 상담 채팅) · 회원이 고객센터에서 관리자와 1:1 실시간 상담 · 양쪽이 주고받아서 SSE(서버 → 화면 한 방향) 대신 WebSocket + STOMP · DB는 PR #56의 `CONSULT_ROOM` · `CONSULT_MESSAGE` 그대로 (DB 변경 없음)
+- **검증 결과**:
+  - `mvnw.cmd -B clean verify` 245개 통과 · `npm test` 통과
+  - 실사용(공용 DB · 회원 test1234 ↔ 관리자 admin): 실시간 주고받기 · 방을 안 보고 있을 때 종 알림 · 안 읽은 알림 중복 안 쌓임 · 방을 보고 있으면 알림 없음 · 관리자 답장 시 회원 알림
+
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
 - **작업 내용**:
   - `backend/README.md`: `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`을 4.2 추가 환경변수 → 4.1 필수 환경변수로 이동 · 4.3 STS 등록 목록과 5.2 CMD 실행 안내를 필수 6개 기준으로 수정
