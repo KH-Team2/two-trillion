@@ -313,4 +313,4 @@ mvnw -B verify
 ERD는 팀에서 공유한 v4.2를 기준으로 합니다.
 https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
-일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.
+일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.
