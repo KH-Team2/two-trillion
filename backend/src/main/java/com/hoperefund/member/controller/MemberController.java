@@ -49,15 +49,14 @@ public class MemberController {
             @RequestParam(required = false) String email) {
         // 둘 다 없거나 둘 다 있으면 400
         if ((loginId == null) == (email == null)) {
-            throw new BusinessException(
-                    HttpStatus.BAD_REQUEST, "VALIDATION", "아이디 또는 이메일 중 하나를 입력해 주세요");
+            String message = "아이디 또는 이메일 중 하나를 입력해 주세요";
+            throw new BusinessException(HttpStatus.BAD_REQUEST, "VALIDATION", message);
         }
 
-        MemberAvailabilityResponseDTO response =
-                loginId != null
-                        ? memberService.checkLoginId(loginId)
-                        : memberService.checkEmail(email);
-        return ApiResponse.ok(response);
+        if (loginId != null) {
+            return ApiResponse.ok(memberService.checkLoginId(loginId));
+        }
+        return ApiResponse.ok(memberService.checkEmail(email));
     }
 
     // POST /api/auth/login — 로그인. 접속 IP 는 ACCESS_LOG 기록용

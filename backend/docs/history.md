@@ -35,6 +35,21 @@
 - **검증 결과**:
   - `mvnw.cmd -B clean verify` 245개 통과 · `npm test` 통과
   - 실사용(공용 DB · 회원 test1234 ↔ 관리자 admin): 실시간 주고받기 · 방을 안 보고 있을 때 종 알림 · 안 읽은 알림 중복 안 쌓임 · 방을 보고 있으면 알림 없음 · 관리자 답장 시 회원 알림
+  - 
+### [2026-11-24] 재설정 코드 발송 횟수 제한 · 입사일 미래 날짜 막기 (리뷰 의견 반영)
+- **작업 내용**:
+  - `PasswordResetService.sendCode`: 최근 60분 동안 받은 코드가 5개 이상이면 429 `RESET_SEND_LIMIT` 「인증 코드를 너무 많이 요청했어요. 1시간 뒤에 다시 시도해 주세요」 · 메일 · 저장 안 함
+  - `PasswordResetMapper`(+ XML): `countRecentResets` 추가 (기존 `PASSWORD_RESET.CREATED_AT` · 인덱스 `IX_PASSWORD_RESET_MEMBER` 사용 · 테이블 변경 없음)
+  - `MemberProfileRequestDTO.hireDate`: `@PastOrPresent` → 오늘 이후 날짜면 400 `VALIDATION` 「입사일은 오늘 이후로 입력할 수 없어요」 (오늘은 허용)
+  - 화면: `member-api.js`에 `todayDate()`(지역 시각 기준 오늘) · `profileFormError`에 같은 검사 추가 · `ProfileDetails.jsx` 입사일 칸에 `max` 추가
+  - 테스트: `PasswordResetServiceTest`(이미 4번 받았으면 5번째 발송 · 이미 5번이면 429) · `MemberProfileControllerTest`(내일 400 · 오늘 200) · `member-api.test.js`
+- **변경 사유**:
+  - 코드 1개당 5번만 틀릴 수 있어도 새 코드를 끝없이 받으면 계속 맞혀 볼 수 있었음 (메일도 무제한 발송)
+  - 입사일에 아직 오지 않은 날짜가 저장돼 계산 서버 혜택 판정에 그대로 쓰일 수 있었음
+- **검증 결과**:
+  - `mvnw spotless:check` 통과 · `mvnw -B verify` 통과 (feature/member 266건 · feature/backend-common 277건) (`CHATBOT_API_TOKEN` · `CALC_API_TOKEN`에 임시 값을 넣고 실행 · 값이 없으면 `contextLoads` 1건 실패 — 수정 전에도 같음)
+  - 화면 `npm test` 통과
+  - 미검증: 실제 Oracle DB에서 `countRecentResets` 쿼리 실행 (Mock 테스트만)
 
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
 - **작업 내용**:
@@ -90,6 +105,97 @@
 - **검증 결과**
   - FAQ 카테고리 선택 → 용어 선택 → 상세 답변 조회 정상 동작 확인
   - 자유 질문 → FAQ 분류 → 고정 FAQ 답변 반환 정상 동작 확인
+
+### [2026-11-21] 회원 탈퇴 (F-01-05)
+- **작업 내용**:
+  - API `POST /api/members/me/withdrawal` (`MemberProfileController` · 로그인 필요 · 팀 명세에 없는 제안 주소) · 본문 `{password}` → `null`
+    - D-05: 비밀번호를 다시 확인한다 (토큰을 도용당해도 비밀번호를 모르면 탈퇴시킬 수 없게) · 틀림 400 `CURRENT_PASSWORD_MISMATCH` 「비밀번호가 맞지 않아요」 · 비움 400 `VALIDATION` · 없거나 이미 탈퇴 404
+    - DELETE 가 아닌 이유: 행을 지우지 않고 상태만 바꾸고(30일 유예), 비밀번호를 본문으로 받아야 해서
+  - `member/service/MemberWithdrawalService` (새 파일): 비밀번호 확인(BCrypt · 72바이트 초과는 틀림으로) → `withdrawMember` → 지금 토큰 로그아웃(`TokenService.logout`) · `@Transactional` · 로그는 회원번호만
+  - `MemberMapper.xml` `withdrawMember`: `STATUS='WITHDRAWN'` · `WITHDRAWN_AT=SYSDATE` · `ROLE='USER'` 를 한 문장으로 (따로 바꾸면 `CK_MEMBER_WITHDRAWN` ORA-02290) · `AND STATUS='ACTIVE'` (두 번 눌러도 탈퇴일 그대로) · 아이디 · 이메일은 유지 (D-21 30일 유예)
+  - `member/dto/MemberWithdrawalRequestDTO` (새 파일): `password` 하나 · `@ToString(exclude = "password")`
+  - 화면: `member-api.js` `withdrawMe()` · `account-service.js` 서버 로그인 회원이면 서버 탈퇴 후 저장된 토큰 삭제 (체험 계정은 브라우저 그대로) · `AccountForms.jsx` `WithdrawAccount` 안내 문구를 서버 / 체험으로 나눔 · `ProfilePage.jsx` 완료 알림 「탈퇴했어요. 30일 동안은 같은 아이디·이메일로 다시 가입할 수 없어요.」
+  - 이미 되어 있어 고치지 않은 부분: 탈퇴 회원 로그인 401 `WITHDRAWN_MEMBER` (`LoginService`) · 유예기간 중 같은 아이디 · 이메일 가입 막기 (중복확인이 탈퇴 회원도 셈) · 회원정보 조회 · 수정은 `STATUS='ACTIVE'` 만
+  - 이번에 안 한 것: 30일 지난 회원 식별 불가 처리 (97_데이터정리.sql 2-2 · 하루 한 번 · 저장소에 파일 없음) · 관리자 탈퇴 제한 (`tasks.md`)
+- **변경 사유**: 기능명세서 F-01-05 · D-05(비밀번호 재확인) · D-21(30일 유예) · 참고 저장소 sjlimiei26/final_project_sample(`@AuthenticationPrincipal` · `ApiResponse`) · secure-coding-lab-student(본인 조건을 SQL 에 · 식별자만 로그)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 261건 중 259건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · 변경 전과 같음) · 새 테스트: `MemberWithdrawalServiceTest` 6건 · `MemberProfileControllerTest` 탈퇴 4건 · 화면 `npm run format:check` · `npm test` · `npm run build` 통과
+  - 공용 DB 로 API 확인 (2026-11-21 · 테스트 회원 1005 `wdtest_1121210430` · 서버를 8081 로 따로 띄우고 `dev-code-enabled=true` 실행 옵션으로 이메일 인증): 가입 · 로그인 → 틀린 비밀번호 400 `CURRENT_PASSWORD_MISMATCH` · 빈 비밀번호 400 `VALIDATION` → 맞는 비밀번호 200 (ORA-02290 없음) → 같은 토큰 401 → 다시 로그인 401 `WITHDRAWN_MEMBER` → 중복확인 아이디 · 이메일 둘 다 사용 중 → 같은 아이디 재가입 409 `DUPLICATE_LOGIN_ID` · 같은 이메일 409 `DUPLICATE_EMAIL` · 서버 로그는 `memberId=1005` 만
+  - 미검증: `MEMBER` 칸을 SQL 로 직접 조회 (`WITHDRAWN_AT` · `ROLE`) · 브라우저에서 탈퇴 → 로그인 화면 이동 흐름
+
+### [2026-11-21] 회원(member) 코드 줄바꿈 정리 (선생님 샘플 기준)
+- **작업 내용**:
+  - 원인: Spotless(google-java-format AOSP)는 100자를 넘는 줄을 자동으로 꺾는다 → 긴 `throw new BusinessException(...)` · 람다 안의 람다 · 긴 요청 체인이 3 ~ 5단계로 들쭉날쭉하게 꺾여 있었음
+  - 방법 (final_project_sample/back 과 같은 방식 · 처음부터 100자를 넘지 않게 씀): 오류는 `badRequest(code, message)` · `unauthorized(...)` · `signupFailed()` 같은 메서드로 뺌 · 긴 식은 변수로 나눔 · 메일 본문은 텍스트 블록(`"""`) · 응답 DTO 는 `from()` 으로 만듦(`MemberProfileResponseDTO`) · 인증 기록 만료 판단은 `Verification.isExpired()` 로
+  - 테스트: 오류 확인을 `catchThrowable(...)` + `assertError(...)` 두 줄로 · 로그인은 `login()` · `loginError()` 도우미 · Controller 는 `postJson(주소, 본문)` · `putJson(...)` 도우미 · 긴 요청 DTO 는 setter 로
+  - 범위: `member/` main · test 만 (common · 다른 도메인은 건드리지 않음) · API · 응답 · 동작은 바뀌지 않음
+  - 그대로 둔 모양: 생성자의 긴 매개변수 목록(한 줄에 하나씩) · `변수 =` 다음 줄 한 줄로 끝나는 대입 (formatter 가 일정하게 만드는 모양)
+- **변경 사유**: 푸시된 코드의 줄바꿈이 읽기 어렵다는 사용자 피드백 · 참고 저장소: sjlimiei26/final_project_sample · 5_Framework · secure-coding-lab-student
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 251건 중 249건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · 변경 전과 같음) · member 테스트 107건 통과 · member 폴더에 24칸 이상 들여 쓴 줄 0개 (JSON 텍스트 블록 제외)
+  - 남은 곳 (이번에 안 고침): 다른 도메인(income · expense · prediction · statistics) 코드
+- **추가 (사용자 요청)**: `common/config/SecurityConfig` 도 같은 방식으로 정리
+  - 설정을 샘플처럼 ① 기본 기능 끄기 → ② 세션 안 씀 → ③ 주소 규칙 → ④ 401 · 403 응답 → ⑤ 토큰 필터 순서로 · 람다 안에 길게 늘어놓던 부분은 `stateless()` · `authorizeRules()` · `errorHandlers()` 메서드로 뺌 (주소 규칙은 한 줄에 하나)
+  - 401 · 403 응답: `writeUnauthorized()` · `writeForbidden()` · `JsonMapper` 는 메서드 매개변수 대신 생성자로 받음 (`@RequiredArgsConstructor`)
+  - JWT 필터: 로그인 정보 넣는 부분을 `login(TokenInfo)` 로 뺌
+  - 주소 규칙 · 순서 · 응답 코드 · 문구는 그대로 · `SecurityConfigTest` 7건 통과 · 전체 251건 중 249건 통과 (기존 expense 2건만 실패 · 변경 전과 같음)
+
+### [2026-11-21] 회원정보 · 자격 정보 수정 · 비밀번호 변경 (F-01-04)
+- **작업 내용**:
+  - API 3개 (`member/controller/MemberProfileController` · 로그인 필요 · 회원번호는 토큰에서 · 팀 명세에 없는 제안 주소)
+    - `GET /api/members/me`: 아이디 · 가린 이메일(`ho***@example.com` · 서버에서 가림) · 생년월일 · 성별 · 군 복무 개월 · 입사일 · 회사 규모 · 무주택 세대주 · 수정일 (권한 · 상태 · 비밀번호는 응답에 없음)
+    - `PUT /api/members/me`: 성별(M·F 필수) · 군 복무(0 ~ 999) · 입사일(비우면 NULL) · 회사 규모(SME·MID·LARGE · 비우면 NULL) · 무주택(Y·N 필수) 전부 저장 · `UPDATED_AT = SYSDATE` · `ROLE` · `STATUS` · 아이디 · 이메일(D-04) · 생년월일은 SQL `SET`에 없음 · 저장 후 다시 조회해 응답
+    - `PUT /api/members/me/password`: 현재 비밀번호 BCrypt 확인(틀리면 400 `CURRENT_PASSWORD_MISMATCH`) → 새 비밀번호 규칙(회원가입과 같은 `MemberService.validatePassword` · 현재와 같으면 400) → BCrypt 저장
+  - 군 복무 음수: DTO 검사로 400 「0 이상으로 입력해 주세요」 · DB 값 제한 위반(ORA-02290 `CK_MEMBER_MILITARY`)도 같은 문구로 바꿈 (ORA 코드는 화면에 보내지 않음)
+  - 모든 SQL에 `MEMBER_ID = 로그인 회원` + `STATUS = 'ACTIVE'` 조건 · 없거나 탈퇴면 404
+  - `MemberProfileService` · DTO 4개 (`MemberProfileDTO`(Mapper 1행 · 이메일 원문) · `MemberProfileResponseDTO` · `MemberProfileRequestDTO` · `PasswordChangeRequestDTO`) · `MemberMapper`에 `selectProfile` · `updateProfile` · `selectPassword` 추가
+  - 화면: `frontend/src/api/member-api.js`에 `getMyProfile` · `updateMyProfile` · `changeMyPassword` · `profileFormError` · `toProfileRequest` · `passwordChangeFormError` 추가 · `ProfileDetails.jsx`에 서버 회원용 `ServerProfileDetails` · `ServerPasswordChange` 추가 · `ProfilePage.jsx`의 「개인정보」 · 「비밀번호 변경」 탭은 서버 로그인 회원이면 서버 폼 (빠른 체험은 기존 시연 폼 그대로 · 라우팅 그대로)
+  - 테스트: `MemberProfileServiceTest` 12개 · `MemberProfileControllerTest` 9개 · `member-api.test.js` · `render-pages.mjs`(서버 회원 개인정보 · 비밀번호 탭 2개)
+- **변경 사유**: 기능명세서 F-01-04. 세액 계산(F-03-01) · 혜택 진단(F-03-02)이 `MEMBER`의 군 복무 · 입사일 · 회사 규모 · 무주택을 읽는데 이 값을 저장하는 곳이 없어 모든 회원이 기본값으로 계산되고 있었음. 비밀번호 변경은 토큰만 탈취돼도 바꾸지 못하게 현재 비밀번호를 확인하는 별도 주소로 둠 (사용자 결정)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 251건 중 249건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · tasks.md 「팀 확인 필요」) · 프론트 `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과
+  - 미검증: 실제 Oracle DB에서 UPDATE · ORA-02290 문구 확인 · 브라우저에서 조회 → 저장 → 다시 계산 흐름 · 토큰 없이 부르면 401 (`/api/**` 규칙이라 같을 것으로 보지만 `SecurityConfigTest`는 common이라 추가 안 함)
+
+### [2026-11-21] 아이디 찾기 · 비밀번호 재설정 (F-01-03)
+- **작업 내용**:
+  - API 3개 (`member/controller/PasswordResetController` · 팀 명세에 없는 제안 주소 · 이메일이 접속 기록에 남지 않게 모두 POST 본문)
+    - `POST /api/auth/login-id-lookups`: 이메일 → 앞 2글자만 보이는 아이디 (`te******` · 마스킹은 서버에서)
+    - `POST /api/auth/password-resets`: 6자리 코드 생성 → 메일 발송 → BCrypt 해시로 `PASSWORD_RESET` 저장 (`SEQ_PASSWORD_RESET` · 만료 `SYSDATE + 10분`)
+    - `POST /api/auth/password-resets/completion`: 가장 최근 코드를 `FOR UPDATE`로 잠그고 확인 → 틀리면 `FAIL_COUNT + 1`(5번째에 무효) → 맞으면 `USED_YN = 'Y'` + 새 비밀번호 BCrypt 저장 (한 트랜잭션 · 코드 틀림 예외에서는 되돌리지 않음 `noRollbackFor`)
+  - 대상 회원: 탈퇴 제외 · `EMAIL_VERIFICATION_REQUIRED=true`면 `EMAIL_VERIFIED_YN = 'Y'`만 (끈 동안은 'N'도 허용 · 사용자 결정) · 아이디 찾기도 같은 조건
+  - `PasswordResetService` · `PasswordResetMapper`(.java · .xml) · DTO 6개 (`MemberEmailRequestDTO` · `LoginIdLookupResponseDTO` · `PasswordResetResponseDTO` · `PasswordResetCompleteRequestDTO` · `PasswordResetMemberDTO` · `PasswordResetDTO`) 추가
+  - `MemberMapper`: `selectResetMember`(이메일로 조회) · `updatePassword` 추가 · `MemberService.validatePassword`를 패키지 공개로 (재설정도 같은 비밀번호 규칙)
+  - `EmailSender.sendPasswordResetCode` 추가 (`LogEmailSender` · `SmtpEmailSender` · 메일 1통 보내는 부분을 `send()`로 묶음)
+  - 화면: `frontend/src/api/member-api.js`에 `findLoginId` · `sendPasswordResetCode` · `completePasswordReset` · `passwordResetFormError` 추가 · `AccountForms.jsx`의 기존 `reset` 화면(「미연동」 안내)을 「아이디 찾기 / 비밀번호 재설정」 두 탭 서버 연결 카드로 교체 · 로그인 화면에 「아이디 · 비밀번호를 잊으셨나요?」 표시 (`SHOW_PASSWORD_RESET` 삭제) · 라우팅은 그대로
+  - 테스트: `PasswordResetServiceTest` 18개 · `PasswordResetControllerTest` 8개 · `SmtpEmailSenderTest` 1개 · `member-api.test.js` · `render-pages.mjs`(로그인 링크 · 재설정 화면)
+- **변경 사유**: 기능명세서 F-01-03 (DB v2.3 · v2.5의 `PASSWORD_RESET`은 준비돼 있었음 · 계획서에 없어 포함 여부 D-03 후순위)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 230건 중 228건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · tasks.md 「팀 확인 필요」) · 프론트 `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과 (전체 `format:check`는 기존 CRLF 문제로 실패)
+  - 사용자 확인 (2026-11-21): 화면에서 아이디 찾기(앞 2글자 + 마스킹) · 인증 코드 발송 → 입력 → 새 비밀번호 → 「비밀번호를 바꿨어요」 → 로그인하러 가기 · 공용 DB에서 `SEQ_PASSWORD_RESET` · `PASSWORD_RESET` 저장 값(코드 해시 · 10분 · `USED_YN`) · `MEMBER.PASSWORD` · `UPDATED_AT` 변경 확인
+  - 미검증: 예외 흐름을 실제 DB에서 따로 확인한 기록 없음 (5번 틀림 · 10분 만료 · 사용한 코드 재사용 · 테스트로만 확인)
+
+### [2026-11-21] 이메일 인증 화면 스위치를 환경변수로 · 메일 발송 안내 문구 수정 (F-01-01)
+- **작업 내용**:
+  - `frontend/src/api/member-api.js`: `EMAIL_VERIFICATION_REQUIRED`를 코드 고정값(false) 대신 `VITE_EMAIL_VERIFICATION_REQUIRED=true`일 때만 켜지게 변경 (기본 꺼짐)
+  - `frontend/src/pages/auth/AccountForms.jsx`: 서버 회원가입 인증 안내 「메일 발송 기능은 준비 중…아래에 표시됩니다」 · 「(메일 발송 기능은 아직 연결되지 않았어요)」 삭제 → 메일 발송 안내로 변경 (빠른 체험 문구는 그대로)
+  - `frontend/.env.example` · `frontend/README.md` 환경변수 표에 `VITE_EMAIL_VERIFICATION_REQUIRED` 추가 · 백엔드 문서의 「member-api.js를 true로」 안내를 새 방식으로 수정
+- **변경 사유**: 메일 발송이 붙어 실제로 메일이 나감 · 스위치를 코드에 두면 켜서 커밋할 때 메일 계정이 없는 팀원 화면에도 인증이 강제됨
+- **검증 결과**: `npm test` · `npm run build` 통과 · 고친 파일 prettier 통과 (전체 `format:check`는 기존 CRLF 문제로 실패) · 로컬에서 Gmail 인증번호 수신 → 가입 → `EMAIL_VERIFIED_YN = 'Y'` 확인 (사용자 확인)
+
+### [2026-11-20] 회원가입 동의서 버전 표시 · 초안 안내 문구 삭제 (F-01-01)
+- **작업 내용**: `frontend/src/pages/auth/AccountForms.jsx` 서버 회원가입 체크박스에 동의서 버전 표시 (예: `[필수] 서비스 이용약관 동의 (v1.0)` · `VITE_*_VERSION` 값) · 펼치기 문구 「동의문 초안 보기 · 내용·버전 확인 필요」 → 「동의문 보기」 (빠른 체험 화면은 그대로)
+- **변경 사유**: 기능명세서 F-01-01 「약관·개인정보 동의(버전 표시)」 · 동의서 버전 1.0 확정
+- **검증 결과**: `npm test` · `npm run build` 통과 · 미검증: 동의문 본문의 「확정 전」 표현은 팀 결정 사항이라 그대로 둠
+
+### [2026-11-20] 이메일 인증번호 메일 발송 구조 추가 (EmailSender · F-01-01)
+- **작업 내용**:
+  - `pom.xml`: `spring-boot-starter-mail` 추가
+  - `member/client/EmailSender`(인터페이스) · `LogEmailSender`(MAIL_MODE=log · 기본값 · 로그만) · `SmtpEmailSender`(MAIL_MODE=smtp · 실제 발송 · 실패 시 503 `MAIL_UNAVAILABLE`) 추가 → `CalcClient` · `MockCalcClient` · `HttpCalcClient`와 같은 구조
+  - `EmailVerificationService.send`: 메일을 먼저 보내고, 보낸 뒤에만 인증 기록 저장 (발송 실패 시 쓸 수 없는 기록을 남기지 않음)
+  - `application.yml`: `spring.mail`(MAIL_HOST · MAIL_PORT · MAIL_USERNAME · MAIL_PASSWORD · 연결 3초 · 읽기/쓰기 5초) · `member.mail.mode` · `member.mail.from` 추가
+  - `.env.example` · README 4.2 표에 메일 환경변수 추가
+  - 테스트: `SmtpEmailSenderTest` 3개 추가 · `EmailVerificationServiceTest` 3개 추가
+- **변경 사유**: 이메일 인증에서 실제 메일 발송만 비어 있었음 (인증번호 생성 · 확인 · 가입 전 확인은 구현돼 있었음). SMTP 계정 확정 전에도 개발이 멈추지 않게 log/smtp를 설정으로 고름
+- **검증 결과**: `./mvnw spotless:check` 통과 · member 테스트 모두 통과 · `./mvnw -B verify`는 expense 테스트 2개 실패
+  - 실패: `CardUploadControllerTest` · `ExpenseControllerTest`의 `회원번호_헤더가_없으면_401` (401 기대 · 400 응답) → 이번 변경 전 코드에서도 똑같이 실패 (기존 문제 · expense 담당 확인 필요)
+  - 참고: 503은 공통 처리기(`GlobalExceptionHandler`)가 화면에 `SERVER_ERROR` 「잠시 후 다시 시도해 주세요.」 + `errorId`로 바꿔 보냄 (`MAIL_UNAVAILABLE`은 서버 로그에서 확인 · common 수정 안 함)
+  - 미검증: 실제 SMTP 발송(메일 계정 미정) · 화면에서 인증 흐름 (EMAIL_VERIFICATION_REQUIRED는 아직 false)
 
 ### [2026-11-20] SSE 실시간 알림 · 공제 마감 안내 (TT-150 · TT-151 · TT-152 · PR #46)
 - **작업 내용**:

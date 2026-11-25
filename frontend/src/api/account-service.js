@@ -4,7 +4,8 @@ import { memberApi } from './member-api.js';
 // 계정 어댑터입니다.
 // - 로그인 · 로그아웃(F-01-02): Spring Boot 서버 (아래 accountService.login · logout · current) · 토큰은 localStorage
 // - createAccountService: 브라우저 체험용 계정 (빠른 체험 · 관리자 화면 시연 · 기존 테스트)
-// TODO: 회원정보 수정 · 비밀번호 변경 · 탈퇴 · 관리자 회원 관리는 아직 브라우저 체험 (서버 API 없음)
+// - 회원 탈퇴(F-01-05): 서버 로그인 회원은 서버 (accountService.withdraw) · 체험 계정은 브라우저
+// TODO: 관리자 회원 관리는 아직 브라우저 체험 (서버 API 없음)
 export const LOCK_MS = 10 * 60 * 1000;
 export const ACCOUNT_KEY = 'hope-accounts-v1';
 export const SESSION_KEY = 'hope-session-v1';
@@ -446,9 +447,14 @@ export const accountService = {
       throw Error('빠른 체험 계정에는 비밀번호가 없습니다. 가입한 계정으로 로그인해주세요.');
     return browserAdapter().changePassword(a, b, c);
   },
-  withdraw: (password) => {
+  // 회원 탈퇴(F-01-05): 서버 로그인 회원은 POST /api/members/me/withdrawal → 성공하면 저장된 로그인 정보 삭제
+  // 서버가 토큰을 이미 무효로 했으므로 로그아웃 API는 따로 부르지 않음 · 실패하면 서버 문구를 그대로 던짐 (로그인 유지)
+  withdraw: async (password) => {
     if (sessionStorage.getItem(DEMO_MODE_KEY))
       throw Error('빠른 체험 계정입니다. 로그아웃으로 체험을 종료해주세요.');
-    return browserAdapter().withdraw(password);
+    if (!serverMember()) return browserAdapter().withdraw(password);
+    await memberApi.withdrawMe(password);
+    clearLogin();
+    sessionStorage.removeItem(SESSION_KEY);
   },
 };

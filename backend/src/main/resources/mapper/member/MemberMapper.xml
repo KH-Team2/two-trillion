@@ -103,4 +103,80 @@
          WHERE MEMBER_ID = #{memberId}
     </update>
 
+    <!-- 아이디 찾기 · 비밀번호 재설정 (F-01-03): 이메일(소문자로 바꾼 값)로 회원 조회 · 탈퇴 · 인증 여부는 Service 가 판단 -->
+    <select id="selectResetMember" resultType="com.hoperefund.member.dto.PasswordResetMemberDTO">
+        SELECT MEMBER_ID,
+               LOGIN_ID,
+               STATUS,
+               EMAIL_VERIFIED_YN
+          FROM MEMBER
+         WHERE EMAIL = #{email}
+    </select>
+
+    <!-- 비밀번호 재설정 (F-01-03): 새 BCrypt 암호문 저장 -->
+    <update id="updatePassword">
+        UPDATE MEMBER
+           SET PASSWORD = #{password},
+               UPDATED_AT = SYSDATE
+         WHERE MEMBER_ID = #{memberId}
+    </update>
+
+    <!-- 회원정보 조회 (F-01-04): 본인(MEMBER_ID) · 탈퇴하지 않은 회원만 · 이메일 가리기는 Service 가 한다 -->
+    <select id="selectProfile" resultType="com.hoperefund.member.dto.MemberProfileDTO">
+        SELECT LOGIN_ID,
+               EMAIL,
+               BIRTH_DATE,
+               GENDER,
+               MILITARY_MONTHS,
+               HIRE_DATE,
+               COMPANY_SIZE,
+               HOMELESS_HEAD_YN,
+               UPDATED_AT
+          FROM MEMBER
+         WHERE MEMBER_ID = #{memberId}
+           AND STATUS = 'ACTIVE'
+    </select>
+
+    <!--
+        회원정보 · 자격 정보 수정 (F-01-04)
+        - 바꾸는 칸: 성별 · 군 복무 개월 · 입사일 · 회사 규모 · 무주택 세대주 · 수정일
+        - ROLE · STATUS · LOGIN_ID · EMAIL · BIRTH_DATE 는 SET 에 넣지 않는다 (요청으로 바꿀 수 없게)
+        - 입사일 · 회사 규모는 비워서 보내면 NULL 로 저장 (jdbcType: Oracle 은 NULL 의 형식을 알려 줘야 함)
+    -->
+    <update id="updateProfile">
+        UPDATE MEMBER
+           SET GENDER = #{profile.gender},
+               MILITARY_MONTHS = #{profile.militaryMonths},
+               HIRE_DATE = #{profile.hireDate, jdbcType=DATE},
+               COMPANY_SIZE = #{profile.companySize, jdbcType=VARCHAR},
+               HOMELESS_HEAD_YN = #{profile.homelessHeadYn},
+               UPDATED_AT = SYSDATE
+         WHERE MEMBER_ID = #{memberId}
+           AND STATUS = 'ACTIVE'
+    </update>
+
+    <!-- 비밀번호 변경 (F-01-04): 현재 비밀번호 확인용 BCrypt 암호문 · 본인 · 탈퇴하지 않은 회원만 -->
+    <select id="selectPassword" resultType="string">
+        SELECT PASSWORD
+          FROM MEMBER
+         WHERE MEMBER_ID = #{memberId}
+           AND STATUS = 'ACTIVE'
+    </select>
+
+    <!--
+        회원 탈퇴 (F-01-05 · D-21)
+        - STATUS 와 WITHDRAWN_AT 을 한 문장에서 같이 바꾼다 (하나만 바꾸면 CK_MEMBER_WITHDRAWN 위반 · ORA-02290)
+        - ROLE 은 USER 로 되돌린다 (탈퇴한 관리자 계정에 관리자 권한이 남지 않게)
+        - LOGIN_ID · EMAIL 은 30일 유예기간 동안 그대로 둔다 → 30일 뒤 식별 불가 처리는 97_데이터정리.sql 2-2
+        - STATUS = 'ACTIVE' 조건 → 이미 탈퇴한 회원은 0행 (두 번 눌러도 탈퇴일이 바뀌지 않음)
+    -->
+    <update id="withdrawMember">
+        UPDATE MEMBER
+           SET STATUS = 'WITHDRAWN',
+               WITHDRAWN_AT = SYSDATE,
+               ROLE = 'USER'
+         WHERE MEMBER_ID = #{memberId}
+           AND STATUS = 'ACTIVE'
+    </update>
+
 </mapper>

@@ -175,6 +175,10 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `ALLOWED_ORIGINS` | 허용할 화면 주소 (CORS · 상담 채팅 WebSocket) · 쉼표로 여러 개 · `*`는 안 됨 · **배포 때는 운영 화면 주소로 꼭 바꿈** | `http://localhost:5173` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
+| `MAIL_MODE` | 인증번호 메일 발송 방식 · `log`: 메일을 보내지 않고 로그만 · `smtp`: 실제 발송 (`CALC_MODE`와 같은 구조 · `member/client/EmailSender`) | `log` |
+| `MAIL_USERNAME` · `MAIL_PASSWORD` | 메일 계정 · Gmail은 「앱 비밀번호」 · `MAIL_MODE=smtp`일 때 필요 | 없음 |
+| `MAIL_FROM` | 보내는 주소 (`MAIL_MODE=smtp`인데 이것과 `MAIL_USERNAME`이 모두 비면 서버가 시작되지 않음) | `MAIL_USERNAME` |
+| `MAIL_HOST` · `MAIL_PORT` | 메일 서버 주소 · 포트 | `smtp.gmail.com` · `587` |
 | `EMAIL_DEV_CODE_ENABLED` | 개발용: 이메일 인증번호를 발송 API 응답(`devCode`)에 담아 줌 (메일 발송 구현 전 테스트용 · 운영에서는 반드시 `false`) | `false` |
 | `EMAIL_VERIFICATION_REQUIRED` | 가입 때 이메일 인증을 꼭 마쳐야 하는지 (켤 때는 화면 `frontend/src/api/member-api.js`의 `EMAIL_VERIFICATION_REQUIRED`도 `true`로) | `false` |
 
