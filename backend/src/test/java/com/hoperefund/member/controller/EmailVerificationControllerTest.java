@@ -23,6 +23,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * 이메일 인증 API 테스트
@@ -37,21 +38,23 @@ class EmailVerificationControllerTest {
 
     @Autowired private MockMvc mockMvc;
 
+    // JSON 본문으로 POST 요청
+    private ResultActions postJson(String url, String body) throws Exception {
+        return mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
     @MockitoBean private EmailVerificationService emailVerificationService;
 
     // 발송 → 200 {success, data: {verificationId, expiresAt}}
     @Test
     void sendReturns200() throws Exception {
 
-        given(emailVerificationService.send("hope@example.com"))
-                .willReturn(
-                        new EmailVerificationResponseDTO(
-                                "verify-1", Instant.parse("2026-11-10T03:05:00Z"), null));
+        Instant expiresAt = Instant.parse("2026-11-10T03:05:00Z");
+        EmailVerificationResponseDTO response =
+                new EmailVerificationResponseDTO("verify-1", expiresAt, null);
+        given(emailVerificationService.send("hope@example.com")).willReturn(response);
 
-        mockMvc.perform(
-                        post(URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"email\": \"hope@example.com\"}"))
+        postJson(URL, "{\"email\": \"hope@example.com\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.verificationId").value("verify-1"))
                 .andExpect(jsonPath("$.data.expiresAt").exists());
@@ -61,10 +64,7 @@ class EmailVerificationControllerTest {
     @Test
     void sendInvalidEmailReturns400() throws Exception {
 
-        mockMvc.perform(
-                        post(URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"email\": \"not-an-email\"}"))
+        postJson(URL, "{\"email\": \"not-an-email\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("이메일 형식을 확인해 주세요"));
 
@@ -75,10 +75,7 @@ class EmailVerificationControllerTest {
     @Test
     void confirmReturns200() throws Exception {
 
-        mockMvc.perform(
-                        post(URL + "/verify-1/confirmation")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"code\": \"123456\"}"))
+        postJson(URL + "/verify-1/confirmation", "{\"code\": \"123456\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.verified").value(true));
 
@@ -89,10 +86,7 @@ class EmailVerificationControllerTest {
     @Test
     void confirmInvalidCodeFormatReturns400() throws Exception {
 
-        mockMvc.perform(
-                        post(URL + "/verify-1/confirmation")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"code\": \"12ab\"}"))
+        postJson(URL + "/verify-1/confirmation", "{\"code\": \"12ab\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("인증 코드가 맞지 않거나 만료됐어요"));
     }
@@ -101,18 +95,12 @@ class EmailVerificationControllerTest {
     @Test
     void confirmWrongCodeReturns400() throws Exception {
 
-        willThrow(
-                        new BusinessException(
-                                HttpStatus.BAD_REQUEST,
-                                "VERIFICATION_FAILED",
-                                "인증 코드가 맞지 않거나 만료됐어요"))
-                .given(emailVerificationService)
-                .confirm("verify-1", "000000");
+        String message = "인증 코드가 맞지 않거나 만료됐어요";
+        BusinessException error =
+                new BusinessException(HttpStatus.BAD_REQUEST, "VERIFICATION_FAILED", message);
+        willThrow(error).given(emailVerificationService).confirm("verify-1", "000000");
 
-        mockMvc.perform(
-                        post(URL + "/verify-1/confirmation")
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content("{\"code\": \"000000\"}"))
+        postJson(URL + "/verify-1/confirmation", "{\"code\": \"000000\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VERIFICATION_FAILED"));
     }

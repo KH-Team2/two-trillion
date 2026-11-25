@@ -1,6 +1,15 @@
 // member-api.js 테스트: 화면 값 → API 요청 이름 변환 · 호출 주소 · 방식
 import assert from 'node:assert/strict';
-import { createMemberApi, signupFormError, toSignupRequest } from './member-api.js';
+import {
+  createMemberApi,
+  passwordChangeFormError,
+  passwordResetFormError,
+  profileFormError,
+  signupFormError,
+  toProfileRequest,
+  toSignupRequest,
+  todayDate,
+} from './member-api.js';
 
 const form = {
   username: ' Hope_User ',
@@ -71,6 +80,47 @@ assert.deepEqual(calls[5], [
 ]);
 assert.deepEqual(calls[6], ['/api/auth/logout', { method: 'POST', auth: true }]);
 
+// 아이디 찾기 · 비밀번호 재설정 (F-01-03): 이메일은 본문으로 · 앞뒤 공백 제거 · 비밀번호는 그대로
+const resetForm = {
+  email: ' hope@example.com ',
+  code: '123456',
+  newPassword: ' new pass1 ',
+  newPasswordConfirm: ' new pass1 ',
+};
+await api.findLoginId(' hope@example.com ');
+await api.sendPasswordResetCode(' hope@example.com ');
+await api.completePasswordReset(resetForm);
+assert.deepEqual(calls[7], [
+  '/api/auth/login-id-lookups',
+  { method: 'POST', body: { email: 'hope@example.com' } },
+]);
+assert.deepEqual(calls[8], [
+  '/api/auth/password-resets',
+  { method: 'POST', body: { email: 'hope@example.com' } },
+]);
+assert.deepEqual(calls[9], [
+  '/api/auth/password-resets/completion',
+  {
+    method: 'POST',
+    body: {
+      email: 'hope@example.com',
+      code: '123456',
+      newPassword: ' new pass1 ',
+      newPasswordConfirm: ' new pass1 ',
+    },
+  },
+]);
+// 재설정 화면 검사
+assert.equal(passwordResetFormError(resetForm), '');
+for (const [change, message] of [
+  [{ email: ' ' }, '이메일을 입력해 주세요'],
+  [{ code: '12ab' }, '6자리 인증 코드를 입력해 주세요'],
+  [{ newPassword: 'short', newPasswordConfirm: 'short' }, '비밀번호는 8자 이상 입력해 주세요'],
+  [{ newPasswordConfirm: 'different1' }, '비밀번호 확인이 일치하지 않아요'],
+]) {
+  assert.equal(passwordResetFormError({ ...resetForm, ...change }), message);
+}
+
 // 화면 검사: 정상 → '' · 항목별 안내 문구
 const now = new Date('2026-11-10T03:00:00Z');
 const ready = { ...form, checkedUsername: form.username, checkedEmail: form.email };
@@ -102,4 +152,99 @@ assert.equal(toSignupRequest(noProof, versions).verificationId, null);
 // 만 14세 생일 당일(한국 시간)은 가입 가능
 assert.equal(signupFormError({ ...ready, birth: '2012-11-10' }, now), '');
 
-console.log('PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사');
+// 회원정보 · 자격 정보 수정 · 비밀번호 변경 (F-01-04): 모두 로그인 토큰(auth) 필요 · PUT은 모든 칸
+const profileForm = {
+  gender: 'M',
+  militaryMonths: '18',
+  hireDate: '',
+  companySize: '',
+  homelessHeadYn: 'Y',
+};
+const profileCalls = [];
+const profileApi = createMemberApi(async (path, options) => {
+  profileCalls.push([path, options]);
+  return {};
+});
+await profileApi.getMyProfile();
+await profileApi.updateMyProfile(profileForm);
+await profileApi.changeMyPassword({
+  currentPassword: 'oldPass1!',
+  newPassword: 'newPass1!',
+  newPasswordConfirm: 'newPass1!',
+});
+assert.deepEqual(profileCalls[0], ['/api/members/me', { auth: true }]);
+assert.deepEqual(profileCalls[1], [
+  '/api/members/me',
+  {
+    method: 'PUT',
+    body: {
+      gender: 'M',
+      militaryMonths: 18,
+      hireDate: null,
+      companySize: null,
+      homelessHeadYn: 'Y',
+    },
+    auth: true,
+  },
+]);
+assert.deepEqual(profileCalls[2], [
+  '/api/members/me/password',
+  {
+    method: 'PUT',
+    body: {
+      currentPassword: 'oldPass1!',
+      newPassword: 'newPass1!',
+      newPasswordConfirm: 'newPass1!',
+    },
+    auth: true,
+  },
+]);
+
+// 회원 탈퇴(F-01-05): 비밀번호 재확인 · 로그인 토큰 필요 · 비밀번호는 주소가 아닌 본문으로
+await profileApi.withdrawMe('password1!');
+assert.deepEqual(profileCalls[3], [
+  '/api/members/me/withdrawal',
+  { method: 'POST', body: { password: 'password1!' }, auth: true },
+]);
+
+assert.equal(
+  toProfileRequest({ ...profileForm, hireDate: '2023-03-01', companySize: 'SME' }).companySize,
+  'SME',
+);
+assert.equal(profileFormError(profileForm), '');
+for (const [change, message] of [
+  [{ gender: '' }, '성별을 선택해 주세요'],
+  [{ militaryMonths: '' }, '군 복무 개월 수를 입력해 주세요'],
+  [{ militaryMonths: '-1' }, '0 이상으로 입력해 주세요'],
+  [{ militaryMonths: '1.5' }, '군 복무 개월 수를 확인해 주세요'],
+  [{ hireDate: '2999-01-01' }, '입사일은 오늘 이후로 입력할 수 없어요'],
+  [{ companySize: 'HUGE' }, '회사 규모를 선택해 주세요'],
+  [{ homelessHeadYn: '' }, '무주택 세대주 여부를 선택해 주세요'],
+]) {
+  assert.equal(profileFormError({ ...profileForm, ...change }), message);
+}
+const passwordForm = {
+  currentPassword: 'oldPass1!',
+  newPassword: 'newPass1!',
+  newPasswordConfirm: 'newPass1!',
+};
+assert.equal(passwordChangeFormError(passwordForm), '');
+for (const [change, message] of [
+  [{ currentPassword: '' }, '현재 비밀번호를 입력해 주세요'],
+  [{ newPassword: 'short', newPasswordConfirm: 'short' }, '비밀번호는 8자 이상 입력해 주세요'],
+  [{ newPasswordConfirm: 'different1' }, '비밀번호 확인이 일치하지 않아요'],
+  [
+    { newPassword: 'oldPass1!', newPasswordConfirm: 'oldPass1!' },
+    '현재 비밀번호와 다른 비밀번호를 입력해 주세요',
+  ],
+]) {
+  assert.equal(passwordChangeFormError({ ...passwordForm, ...change }), message);
+}
+
+console.log(
+  'PASS: member-api.js 요청 이름 변환 · 성별 M/F · 주소 · 방식 · 화면 검사 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정',
+);
+
+// 오늘 날짜는 지역 시각 기준 yyyy-MM-dd · 오늘 입사일은 허용
+assert.equal(todayDate(new Date(2026, 0, 5, 1, 0)), '2026-01-05');
+assert.equal(profileFormError({ ...profileForm, hireDate: todayDate() }), '');

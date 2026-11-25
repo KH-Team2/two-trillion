@@ -4,7 +4,11 @@ import { ChevronRight, Plus, Clock } from 'lucide-react';
 import { initial, normalizeTaxData, settlementLabel } from '@/api/services.js';
 import { WithdrawAccount } from '@/pages/auth/AccountForms.jsx';
 import { accountService } from '@/api/account-service.js';
-import { ProfileDetails } from '@/pages/profile/ProfileDetails.jsx';
+import {
+  ProfileDetails,
+  ServerPasswordChange,
+  ServerProfileDetails,
+} from '@/pages/profile/ProfileDetails.jsx';
 import { money, Btn, Tag, Field } from '@/components/common/site-primitives.jsx';
 
 // 계정·계산 이력·저장한 시나리오를 관리하는 기존 화면입니다.
@@ -39,7 +43,7 @@ export default function ProfilePage({
           <h1>마이페이지</h1>
           <p>나의 정보와 쌓아온 기록을 한곳에서 관리해요.</p>
         </div>
-        <Tag tone="gray">브라우저 내 저장</Tag>
+        <Tag tone="gray">{session?.server ? '회원정보 서버 저장' : '브라우저 내 저장'}</Tag>
       </div>
       <div className="profile-hero card">
         <span className="avatar large">희</span>
@@ -63,7 +67,16 @@ export default function ProfilePage({
         )}
       </div>
       <section className="card">
-        {profileTab === '개인정보' ? (
+        {profileTab === '개인정보' && session?.server ? (
+          // 서버 로그인 회원: back API로 조회 · 저장 (F-01-04) · 성별은 그룹 통계 화면에도 쓰여 화면 값도 맞춤
+          <ServerProfileDetails
+            onSaved={(saved) =>
+              setData({ ...data, gender: { M: '남성', F: '여성' }[saved.gender] || '' })
+            }
+          />
+        ) : profileTab === '비밀번호 변경' && session?.server ? (
+          <ServerPasswordChange notify={notify} />
+        ) : profileTab === '개인정보' ? (
           <ProfileDetails
             data={data}
             onChange={(u) => {
@@ -124,9 +137,7 @@ export default function ProfilePage({
                   setCompareBase(null);
                   setSimTx([]);
                   go('login');
-                  notify(
-                    '탈퇴 상태로 전환하고 로그아웃했습니다. 30일 유예 후 자동 처리는 서버 연동이 필요합니다.',
-                  );
+                  notify('탈퇴했어요. 30일 동안은 같은 아이디·이메일로 다시 가입할 수 없어요.');
                 }}
               />
             ) : (
