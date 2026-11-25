@@ -75,6 +75,14 @@ public class FakeNotificationMapper implements NotificationMapper {
     }
 
     @Override
+    public long countUnreadByType(long memberId, String notiType) {
+        check();
+        return mine(memberId).stream()
+                .filter(n -> n.getNotiType().equals(notiType) && "N".equals(n.getReadYn()))
+                .count();
+    }
+
+    @Override
     public List<NotificationDTO> findAfter(long memberId, long lastId) {
         check();
         return mine(memberId).stream()

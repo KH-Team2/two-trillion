@@ -20,7 +20,7 @@ import {
   isCounted,
   removeUpload,
 } from '@/api/expense-service.js';
-import { recordAccess } from '@/api/prototype-records.js';
+// [수정 11/23 고은] recordAccess(브라우저 접근 기록) 삭제 · 이유: 체험판 기능 삭제 결정 · 접근 기록은 서버(ACCESS_LOG)가 남겨요
 export function ExpenseUpload({ rows, meta, onChange }) {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false),
@@ -41,18 +41,16 @@ export function ExpenseUpload({ rows, meta, onChange }) {
     loadServerUploads()
       .then(({ rows: serverRows, files: serverFiles }) => {
         if (stop) return;
-        // 서버에 저장되지 않은 거래(예전 브라우저 체험 데이터)는 그대로 두고,
-        // 서버 거래는 방금 받은 최신 내용으로 통째로 바꿈
-        const localRows = rows.filter((r) => !r.serverSaved);
-        const localFiles = files.filter((f) => !f.serverSaved);
-        onChange([...localRows, ...serverRows], makeMeta([...localFiles, ...serverFiles]));
+        // 서버 거래 · 파일로 통째로 바꿈
+        // [수정 11/23 고은] 서버에 저장되지 않은 거래(예전 브라우저 체험 데이터)를 남기던 부분 삭제
+        //   이유: 체험판 기능 삭제 결정 → 화면에는 서버에 저장된 업로드만 보여 줘요
+        onChange(serverRows, makeMeta(serverFiles));
       })
       .catch((err) => {
         if (stop) return;
-        // 서버가 꺼져 있거나(OFFLINE) 로그인 정보가 없으면(UNAUTHORIZED) 조용히 넘어감 → 화면 체험은 그대로
-        if (!['OFFLINE', 'UNAUTHORIZED'].includes(err.code)) {
-          setError(`업로드 이력을 불러오지 못했어요. ${err.message}`);
-        }
+        // [수정 11/23 고은] 서버가 꺼져 있을 때(OFFLINE) 조용히 넘어가던 것 → 안내 표시
+        //   이유: 체험판 삭제로 서버 없이 쓰는 화면이 없어짐 (로그인 만료(401)는 api-client가 로그인 화면으로 보냄)
+        setError(`업로드 이력을 불러오지 못했어요. ${err.message}`);
       })
       .finally(() => {
         if (!stop) setBusy(false);
@@ -301,7 +299,6 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                 }
               }
               onChange(nextRows, makeMeta(nextFiles));
-              recordAccess('UPLOAD');
               setError(messages.join('\n'));
               input.value = '';
               setBusy(false);
@@ -452,7 +449,6 @@ export function ExpenseUpload({ rows, meta, onChange }) {
                   }
                   const next = removeUpload(rows, files, file.id);
                   onChange(next.rows, next.meta);
-                  recordAccess('UPLOAD_DELETE');
                 }}
               >
                 파일 삭제
@@ -594,8 +590,8 @@ export function TransactionExamples({ rows }) {
           )}
           {!matches.count && <p className="empty">해당 거래내역이 없습니다</p>}
           <p>
-            소비 유형 자동 분류는 추정 결과이며 실제 세법상 공제 적격성을 보증하지 않습니다. 현재
-            예시 공공데이터 목록을 사용하며 일치하는 상호명이 없으면 일반으로 분류합니다. 조회
+            소비 유형 자동 분류는 추정 결과이며 실제 세법상 공제 적격성을 보증하지 않습니다.
+            공공데이터 상호명 목록을 사용하며 일치하는 상호명이 없으면 일반으로 분류합니다. 조회
             전용이며 소비 유형을 직접 수정할 수 없습니다. 소득공제액은 지출 합계와 다릅니다.
           </p>
         </div>

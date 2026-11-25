@@ -26,7 +26,7 @@ const dir = fs.mkdtempSync(path.join(process.cwd(), 'tests/.render-'));
 const source = `
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { initial, taxService } from '@/api/services.js';
+import { initial } from '@/api/services.js';
 import App from '@/App.jsx';
 import Auth from '@/pages/auth/AuthPage.jsx';
 import Dashboard from '@/pages/dashboard/Dashboard.jsx';
@@ -173,17 +173,18 @@ const cases = [
       {...base}
       data={{ ...initial, taxYear: 2026 }}
       transactions={ledgerRows}
+      result={apiResult}
       chart={() => null}
     />,
   ],
   ['home', <App />],
   ...['login', 'signup', 'reset'].map((page) => [page, <Auth {...base} page={page} />]),
-  ['dashboard-demo', <Dashboard {...base} chart={() => null} />],
-  ['dashboard-api', <Dashboard {...base} result={apiResult} isDemo={false} chart={() => null} />],
+  // [수정 11/23] 체험판 삭제: 체험용 계산 대시보드(dashboard-demo) 삭제 · 화면은 모두 서버 계산 결과(apiResult)로 그림
+  ['dashboard-api', <Dashboard {...base} result={apiResult} chart={() => null} />],
   ['input', <Input {...base} mode="normal" />],
   ['simulation-input', <Input {...base} mode="simulation" />],
   ['benefits', <Benefits {...base} />],
-  ['statistics', <Statistics {...base} />],
+  ['statistics', <Statistics {...base} result={apiResult} />],
   // 서버가 찾은 그룹 통계 + 서버 계산 결과로 그리는 경우 (한쪽 그룹을 못 찾은 경우 포함)
   [
     'statistics-api',
@@ -194,19 +195,18 @@ const cases = [
     <Dashboard
       {...base}
       result={apiResult}
-      isDemo={false}
       groupStats={serverGroups}
       chart={() => null}
     />,
   ],
-  ['chatbot', <Chatbot {...base} r={apiResult} />],
+  ['chatbot', <Chatbot />],
   [
     'simulation-result',
     <Simulation
       {...base}
       baseData={initial}
       sim={initial}
-      br={taxService.calculate(initial)}
+      br={{ ...apiResult, expectedRefund: 300000 }}
       sr={apiResult}
       simTx={[]}
     />,
@@ -235,12 +235,29 @@ const cases = [
       {...base}
       data={{ ...initial, name: 'hope_user', email: undefined, birth: undefined, gender: '' }}
       session={{ id: 'member:hope_user', username: 'hope_user', role: 'USER', server: true }}
+      result={apiResult}
       chart={() => null}
+    />,
+  ]),
+  // [추가 11/21] 회원정보 수정 (F-01-04): 서버 로그인 회원은 서버 조회 폼 · 비밀번호 변경도 서버 폼 (시연 문구 없음)
+  ...['개인정보', '비밀번호 변경'].map((tab) => [
+    'profile-server-' + tab,
+    <Profile
+      {...base}
+      profileTab={tab}
+      data={{ ...initial, name: 'hope_user', email: '', birth: '', gender: '' }}
+      session={{ id: 'member:hope_user', username: 'hope_user', role: 'USER', server: true }}
     />,
   ]),
   ['support', <Support {...base} />],
   ['admin-denied', <Admin {...base} admin={false} />],
+  ['admin', <Admin {...base} admin />],
 ];
+// [추가 11/23] 서버 API가 아직 없는 화면은 체험 기능 대신 「준비 중」 안내를 보여야 함
+// [수정 11/25] reset 제외 · 이유: 아이디 찾기 · 비밀번호 재설정(F-01-03)이 서버에 연결됨 (위에서 따로 검사)
+const comingSoon = ['chatbot'];
+// 관리자 첫 탭은 서버에 연결된 문의 관리(PR #53) → 준비 중이 아니어야 함
+const notComingSoon = ['admin'];
 for (const [name, node] of cases) {
   const html = renderToStaticMarkup(node);
   if (!html || /NaN|undefined/.test(html)) throw Error(name + ': 렌더링 값 확인 필요');
@@ -249,8 +266,20 @@ for (const [name, node] of cases) {
     throw Error('가입 화면에 이메일 인증 UI가 보임');
   // [수정 11/17] 가입 · 로그인 화면에서 뺀 문구 (서버 연동 표시 · 검토용 초안 · 시연용 비밀번호 · 비밀번호 찾기 · 빠른 체험)
   if (name === 'signup' && /서버 연동|검토용 초안/.test(html)) throw Error('가입 화면에 뺀 문구가 보임');
-  if (name === 'login' && /서버 연동|시연용 비밀번호|잊으셨나요|로그인 없이 바로 체험|사용자 체험/.test(html))
+  if (name === 'login' && /서버 연동|시연용 비밀번호|로그인 없이 바로 체험|사용자 체험/.test(html))
     throw Error('로그인 화면에 뺀 문구가 보임');
+  // [추가 11/21] 아이디 찾기 · 비밀번호 재설정 (F-01-03): 로그인 화면에 링크 · 재설정 화면은 서버 연결 카드 (두 탭)
+  if (name === 'login' && !html.includes('아이디 · 비밀번호를 잊으셨나요?'))
+    throw Error('로그인 화면에 아이디 · 비밀번호 찾기 링크가 없음');
+  if (
+    name === 'reset' &&
+    (!html.includes('아이디 찾기') || !html.includes('비밀번호 재설정') || /서버 미연동|미연동/.test(html))
+  )
+    throw Error('재설정 화면이 서버 연결 화면이 아님');
+  if (name === 'profile-server-개인정보' && (!html.includes('회원정보를 불러오는 중') || /시연/.test(html)))
+    throw Error('서버 회원 개인정보 탭이 서버 조회 화면이 아님');
+  if (name === 'profile-server-비밀번호 변경' && (!html.includes('현재 비밀번호') || /시연/.test(html)))
+    throw Error('서버 회원 비밀번호 변경 탭이 서버 화면이 아님');
   if (
     name === 'simulation-pay' &&
     (!html.includes('amount-refund') ||
@@ -280,13 +309,11 @@ for (const [name, node] of cases) {
       !html.includes('소비 유형별 실제 지출 및 분류 결과'))
   )
     throw Error('지출 표의 연도/보류 제외/분류 집계 실패');
-  if (
-    name === 'dashboard-demo' &&
-    (!html.includes('계산 연동 필요') ||
-      html.includes('공제액 0원') ||
-      html.includes('카드 소득공제 합계(음수 조정액 포함):'))
-  )
-    throw Error('미연동 공제액 표시 오류');
+  if (comingSoon.includes(name) && !html.includes('준비 중')) throw Error(name + ': 준비 중 안내 누락');
+  if (notComingSoon.includes(name) && /coming-soon/.test(html))
+    throw Error(name + ': 서버에 연결된 화면이 준비 중으로 보임');
+  // [추가 11/23] 체험판 삭제 후 화면에 체험 · 시연 문구가 남지 않음
+  if (/체험|시연|DEMO/.test(html)) throw Error(name + ': 체험 · 시연 문구가 남음');
   if (
     name === 'dashboard-api' &&
     (!html.includes('0원') ||
@@ -312,9 +339,7 @@ for (const [name, node] of cases) {
       !html.includes('소비 유형별로'))
   )
     throw Error('계산 결과 화면에 미연동 안내가 남음');
-  if (name === 'dashboard-demo' && (!html.includes('데모값') || !html.includes('시연 결과')))
-    throw Error('체험 결과 문구 누락');
-  if (name === 'dashboard-demo') {
+  if (name === 'dashboard-api') {
     const panel = html.split('<section class="card deductions">')[1].split('</section>')[0];
     if (
       (panel.match(/class="deduction-detail"/g) || []).length !== 7 ||

@@ -107,7 +107,23 @@
 | GET | `/api/predictions?year={taxYear}` | 결과 이력 목록 · 현재와 시나리오 함께 · 최신순 · 없으면 빈 목록 (F-04-02) |
 | GET | `/api/predictions/{predictionId}` | 결과 하나 다시 열기 · 항목별 내역 포함 · 없거나 남의 것이면 404 (F-04-02) |
 | GET | `/api/group-stats/{taxYear}` | 내 성별·연령대 그룹과 총급여 구간 그룹의 통계 평균 · 못 찾은 그룹은 null (F-06-02) |
+| GET | `/api/notifications/stream` | 실시간 알림 연결 (SSE · `text/event-stream`) · 이벤트 `notification` · 다시 연결할 때 `Last-Event-ID` 헤더로 놓친 알림만 다시 받음 · 회원당 연결 5개까지 (넘으면 가장 오래된 연결을 닫음) (F-09-03) |
+| GET | `/api/notifications` | 내 알림 목록 · `{unreadCount, items}` · 안 읽은 개수 + 최근 20개 · 새것부터 (F-09-03) |
+| PUT | `/api/notifications/read` | 안 읽은 알림 모두 읽음 · 본문 없음 → `null` · `READ_YN='Y'` · `READ_AT=SYSDATE` (F-09-03) |
+| POST | `/api/consult/rooms` | 상담 요청 · 본문 없음 → `{roomId}` · 내 방이 있으면 그 방, 없으면 새로 만듦 (회원당 1개) · 관리자는 403 (F-07-03) |
+| GET | `/api/consult/rooms/{roomId}/messages?beforeId=` | 지난 메시지 30개 · 오래된 순 · `beforeId`보다 작은 번호만 (없으면 가장 최근 30개) · 남의 방이면 404 (관리자는 모든 방) (F-07-03) |
+| GET | `/api/admin/consult/rooms` | 관리자 상담 방 목록 · 최근 메시지 순 최대 100개 · 탈퇴 회원 방 제외 · 아이디 앞 절반만 보임 (예: `test****`) · `ADMIN`만 (F-07-03) |
+| POST | `/api/auth/login-id-lookups` | 아이디 찾기 · 본문 `{email}` → `{maskedLoginId}`(예: `te******`) · 가입 정보 없음 · 탈퇴 · (인증을 켰을 때) 미인증이면 404 (F-01-03 · 제안 주소) |
+| POST | `/api/auth/password-resets` | 비밀번호 재설정 인증 코드 메일 발송 · 본문 `{email}` → `{expiresAt, devCode}` · 10분 유효 · 대상 회원이 아니면 404 (F-01-03 · 제안 주소) |
+| POST | `/api/auth/password-resets/completion` | 코드 확인 + 새 비밀번호 저장 · 본문 `{email, code, newPassword, newPasswordConfirm}` → `null` · 틀림 400 `RESET_CODE_FAILED` · 만료 · 5번 틀림 400 `RESET_CODE_EXPIRED` / `RESET_CODE_LIMIT` (F-01-03 · 제안 주소) |
+| GET | `/api/members/me` | 내 회원정보 · `{loginId, maskedEmail, birthDate, gender, militaryMonths, hireDate, companySize, homelessHeadYn, updatedAt}` · 이메일은 가린 값만 · 탈퇴면 404 (F-01-04 · 제안 주소) |
+| PUT | `/api/members/me` | 회원정보 · 자격 정보 저장 · 본문 `{gender, militaryMonths, hireDate, companySize, homelessHeadYn}` (모든 칸) → 저장된 회원정보 · 군 복무 음수 400 「0 이상으로 입력해 주세요」 · `ROLE` · `STATUS` 안 바뀜 (F-01-04 · 제안 주소) |
+| PUT | `/api/members/me/password` | 비밀번호 변경 · 본문 `{currentPassword, newPassword, newPasswordConfirm}` → `null` · 현재 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` (F-01-04 · 제안 주소) |
+| POST | `/api/members/me/withdrawal` | 회원 탈퇴 · 본문 `{password}` (D-05 재확인) → `null` · `STATUS=WITHDRAWN` · `WITHDRAWN_AT=SYSDATE` · `ROLE=USER` · 아이디 · 이메일은 30일 유지 · 지금 토큰 무효 · 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` · 이미 탈퇴 404 (F-01-05 · 제안 주소) |
 | GET | `/api/faqs` | FAQ 목록 조회 |
 | GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
 | GET | `/api/faqs/{faqId}` | FAQ 상세 조회 |
 | POST | `/api/faq-matches` | 자유 질문을 등록된 FAQ에 매칭 |
+
+상담 채팅 실시간 주고받기는 REST가 아니라 WebSocket(STOMP)이에요 (F-07-03).
+연결 `/ws` (CONNECT 헤더 `Authorization: Bearer {accessToken}`) · 받기 `SUBSCRIBE /sub/consult/{roomId}` (방 주인 회원 · 관리자만) · 보내기 `SEND /pub/consult/{roomId}` 본문 `{content}` (1~1000자) · 오류는 보낸 사람에게만 `/user/queue/errors`

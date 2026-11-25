@@ -1,14 +1,15 @@
-// 회원가입(F-01-01) back API 호출 함수입니다.
+// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) · 회원정보 수정(F-01-04) · 회원 탈퇴(F-01-05) back API 호출 함수입니다.
 // 화면 입력값 이름을 API 이름으로 바꾸는 일도 여기서 합니다 (화면 username → API loginId 등).
-// TODO: 중복확인 · 이메일 인증 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
+// TODO: 중복확인 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정 · 탈퇴 주소는 팀 API 명세에 없는 제안 주소입니다. 명세 추가 필요.
 import { apiRequest } from './http.js';
 import { consentVersions } from '../config/consent-versions.js';
 import { ageOn } from './account-service.js';
 
-// 이메일 인증을 가입 화면에 보여 주고 · 가입 전에 꼭 마치게 할지 [추가 11/17]
-// 실제 메일 발송이 아직 없어 false: 인증 UI는 숨기고(코드는 그대로 둠) 인증 없이 가입
-// 메일 발송이 붙으면 true로 바꾸고, 서버도 EMAIL_VERIFICATION_REQUIRED=true로 켠다 (backend application.yml)
-export const EMAIL_VERIFICATION_REQUIRED = false;
+// 이메일 인증을 가입 화면에 보여 주고 · 가입 전에 꼭 마치게 할지 [추가 11/17 · 수정 11/20 환경변수로]
+// frontend/.env 의 VITE_EMAIL_VERIFICATION_REQUIRED=true 일 때만 켬 (없으면 false: 인증 UI 숨김 · 인증 없이 가입)
+// 켤 때는 서버 backend/.env 의 EMAIL_VERIFICATION_REQUIRED=true 도 같이 (화면 · 서버 값이 같아야 함)
+export const EMAIL_VERIFICATION_REQUIRED =
+  (import.meta.env || {}).VITE_EMAIL_VERIFICATION_REQUIRED === 'true';
 
 // 화면 성별 버튼 값 → API·DB 값 (MEMBER.GENDER M/F)
 export const GENDER_CODE = { 남성: 'M', 여성: 'F' };
@@ -59,6 +60,66 @@ export function toSignupRequest(form, versions = consentVersions) {
   };
 }
 
+// 비밀번호 재설정(F-01-03) 버튼을 누르기 전 화면 검사: 문제가 있으면 안내 문구, 없으면 ''
+// 서버도 같은 항목을 다시 검사합니다.
+export function passwordResetFormError(form) {
+  if (!form.email.trim()) return '이메일을 입력해 주세요';
+  if (!/^\d{6}$/.test(form.code)) return '6자리 인증 코드를 입력해 주세요';
+  if (form.newPassword.length < 8) return '비밀번호는 8자 이상 입력해 주세요';
+  if (form.newPassword !== form.newPasswordConfirm) return '비밀번호 확인이 일치하지 않아요';
+  return '';
+}
+
+// 회원정보 · 자격 정보 수정(F-01-04): 화면 선택지 (값은 API·DB 값 그대로 · MEMBER 칸 제약조건과 같음)
+export const COMPANY_SIZE_OPTIONS = [
+  ['SME', '중소기업'],
+  ['MID', '중견기업'],
+  ['LARGE', '대기업'],
+];
+
+// 회원정보 저장 버튼을 누르기 전 화면 검사: 문제가 있으면 안내 문구, 없으면 ''
+// 서버도 같은 항목을 다시 검사합니다.
+// 오늘 날짜 yyyy-MM-dd (브라우저 지역 시각 · toISOString 은 UTC 라 한국 오전 9시 전에는 어제가 됨)
+export function todayDate(now = new Date()) {
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+}
+
+export function profileFormError(form) {
+  if (!['M', 'F'].includes(form.gender)) return '성별을 선택해 주세요';
+  const months = String(form.militaryMonths ?? '').trim();
+  if (months === '') return '군 복무 개월 수를 입력해 주세요';
+  if (!/^-?\d+$/.test(months)) return '군 복무 개월 수를 확인해 주세요';
+  if (Number(months) < 0) return '0 이상으로 입력해 주세요';
+  if (Number(months) > 999) return '군 복무 개월 수를 확인해 주세요';
+  if (form.hireDate && form.hireDate > todayDate()) return '입사일은 오늘 이후로 입력할 수 없어요';
+  if (form.companySize && !COMPANY_SIZE_OPTIONS.some(([code]) => code === form.companySize))
+    return '회사 규모를 선택해 주세요';
+  if (!['Y', 'N'].includes(form.homelessHeadYn)) return '무주택 세대주 여부를 선택해 주세요';
+  return '';
+}
+
+// 화면 입력값 → 회원정보 수정 API 요청 본문 (PUT이라 모든 칸 · 비운 입사일 · 회사 규모는 null)
+export function toProfileRequest(form) {
+  return {
+    gender: form.gender,
+    militaryMonths: Number(form.militaryMonths),
+    hireDate: form.hireDate || null,
+    companySize: form.companySize || null,
+    homelessHeadYn: form.homelessHeadYn,
+  };
+}
+
+// 비밀번호 변경(F-01-04) 버튼을 누르기 전 화면 검사
+export function passwordChangeFormError(form) {
+  if (!form.currentPassword) return '현재 비밀번호를 입력해 주세요';
+  if (form.newPassword.length < 8) return '비밀번호는 8자 이상 입력해 주세요';
+  if (form.newPassword !== form.newPasswordConfirm) return '비밀번호 확인이 일치하지 않아요';
+  if (form.newPassword === form.currentPassword)
+    return '현재 비밀번호와 다른 비밀번호를 입력해 주세요';
+  return '';
+}
+
 export function createMemberApi(request = apiRequest) {
   return {
     // 아이디 중복확인 → {available, message}
@@ -84,6 +145,47 @@ export function createMemberApi(request = apiRequest) {
       request('/api/auth/login', { method: 'POST', body: { loginId: loginId.trim(), password } }),
     // 로그아웃 → null · 지금 토큰을 서버에서 무효 처리 (토큰이 필요한 요청)
     logout: () => request('/api/auth/logout', { method: 'POST', auth: true }),
+    // 아이디 찾기(F-01-03) → {maskedLoginId} (예: te******) · 가입 정보가 없으면 404 NOT_FOUND
+    // 이메일은 주소에 남지 않게 본문으로 보냄
+    findLoginId: (email) =>
+      request('/api/auth/login-id-lookups', { method: 'POST', body: { email: email.trim() } }),
+    // 비밀번호 재설정 인증 코드 발송(F-01-03) → {expiresAt, devCode} · 코드는 10분 유효
+    sendPasswordResetCode: (email) =>
+      request('/api/auth/password-resets', { method: 'POST', body: { email: email.trim() } }),
+    // 코드 확인 + 새 비밀번호 저장(F-01-03) → null
+    // 실패: 400 RESET_CODE_FAILED(틀림) · RESET_CODE_EXPIRED · RESET_CODE_LIMIT(만료 · 5번 틀림 → 다시 받기)
+    completePasswordReset: (form) =>
+      request('/api/auth/password-resets/completion', {
+        method: 'POST',
+        body: {
+          email: form.email.trim(),
+          code: form.code,
+          newPassword: form.newPassword,
+          newPasswordConfirm: form.newPasswordConfirm,
+        },
+      }),
+    // 내 회원정보(F-01-04) → {loginId, maskedEmail, birthDate, gender, militaryMonths, hireDate,
+    //   companySize, homelessHeadYn, updatedAt} · 이메일은 서버가 가려서 보냄 (로그인 필요)
+    getMyProfile: () => request('/api/members/me', { auth: true }),
+    // 회원정보 · 자격 정보 저장(F-01-04) → 저장된 회원정보 (조회와 같은 모양)
+    // 실패: 400 VALIDATION (예: 군 복무 음수 「0 이상으로 입력해 주세요」)
+    updateMyProfile: (form) =>
+      request('/api/members/me', { method: 'PUT', body: toProfileRequest(form), auth: true }),
+    // 비밀번호 변경(F-01-04) → null · 실패: 400 CURRENT_PASSWORD_MISMATCH(현재 비밀번호 틀림) · VALIDATION
+    changeMyPassword: (form) =>
+      request('/api/members/me/password', {
+        method: 'PUT',
+        body: {
+          currentPassword: form.currentPassword,
+          newPassword: form.newPassword,
+          newPasswordConfirm: form.newPasswordConfirm,
+        },
+        auth: true,
+      }),
+    // 회원 탈퇴(F-01-05) → null · 비밀번호를 다시 확인하고 서버가 지금 토큰도 무효로 함 (D-05)
+    // 실패: 400 CURRENT_PASSWORD_MISMATCH(비밀번호 틀림) · VALIDATION(비밀번호 비움) · 404 NOT_FOUND(이미 탈퇴)
+    withdrawMe: (password) =>
+      request('/api/members/me/withdrawal', { method: 'POST', body: { password }, auth: true }),
   };
 }
 

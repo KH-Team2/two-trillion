@@ -3619,16 +3619,6 @@ table select {
   }
 }
 
-.prototype-notice {
-  font-size: 11px;
-  line-height: 1.7;
-  color: #8a6322;
-  background: #fff8e8;
-  border: 1px solid #f0dfb8;
-  border-radius: 9px;
-  padding: 10px 14px;
-  margin-bottom: 18px;
-}
 .agreement-list {
   padding: 14px 0;
   border-block: 1px solid #e8edf5;
@@ -3711,18 +3701,6 @@ button:disabled {
 }
 .card form > .field {
   margin-top: 12px;
-}
-.quick-demo {
-  margin-top: 20px;
-}
-.quick-demo .btn {
-  width: 100%;
-  margin-top: 8px;
-  justify-content: center;
-}
-.quick-demo .muted {
-  font-size: 11px;
-  line-height: 1.7;
 }
 /* Existing cards and palette retained for the review additions. */
 .input-action {
@@ -4052,6 +4030,11 @@ button:disabled {
 .comparison h2.amount-pay,
 .comparison .after h2.amount-pay {
   color: var(--pay);
+}
+
+/* [추가 11/23] 「준비 중」 안내 카드 (ComingSoon.jsx) */
+.coming-soon h2 {
+  margin: 10px 0 6px;
 }
 
 /* 맞춤 절세 가이드 */

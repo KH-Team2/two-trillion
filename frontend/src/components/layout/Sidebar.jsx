@@ -3,12 +3,11 @@ import { ArrowRight, LogOut, ShieldCheck, Leaf, ChevronDown } from 'lucide-react
 import { accountService } from '@/api/account-service.js';
 import { nav, Logo } from '@/components/common/site-primitives.jsx';
 
-// 기존 메뉴·체험 사용자 정보·로그아웃을 포함한 사이드바입니다.
+// 기존 메뉴·사용자 정보·로그아웃을 포함한 사이드바입니다.
 export default function Sidebar({
   page,
   data,
   mobile,
-  session,
   setSession,
   admin,
   go,
@@ -63,10 +62,9 @@ export default function Sidebar({
           <span>
             <b>{data.name}</b>
             <small>
-              {/* [수정 11/17] 서버 로그인 회원은 「브라우저 시연」 표시 안 함 (빠른 체험만 표시) */}
-              {session
-                ? `${admin ? '관리자' : '일반 회원'}${accountService.isDemo() ? ' · 체험' : ''}`
-                : '비로그인 체험'}
+              {/* [수정 11/23] 「 · 체험」 · 「비로그인 체험」 표시 삭제 · 이유: 체험판 기능 삭제 결정
+                  (로그인하지 않으면 이 화면에 들어올 수 없어요) */}
+              {admin ? '관리자' : '일반 회원'}
             </small>
           </span>
           <ChevronDown size={15} />

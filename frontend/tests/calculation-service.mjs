@@ -29,15 +29,7 @@ try {
   const { incomeRequest, fetchIncome, incomeToInput } = await import(
     pathToFileURL(`${dir}/income.mjs`)
   );
-  await build({
-    entryPoints: ['src/api/api-client.js'],
-    outfile: `${dir}/client.mjs`,
-    platform: 'node',
-    format: 'esm',
-    bundle: true,
-    logLevel: 'silent',
-  });
-  const { canUseDemo, demoFallbackAllowed } = await import(pathToFileURL(`${dir}/client.mjs`));
+  // [수정 11/23] canUseDemo · demoFallbackAllowed(체험용 계산 대체 여부) 검사 삭제 · 이유: 체험판 기능 삭제로 함수가 없어짐
 
   const ok = {
     predictionId: 7,
@@ -209,14 +201,6 @@ try {
     }),
     (e) => e.code === 'OFFLINE',
   );
-  // 체험용 계산으로 대신하는 건 「연결 실패 + 개발 서버」일 때만 (배포본은 안내만)
-  assert.equal(canUseDemo({ code: 'OFFLINE' }, true), true);
-  assert.equal(canUseDemo({ code: 'OFFLINE' }, false), false);
-  assert.equal(canUseDemo({ code: 'CALC_UNAVAILABLE' }, true), false);
-  assert.equal(canUseDemo(undefined, true), false);
-  // 테스트(node)에는 개발 서버 표시(DEV)가 없어요 → 기본값은 허용 안 함
-  assert.equal(demoFallbackAllowed, false);
-  assert.equal(canUseDemo({ code: 'OFFLINE' }), false);
   // 응답에 숫자가 빠지면 임의로 채우지 않고 오류
   await assert.rejects(
     requestCalculation(2025, { fetchImpl: fakeSeq([[200, { ...ok, decidedTax: null }]]) }),
