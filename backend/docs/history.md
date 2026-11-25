@@ -59,6 +59,16 @@
 - **변경 사유**: `api-rules.md` 3번 「성공 응답은 모두 200 (201 · 204 안 씀 · 11/09 팀 합의)」과 어긋났음
 - **검증 결과**: `mvnw clean verify` 195건 통과 · 화면에서 업로드 삭제 → Network `DELETE /api/card-uploads/{id}` 200 · 응답 `{success: true, data: null}` · 목록에서 사라짐 확인
 
+### [2026-11-23] 알림 저장 · 목록 · 읽음 · 놓친 알림 다시 보내기 (TT-158 · TT-159 · PR #51)
+- **작업 내용**:
+  - `notification/mapper/NotificationMapper`(+ XML) · `dto/NotificationDTO` · `NotificationListDTO`: 저장 · 목록(최근 20개 + 안 읽은 수) · 읽음(`READ_YN` · `READ_AT` 같이) · 놓친 알림(`Last-Event-ID` 뒤 최대 50개)
+  - `NotificationService`: 저장 → 번호 받기 → 그 번호로 SSE 전송 · 마감 안내는 활동 회원 전원 `INSERT … SELECT` 한 문장
+  - `NotificationController`: `GET /api/notifications` · `PUT /api/notifications/read` · `/stream`에 `Last-Event-ID`
+  - `CalculationService` · `DeadlineNotificationScheduler`: 새 저장 방식으로 호출 · `CalculationNotificationDTO` 삭제
+  - 화면: `notification-service.js`(목록 · 읽음) · `notification-stream.js`(`Last-Event-ID`로 다시 연결) · `App.jsx`(목록 먼저 → 연결 · 배지는 서버 안 읽은 수) · `Topbar.jsx`(종 열면 읽음)
+- **변경 사유**: PR #46 알림은 서버 메모리에만 있어서 접속 안 한 동안 생긴 알림이 사라지고 새로고침하면 종 목록이 비워짐 → PR #47 `NOTIFICATION` 테이블에 먼저 저장
+- **검증 결과**: `mvnw clean verify` 206개 통과 · `npm test` 통과(`notification-stream.mjs` 11개) · 마감 안내 저장 SQL 활동 회원 1,004명 → 1,004행 확인 후 ROLLBACK
+
 ### [2026-11-22] 세금 용어 FAQ 챗봇 연동 및 구조 정리
 - **작업 내용**
   - React FAQ 챗봇을 Spring Boot API와 연결
@@ -81,6 +91,17 @@
   - FAQ 카테고리 선택 → 용어 선택 → 상세 답변 조회 정상 동작 확인
   - 자유 질문 → FAQ 분류 → 고정 FAQ 답변 반환 정상 동작 확인
 
+### [2026-11-20] SSE 실시간 알림 · 공제 마감 안내 (TT-150 · TT-151 · TT-152 · PR #46)
+- **작업 내용**:
+  - `notification/controller/NotificationController`: `GET /api/notifications/stream` (SSE 구독)
+  - `notification/service/NotificationService`: 회원별 연결 목록 · 연결 직후 첫 이벤트 · 25초 하트비트 · 계산 완료 알림
+  - `DeadlineNotificationScheduler` · `NotificationSchedulingConfig`: 12월 매일 09:00(서울) 확인 → D-30 · D-7 · D-1에만 마감 안내
+  - `CalculationService`: 계산 · 저장 뒤 알림 (금액 빼고 연도 · 결과 번호만)
+  - `common/config/SecurityConfig`: `dispatcherTypeMatchers(DispatcherType.ASYNC).permitAll()` 한 줄 (조장님 확인 후)
+  - 화면: `notification-stream.js`(fetch로 SSE 읽기 · Bearer 헤더 · 60초 무응답이면 다시 연결 · 401이면 중단) · `App.jsx`(토스트) · `Topbar.jsx`(종 목록 · 안 읽은 배지) · `globals.css`
+- **변경 사유**: 2차 미션 실시간 알림 · 알림 문구에 금융 정보(금액) 넣지 않음 · ASYNC 허용은 SSE 연결 종료 때 JWT 필터가 다시 안 봐서 생기는 Access Denied 로그 때문 (첫 요청 검사는 그대로) · 화면은 브라우저 기본 EventSource가 Authorization 헤더를 못 붙여서 fetch로 직접 읽음
+- **검증 결과**: 로그인 → 알림 연결(200 · `text/event-stream`) → 계산 → calculation 이벤트 수신 확인 · `DeadlineNotificationSchedulerTest`로 D-30 · D-7 · D-1만 보내는지 확인
+
 ### [2026-11-20] 정보 입력: 단계 버튼에도 입력칸 검사 · 소수 입력 안내 문구 (TT-132)
 - **작업 내용**: `frontend/src/pages/tax/TaxInfoForm.jsx`
   - 위쪽 단계 버튼으로 앞 단계로 넘어갈 때 `formRef.current.reportValidity()`로 지금 단계 입력칸 검사 (틀리면 말풍선 · 이동 안 함 · 뒤로 갈 때는 검사 안 함)
@@ -89,6 +110,11 @@
     · 「다음 단계」 버튼(`onSubmit`)도 마지막 단계 전에는 `move`에 검사를 맡겨서 위쪽 단계 버튼과 같은 규칙으로 맞춤 (`onSubmit`이 먼저 전체 검사를 해서 「다음 단계」로는 계속 막혔음)
 - **변경 사유**: 단계 버튼은 `<form>` 밖에 있어서 빈칸 · 소수가 있어도 검사 없이 넘어감 · 기본 문구 「가장 근접한 유효 값 2개는…」가 어려움
 - **검증 결과**: `npx prettier --check` 통과 · `npm test` · `npm run build` 통과 · 브라우저에서 총급여에 소수 입력 → 「소수는 입력할 수 없어요.」 · 「다음 단계」와 위쪽 단계 버튼 모두 빈칸(「이 입력란을 작성하세요」) · 귀속 연도 0(「값은 1900 이상이어야 합니다」)에서 막힘 확인 · 소득 칸 비움 → 기본 정보 → 다시 소득 정보(위쪽 단계 버튼 · 「다음 단계」) 이동 확인
+
+### [2026-11-19] 시뮬레이션 카드 사용액을 서버 합계 기준으로 (TT-118 · PR #43)
+- **작업 내용**: 화면 `prediction-service.js` · `App.jsx` · `TaxInfoForm.jsx` · `TaxInputPage.jsx` · 카드 사용액 = 서버 합계(`GET /api/expense-totals?year=`) + 가상 추가액 · 합계를 못 받으면 계산 안 함 · 백엔드 변경 없음
+- **변경 사유**: 시뮬레이션이 브라우저 값으로 카드 사용액을 셈 → 서버 계산과 달라질 수 있었음
+- **검증 결과**: `npm test` · `npm run build` 통과 · PR #41 · #42와 합쳐도 충돌 없이 통과
 
 ### [2026-11-19] 카드 업로드: 미지원 형식 파일은 목록에 넣지 않고 alert (TT-148)
 - **작업 내용**: `frontend/src/components/expense/ExpenseUpload.jsx`
@@ -113,6 +139,38 @@
 - **검증 결과**: `mvnw clean verify` 195건 통과 · 로그인 후 화면에서 CSV 업로드 · 업로드 목록 · 삭제 동작 확인
   - 참고: 처음 `verify`에서 `contextLoads` 1건 실패 → 다른 브랜치(feature/admin)에서 빌드한 `target/classes/mapper/admin/*.xml`이 남아 있던 것 · `mvnw clean verify`로 해결 (코드 문제 아님)
   
+### [2026-11-18] 계산 결과 환급 · 추가 납부 색 · 표기 구분 (TT-126 · PR #42)
+- **작업 내용**: 화면 `services.js` · `DeductionDetails.jsx` · `Dashboard.jsx` · `SimulationPage.jsx` · `globals.css` · 환급 파랑 · 추가 납부 빨강 + 글자 표기 · 결과 이력 「환급 ○원 / 추가 납부 ○원」 · 변경 조건 표 연도 · 명 · 개월 · 원
+- **변경 사유**: 11/18 중간 시연 피드백
+- **검증 결과**: `npm test` · `npm run build` 통과
+
+### [2026-11-18] 무주택 세대주 「확인 필요」면 다음 단계 막기 (TT-125 · PR #41)
+- **작업 내용**: 화면 `TaxInfoForm.jsx` · 5단계(주거 정보)에서 무주택 세대주 미확인이면 다음 단계 · 단계 번호 건너뛰기 막음 · 정보 입력 · 시뮬레이션 공통
+- **변경 사유**: 11/18 중간 시연 피드백 · 11/19 고은님 의견으로 정보 입력에도 적용
+- **검증 결과**: 정보 입력 · 시뮬레이션에서 각각 막힘 확인 · `npm test` · `npm run build` 통과
+
+### [2026-11-18] 계산 결과 화면 안내 문구 정리 (TT-124 · PR #40)
+- **작업 내용**: 화면 `Dashboard.jsx` · `SimulationPage.jsx` · `dashboard-model.js` · 「확인 필요」 → 「증빙 확인」 등 서버 연결 상태에 맞게 · `render-pages.mjs` 테스트 추가
+- **변경 사유**: 서버에 연결됐는데 「미연동 · 시연용」 문구가 남아 있었음
+- **검증 결과**: PR 본문에 따로 적은 검증 기록 없음
+
+### [2026-11-18] 다른 PC 접속 때 POST · PUT · DELETE 403 해결 (TT-123 · PR #39)
+- **작업 내용**: 화면 `vite.config.js` 개발 프록시에서 Origin 헤더 제거
+- **변경 사유**: 팀 서버처럼 다른 PC에서 `IP:5173`으로 접속하면 백엔드 CORS가 `localhost:5173`만 허용해서 403
+- **검증 결과**: PR 본문에 따로 적은 검증 기록 없음
+
+### [2026-11-17] 세액 계산 · 시뮬레이션의 중소기업 감면 확인을 한 메서드로 (TT-117 · PR #32)
+- **작업 내용**: `CalculationService`의 `calculate()` · `simulate()`에 똑같이 있던 감면 확인 블록을 `applySmeEligibility()` 하나로 · 감면 신청(Y)인데 진단이 「해당」이 아니면 N (기존과 같음)
+- **변경 사유**: PR #22 · #27에서 같은 블록이 복사돼 두 곳에 있었음 · 시뮬레이션에도 계산과 같은 로그(회원번호 · 연도만)가 남게
+- **검증 결과**: `mvnw.cmd -B clean verify` 91개 통과 · 계산 결과 · API 응답 · 테스트 코드 변경 없음
+
+### [2026-11-17] 계산 서버 토큰 필수 통일 · 환경변수 문서 맞춤 (TT-116 · PR #31)
+- **작업 내용**:
+  - 계산 서버 `calc/app/main.py`: 토큰(`X-Calc-Token`)이 비어 있으면 서버가 시작되지 않음 · `calc/tests/test_api.py` 2개 추가(토큰 없으면 시작 안 함 · 있으면 정상)
+  - `backend/.env.example` · `backend/README.md` · `calc/.env.example` · `calc/README.md` · 루트 `README.md`: 토큰 · 환경변수 · 언어 버전 설명을 실제와 맞춤
+- **변경 사유**: 강사님 피드백 · 예전엔 토큰이 비면 계산 서버는 켜지고 요청만 막아서 설정 실수를 늦게 알게 됨 · README와 `.env.example` 설명이 실제와 달랐음
+- **검증 결과**: 계산 서버 pytest 65개 · ruff check · format 통과
+
 ### [2026-11-17] 로그인 성공 알림 문구에서 「시연」 삭제
 - **작업 내용**: `frontend/src/pages/auth/AuthPage.jsx` 서버 로그인 성공 알림 「이 브라우저의 시연 계정으로 로그인했습니다.」 → 「로그인했습니다.」 (빠른 체험 문구는 그대로)
 - **변경 사유**: 실제 서버 계정으로 로그인하는데 「시연 · 이 브라우저의」로 보여 사용자가 가짜 로그인으로 오해할 수 있었음
@@ -163,6 +221,16 @@
 - **검증 결과**: `./mvnw test` 154건 통과 (157 − 헤더 전용 4 + 1) · 프론트 `npm test` · `npm run build` 통과
   - `npm run format:check`: 이 PC에서 전부터 114개 파일 실패 (CRLF 줄바꿈) · 고친 파일은 통과
   - 미검증: 실제 서버 실행 후 호출 · 로그인 화면 연결 전이라 화면에서는 401
+
+### [2026-11-16] 시뮬레이션 화면 서버 연결 · 결과 이력 (TT-105 · PR #30)
+- **작업 내용**: 화면 `prediction-service.js`(새 파일) · `income-service.js` · `SimulationPage.jsx` · `App.jsx` · 가상 입력 → `POST /api/simulations/{taxYear}` · 결과 이력 `GET /api/predictions` · 열기는 누른 줄 아래 펼침 · 출발값은 서버 소득
+- **변경 사유**: PR #27(시뮬레이션 · 결과 이력 API)의 화면 연결 · 11/17 사용자 흐름 테스트에서 시크릿 창 출발값 0 문제 발견 → 서버 소득으로
+- **검증 결과**: 백엔드 91개 · 계산 서버 pytest 63개 · 화면 `npm test` · `npm run build` 통과 · 사용자 흐름 테스트 8개 (`frontend/docs/VERIFICATION.md`)
+
+### [2026-11-16] 화면 API 연동: 소득 입력 · 계산 · 혜택 진단 (PR #24)
+- **작업 내용**: 화면 `api-client.js`(봉투 응답을 `apiRequest()`에서 한 번에) · `income-service.js` · `calculation-service.js` · `benefit-service.js` · 대시보드 · 혜택 화면 · `vite.config.js` `/api` 프록시 · 테스트 3개
+- **변경 사유**: 소득 저장 → 계산 → 대시보드 · 혜택 진단을 서버 API로 · 서버 연결 실패 때 체험용 계산은 개발 서버에서만
+- **검증 결과**: `npm test` · `npm run build` 통과
 
 ### [2026-11-16] 로그인 · 로그아웃 백엔드 구현 (F-01-02 · JWT)
 - **작업 내용**
@@ -218,6 +286,20 @@
   - 테스트 4개 추가 · curl mock 모드 200 · 404 · 400
   - 학원 PC에서 계산 서버(http) + 저장: 회원 81 기준 결과 3번 → 시나리오 6번 · `PREDICTION_INPUT` 월세 60만 · `INCOME` 월세는 그대로
 
+### [2026-11-13] 예상 세액 계산 + 결과 저장 · 청년 혜택 진단 API (F-03-01 · F-03-02 · TT-73 · TT-74 · PR #22)
+- **작업 내용**:
+  - `prediction` 패키지: `CalculationController`(`POST /api/calculations/{taxYear}`) · `BenefitController`(`GET /api/benefits/{taxYear}`)
+  - `CalculationService` · `BenefitService` · `PredictionSaveService`(PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL 저장)
+  - `client/HttpCalcClient`(계산 서버 호출 · `X-Calc-Token`) · `MockCalcClient`(`CALC_MODE=mock` · 계산 서버 없이 · 가짜 결과는 저장 안 함)
+  - `PredictionMapper`(+ XML) · dto 9개 · 테스트 6개 파일
+- **변경 사유**: 세액 계산 · 진단 파트(③) · 계산은 Python 계산 서버, 저장은 Spring (10/30 결정)
+- **검증 결과**: `clean verify` 74개 통과 (계산 서버는 가짜로 대체 · 두 서버를 붙인 실제 계산 확인은 이 PR에서는 안 함)
+
+### [2026-11-13] 계산 서버(FastAPI) 세액 계산 · 카드 소득공제 · 혜택 진단 (F-03-01 · F-03-02 · PR #21)
+- **작업 내용**: 계산 서버 `POST /calculate`(예상 세액) · `POST /benefit`(청년 혜택 진단) · `services/`(tax_calculator · card_deduction · bracket · benefit · tax_rules) · `repositories/oracle_criteria.py`(DB 기준값 읽기 · 읽기 전용 계정 · 5분 캐시) · `X-Calc-Token` 검사 · 테스트
+- **변경 사유**: 세율 · 공제율 · 한도를 코드가 아니라 DB 기준값에서 읽음 (기준이 바뀌면 행만 수정) · 닫은 PR #15에서 계산 서버 부분만 나눔
+- **검증 결과**: pytest 63개 · ruff 통과
+
 ### [2026-11-13] 계산 서버 카드 파일 해석 · 지출 분류 (F-02-02 · F-02-03 · TT-109 · TT-110)
 - **작업 내용** (계산 서버 `calc/` · 백엔드가 호출):
   - `POST /card/parse`: 백엔드가 보낸 카드사 · 홈택스 파일(csv · xlsx · xls)을 공통 4칸(사용일 · 가맹점명 · 금액 · 결제수단)으로 바꾸고 행마다 분류 결과(`categoryCode` · `listId`)를 붙여 돌려줌 · 저장은 하지 않음 · `X-Calc-Token` 검사
@@ -230,6 +312,10 @@
   - 가상 카드 내역 10,453건: 파이썬 분류 = SQL 분류 (전부 일치 · 목록 EXACT 79,727개 이름 · CONTAINS 697개)
   - pytest 130개 · `ruff check` 통과 (카드 API 7 · 목록 읽기 5 추가)
   - 배포 시 필요: 계산 서버 읽기 계정에 `MERCHANT_LIST` · `SPEND_CATEGORY` SELECT 권한 + 동의어 (`database/README.md`) · 로컬은 테이블 주인 계정이라 해당 없음
+
+### [2026-11-13] 그룹 비교 통계 화면 연결 (F-06-02 · PR #26)
+- **작업 내용**: 화면 `statistics-service.js` · `group-model` · 대시보드 · 통계 화면 · 테스트 (API는 바로 아래 11/13 「그룹 비교 통계 조회 API」)
+- **검증 결과**: 테스트 6개 추가 · 학원 DB로 회원 81 · 82 · 없는 회원 확인
 
 ### [2026-11-13] 그룹 비교 통계 조회 API (F-06-02)
 - **작업 내용**:
@@ -267,6 +353,10 @@
   - 테스트 22개 추가 (Service 11 · 저장 4 · Controller 7 · 계산 서버는 가짜 응답)
   - 실제 연결 업로드 (2026-11-17 · 화면 TT-112): `card_a.xlsx` → 업로드 101번 · 14건 저장 · 계산 서버 토큰이 비면 503 + 오류 번호 확인
   - 미검증: 실제 홈택스 파일 형식(칸 이름은 추측값)
+
+### [2026-11-12] 저장된 계산 결과로 대시보드 표시 (F-06-01 · PR #25)
+- **작업 내용**: 화면 `calculation-service.js` · `App.jsx` (API는 바로 아래 11/12 「저장된 계산 결과 조회 API」)
+- **검증 결과**: 테스트 4개 추가 · curl 회원 81 → 200 · 82 → 404
 
 ### [2026-11-12] 저장된 계산 결과 조회 API (F-06-01 결과 대시보드)
 - **작업 내용**:
@@ -333,6 +423,15 @@
 - **검증 결과**: `./mvnw test` 52건 통과 · `npm test` · `npm run build` 통과
   - 병합 전 브라우저 가입 · Oracle 저장 · 로그인 화면 이동 확인 (2026-11-11)
   - 미검증: 병합 후 브라우저 재확인 · 실제 메일 발송(미구현)
+
+### [2026-11-10] 공통 응답 봉투(ApiResponse) · 오류 응답 통일 (TT-80 · TT-90 · PR #6)
+- **작업 내용**:
+  - `common/dto/ApiResponse` · `PageMeta` 추가 · `ErrorResponseDTO` 삭제 (봉투로 대체)
+  - `common/exception`: BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable 예외
+  - `GlobalExceptionHandler`: 400 · 401 · 404 · 405 · 409 · 413 · 415 · 500 · 503을 한 모양으로 · 5xx만 `errorId`를 응답과 로그에 · `ResponseStatusException`도 같은 봉투(11/11)
+  - `docs/api-rules.md` (주소 모양 · 성공 200 통일 · PUT만 · 오류 코드 표) · `.env.example` · `application.yml`
+- **변경 사유**: 모든 응답을 `{success, data, meta, error}`로 통일 (팀 합의 11/09) · 모든 API가 쓰는 공통 작업이라 먼저 올림
+- **검증 결과**: 이 브랜치 단독 `backend clean verify` 통과 (Spring Boot 4.1.0 · 11/11)
 
 ### [2026-11-10] F-01-01 회원가입 React 연결 · 중복확인 · 이메일 인증
 - **작업 내용**: 중복확인 API · 이메일 인증 API(서버 메모리 · 메일 미발송) 추가, 가입 주소 `/api/auth/members`로 변경, 응답 필드 변경, React 화면을 실제 API에 연결
