@@ -23,12 +23,18 @@
   - 팀 결정(11/23): 체험판 기능 자체를 삭제 · 비회원은 회원가입만, 비로그인 회원은 로그인만 사용
   - 체험 기능은 브라우저에만 저장되는 가짜 데이터라 서버 기능과 섞여 보이면 실제로 동작하는 것처럼 오해할 수 있음
 - **검증 결과**:
-  - `prettier --check "src/**/*.{js,jsx,css,json}" "tests/*.mjs"` 통과
+  - `npm test` 116건 통과 · `npm run build` 통과 · 백엔드 `mvnw verify` 215건 통과 (11/25 · develop d09099a 병합 후)
+  - `prettier --check --end-of-line auto "src/**/*.{js,jsx,css,json}" "tests/*.mjs"`: 이번에 고친 파일은 모두 통과 · `faq-service.js` · `components/chatbot/Faq*.jsx` · `styles/chatbot.css` 5개는 develop(#52)에 원래 있던 것이라 고치지 않음
   - ESLint(no-undef · no-unused-vars) 검사: 새 오류 없음 (남은 경고는 develop에 원래 있던 것)
   - import 검사 스크립트: 지운 파일 · 이름을 가져오는 곳 없음
-  - (#53 반영 전 1차 패치) `npm test` · `npm run build` 통과 · 브라우저: 로그인 전 `#dashboard` → 로그인 화면 이동, 새 회원가입 → 대시보드 「아직 계산 결과가 없어요」, AI 절세 가이드 · 고객센터 문의 탭 「준비 중」 표시
-  - (11/25 develop 기준) `npm test` 10개 중 9개 통과 확인 · `render-pages`는 작업 환경에 `lucide-react`가 없어 못 돌림 · esbuild 번들(`src/main.jsx`) 성공
-  - 미검증: 이 버전의 `npm test`(render-pages 포함) · `npm run build` · 고객센터 문의 작성 · 관리자 문의 관리 · 알림 종 목록 브라우저 확인
-  - 참고: `prettier --check`에서 `faq-service.js` · `components/chatbot/Faq*.jsx` · `styles/chatbot.css` 5개가 걸리는데, develop(#52)에 원래 있던 것이라 이번에 고치지 않음
+  - 브라우저 (백엔드 · 계산 서버 · 챗봇 서버 실행):
+    - 로그인 전 `#dashboard` → 로그인 화면 이동 · 홈 버튼은 로그인 · 회원가입으로만 이동 · 새 회원가입 → 대시보드 「아직 계산 결과가 없어요」 · 소득 입력 → 계산 → 대시보드
+    - 카드 업로드 · 통계 · 시뮬레이션: 서버 결과로 표시 (개발자 도구 Network에서 `/api/calculations` · `/api/group-stats` · `/api/simulations` 200 확인)
+    - 고객센터 문의 작성 · 관리자 문의 관리(#53) · 새로고침 후 알림 목록 유지(#51)
+    - 「준비 중」 화면: AI 절세 가이드 · 관리자 회원 관리 · 공제 기준값 · 예측 결과 · 접근 기록 탭 · 마이페이지 개인정보 · 비밀번호 변경 · 계정 관리 · 로그아웃 후 `#dashboard` → 로그인 화면
+  - 참고: 윈도우에서는 `prettier --check`가 거의 모든 파일을 경고함 → Git이 줄바꿈을 CRLF로 바꿔서 받기 때문 (팀 설정은 `endOfLine: lf` · 커밋하면 LF로 올라가서 코드 문제 아님) · `--end-of-line auto`로 확인하거나 루트 `.gitattributes`(`* text=auto eol=lf`) 추가를 팀에 제안
+  - 참고: 확인 중 계산 서버가 DB에 접속하지 못함 (`DPY-4027` → `ORA-01045`) → 코드 문제가 아니라 PC 설정 문제
+    - 윈도우 환경변수의 `DB_USERNAME` · `DB_DSN`이 `calc/.env` 값을 덮음 (`load_dotenv()`는 이미 있는 환경변수를 덮어쓰지 않음) → 환경변수 삭제
+    - 로컬 DB는 `XE`에 권한이 있는데 `DB_DSN`이 `.env.example` 예시 `XEPDB1`을 가리킴 → `127.0.0.1:1521/XE`로 수정
   - 참고: 확인 중 백엔드 로그에 `HttpMessageNotWritableException … text/event-stream` 경고가 나옴 → SSE 알림 연결이 끊길 때 공통 오류 처리기가 JSON 응답을 쓰려다 나는 것으로, 이번 변경(프론트만)과 관계없음 · SSE 담당자에게 따로 전달
   - 참고: `xlsx` 패키지는 이제 `src`에서 쓰지 않음 (package.json에서 뺄지는 팀 확인 후)
