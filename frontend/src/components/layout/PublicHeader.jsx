@@ -11,7 +11,7 @@ export default function PublicHeader({ go }) {
       <nav>
         <a href="#features">서비스 소개</a>
         <a href="#how">이용 방법</a>
-        <button onClick={() => go('support')}>고객센터</button>
+        {/* [수정 11/23] 「고객센터」 버튼 삭제 · 이유: 체험판 삭제로 로그인 전에는 홈 · 로그인 · 회원가입만 쓸 수 있어요 */}
       </nav>
       <div>
         <button className="text-btn" onClick={() => go('login')}>

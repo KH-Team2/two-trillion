@@ -15,7 +15,9 @@ import {
 import { Logo, Btn, Tag, MiniChart } from '@/components/common/site-primitives.jsx';
 
 // 현재 사이트의 랜딩 화면을 그대로 분리했습니다.
-export default function HomePage({ go, startSim, normalInput }) {
+// [수정 11/23] 체험 진입 버튼 삭제 · 이유: 체험판 기능 삭제 결정
+//   비회원은 회원가입, 비로그인 회원은 로그인만 할 수 있어서 모든 버튼이 회원가입 · 로그인으로만 이동해요
+export default function HomePage({ go }) {
   return (
     <>
       <main className="landing">
@@ -39,8 +41,8 @@ export default function HomePage({ go, startSim, normalInput }) {
               <Btn onClick={() => go('signup')}>
                 나의 예상 환급액 알아보기 <ArrowRight size={18} />
               </Btn>
-              <button className="text-btn" onClick={() => go('dashboard')}>
-                체험 먼저 해보기 <ArrowUpRight size={17} />
+              <button className="text-btn" onClick={() => go('login')}>
+                로그인 <ArrowUpRight size={17} />
               </button>
             </div>
             <div className="hero-trust">
@@ -50,7 +52,7 @@ export default function HomePage({ go, startSim, normalInput }) {
               </span>
               <span>
                 <CheckCircle2 size={15} />
-                별도 비용 없이 체험
+                별도 비용 없이 이용
               </span>
             </div>
           </section>
@@ -95,9 +97,7 @@ export default function HomePage({ go, startSim, normalInput }) {
                 <small>1월 — 12월</small>
               </div>
               <MiniChart />
-              <div className="preview-disclaimer">
-                시연용 예시 데이터 · 실제 세액과 다를 수 있어요
-              </div>
+              <div className="preview-disclaimer">예시 화면 · 실제 세액과 다를 수 있어요</div>
             </div>
             <div className="float-ai">
               <span className="iconbox">
@@ -144,14 +144,10 @@ export default function HomePage({ go, startSim, normalInput }) {
                 SlidersHorizontal,
                 '03',
                 '바꿔보며 찾는 절세 방향',
-                '카드 사용, 월세 등 조건을 바꾸고\n변경 전후의 예시 결과를 비교하세요.',
+                '카드 사용, 월세 등 조건을 바꾸고\n변경 전후 결과를 비교하세요.',
               ],
             ].map(([Icon, n, title, desc]) => (
-              <button
-                className="feature"
-                key={n}
-                onClick={() => (n === '01' ? normalInput() : n === '02' ? go('guide') : startSim())}
-              >
+              <button className="feature" key={n} onClick={() => go('login')}>
                 <div>
                   <span className="feature-icon">
                     <Icon size={24} />
@@ -178,8 +174,8 @@ export default function HomePage({ go, startSim, normalInput }) {
               <br />
               시뮬레이션까지, 한곳에서 이어집니다.
             </p>
-            <Btn onClick={() => go('dashboard')}>
-              예시 대시보드 둘러보기 <ArrowRight size={16} />
+            <Btn onClick={() => go('signup')}>
+              회원가입하고 시작하기 <ArrowRight size={16} />
             </Btn>
           </div>
           <div>
@@ -208,7 +204,7 @@ export default function HomePage({ go, startSim, normalInput }) {
       <footer>
         <Logo />
         <span>© 2025 희망환급. 청년을 위한 연말정산 프로토타입.</span>
-        <span>시연용 서비스 · 실제 세무 신고에 사용할 수 없습니다.</span>
+        <span>예상 계산 서비스 · 실제 세무 신고에 사용할 수 없습니다.</span>
       </footer>
     </>
   );

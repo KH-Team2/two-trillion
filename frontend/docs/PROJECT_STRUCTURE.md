@@ -36,8 +36,8 @@ hope-refund/
   src/api/erd-contract.js
   src/api/expense-service.js
   src/api/income-service.js
-  src/api/prototype-records.js
   src/api/services.js
+  src/components/common/ComingSoon.jsx
   src/components/common/DeductionDetails.jsx
   src/components/common/site-primitives.jsx
   src/components/expense/ExpenseUpload.jsx
@@ -116,15 +116,12 @@ hope-refund/
   src/hooks/use-mobile.js
   src/main.jsx
   src/pages/admin/AdminPage.jsx
-  src/pages/admin/AdminTools.jsx
   src/pages/auth/AccountForms.jsx
   src/pages/auth/AuthPage.jsx
-  src/pages/chatbot/ChatPanel.jsx
   src/pages/chatbot/ChatbotPage.jsx
   src/pages/dashboard/Dashboard.jsx
   src/pages/dashboard/DashboardPage.jsx
   src/pages/home/HomePage.jsx
-  src/pages/profile/ProfileDetails.jsx
   src/pages/profile/ProfilePage.jsx
   src/pages/simulation/SimulationPage.jsx
   src/pages/statistics/GroupStats.jsx
@@ -135,7 +132,6 @@ hope-refund/
   src/pages/tax/TaxInputPage.jsx
   src/routes/useHashRouting.js
   src/styles/globals.css
-  src/utils/benefit-model.js
   src/utils/cn.js
   src/utils/dashboard-model.js
   src/utils/group-model.js

@@ -65,7 +65,7 @@ export function parseBenefitResponse(raw) {
 /**
  * 혜택 진단 요청.
  * - 회원 구분: 로그인 토큰을 Authorization 헤더로 보내고, 서버가 토큰에서 회원번호를 꺼내요 (api-client.js).
- * - 서버에 연결할 수 없으면 code가 'OFFLINE'인 오류를 던져요 (화면은 체험 판정으로 돌아가요).
+ * - 서버에 연결할 수 없으면 code가 'OFFLINE'인 오류를 던져요 (화면은 연결 실패 안내를 보여 줘요).
  */
 export async function fetchBenefits(taxYear, { fetchImpl = globalThis.fetch, accessToken } = {}) {
   checkTaxYear(taxYear);
