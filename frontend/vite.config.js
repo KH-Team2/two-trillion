@@ -22,6 +22,17 @@ export default defineConfig(({ mode }) => {
             proxy.on('proxyReq', (proxyReq) => proxyReq.removeHeader('origin'));
           },
         },
+        // [추가 11/24 · 이우진 · TT-154] 상담 채팅 WebSocket(/ws · STOMP)도 Spring 서버로 넘김 (ws: true)
+        // /api 와 같은 이유로 Origin 헤더를 뗌 → back WebSocketConfig 는 localhost:5173만 허용해서
+        //   다른 PC 주소로 접속하면 연결이 막힘 (Origin이 없으면 같은 주소 요청으로 봄 · 개발 서버 전용)
+        '/ws': {
+          target: env.VITE_API_PROXY || 'http://localhost:8080',
+          changeOrigin: true,
+          ws: true,
+          configure: (proxy) => {
+            proxy.on('proxyReqWs', (proxyReq) => proxyReq.removeHeader('origin'));
+          },
+        },
       },
     },
     resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
