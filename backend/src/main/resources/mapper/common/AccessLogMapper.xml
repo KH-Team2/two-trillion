@@ -40,6 +40,9 @@
         - 바깥 WHERE: 최근 12시간 안에 FAIL_COUNT 가 50 이상이 된 행이 있는지 센다 → 1 이상이면 아직 막는 중
           (50번째 실패 시각 + 12시간이 지나면 0이 되어 자동으로 풀림)
         - 막힌 동안의 시도는 DENIED 로 기록돼 여기서 세지 않음 → 차단 시간이 늘어나지 않음
+        
+        [수정 11/25 고은] 로그인 실패만 세기
+        이유: 다른 기능의 FAIL 기록까지 세면 로그인과 상관없이 IP가 막힐 수 있어서
     -->
     <select id="countIpBlockTriggers" resultType="int">
         SELECT COUNT(*)
@@ -52,6 +55,7 @@
                   FROM ACCESS_LOG
                  WHERE IP_ADDRESS = #{ipAddress}
                    AND RESULT = 'FAIL'
+                   AND SCREEN = '/api/auth/login'
                    AND ACCESSED_AT &gt;= SYSDATE - #{blockHours} / 24 - #{windowMinutes} / 1440
                )
          WHERE FAIL_COUNT &gt;= #{failLimit}
