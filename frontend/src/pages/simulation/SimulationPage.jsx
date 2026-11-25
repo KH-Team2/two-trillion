@@ -9,6 +9,7 @@ import {
   fetchPredictions,
 } from '@/api/prediction-service.js';
 import { money, Btn, Tag } from '@/components/common/site-primitives.jsx';
+import TaxGuidePanel from '@/components/guide/TaxGuidePanel.jsx';
 
 // 시뮬레이션 전후 결과를 비교하고 원본과 분리해 저장합니다.
 // isDemo: true면 체험용 계산(브라우저) 비교, false면 서버 계산 결과(기준 결과 · 시나리오) 비교
@@ -75,9 +76,9 @@ export default function SimulationPage({
           기존 결과와 변경 후 결과 모두 계산 서버 결과예요. 원본 소득 · 지출 정보는 바뀌지 않아요.
         </div>
       )}
-      {/* 상담 칸은 두지 않아요 · 챗봇은 세법 용어 설명용이라 시뮬레이션 숫자와 연결하지 않음 (11/16) */}
-      <div>
-        <div>
+      {/* 시뮬레이션 결과와 맞춤 절세 가이드를 좌우로 배치 */}
+      <div className="dashboard-grid simulation-guide-grid">
+        <div className="dashboard-left">
           <div className="comparison">
             <section className="card">
               <small>기존 {settlementLabel(br.expectedRefund)}</small>
@@ -261,6 +262,10 @@ export default function SimulationPage({
             />
           )}
         </div>
+
+        <aside className="dash-ai" aria-label="맞춤 절세 가이드">
+          <TaxGuidePanel predictionId={sr.predictionId} />
+        </aside>
       </div>
     </>
   );

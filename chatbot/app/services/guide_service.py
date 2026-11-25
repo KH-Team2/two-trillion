@@ -27,15 +27,20 @@ def generate_guide(code: str) -> dict:
     prompt = (
         "당신은 연말정산을 처음 접하는 사용자를 위한 안내문 작성 도우미입니다.\n"
         "제공된 JSON의 facts만 사용해 금융상품을 설명하세요.\n\n"
+        
         "[작성 조건]\n"
-        "1. 상품의 의미와 장점, 연말정산 혜택, 확인할 사항을 모두 포함하세요.\n"
-        "2. 자연스러운 한국어 설명문을 작성하세요.\n"
-        "3. 인사말, 제목, 목록, Markdown 문법은 사용하지 마세요.\n"
-        "4. 가입을 권유하거나 절세 효과를 보장하지 마세요.\n"
-        "5. 소득공제와 세액공제를 정확히 구분하세요.\n"
-        "6. JSON에 없는 세율, 금액, 한도, 자격 요건을 추가하지 마세요.\n"
-        "7. JSON에 없는 사실을 추측하거나 만들어 내지 마세요.\n"
-        "8. 본문만 출력하세요.\n\n"
+        "1. 반드시 JSON 객체만 출력하세요.\n"
+        "2. 키는 description, taxBenefit, nextStep 세 개만 사용하세요.\n"
+        "3. description: 상품의 의미와 장점을 설명하세요.\n"
+        "4. taxBenefit: 연말정산 혜택과 세금에 미치는 영향을 설명하세요.\n"
+        "5. nextStep: 사용자가 확인할 사항을 설명하세요.\n"
+        "6. 자연스러운 한국어 문장으로 작성하세요.\n"
+        "7. 가입을 권유하거나 절세 효과를 보장하지 마세요.\n"
+        "8. 소득공제와 세액공제를 정확히 구분하세요.\n"
+        "9. 제공된 facts에 없는 사실이나 수치를 추가하지 마세요.\n"
+        "10. 숫자를 사용하지 마세요.\n"
+        "11. 제목, 목록, Markdown 문법은 사용하지 마세요.\n\n"
+
         "[상품 정보]\n"
         + json.dumps(
             {"name": guide["name"], "facts": facts},
@@ -52,6 +57,7 @@ def generate_guide(code: str) -> dict:
     body = json.dumps({
         "model": model,
         "stream": False,
+        "format": "json",
         "options": {"temperature": 0},
         "messages": [
             {"role": "user", "content": prompt}
@@ -70,7 +76,28 @@ def generate_guide(code: str) -> dict:
         with urlopen(request, timeout=60) as response:
             result = json.load(response)
 
-        content = result["message"]["content"].strip()
+        
+        content = json.loads(result["message"]["content"])
+
+        required = ("description", "taxBenefit", "nextStep")
+
+        if (
+            not isinstance(content, dict)
+            or set(content) != set(required)
+            or any(
+                not isinstance(content[key], str)
+                or not content[key].strip()
+                for key in required
+            )
+        ):
+            raise GuideGenerationError("설명 형식이 올바르지 않습니다.")
+
+        content = {
+            key: content[key].strip()
+            for key in required
+        }
+
+        text = " ".join(content.values())
 
         # 임의의 숫자 생성이나 공제 유형 혼동 방지
         expected = (
@@ -83,11 +110,10 @@ def generate_guide(code: str) -> dict:
         )
 
         if (
-            not content
-            or len(content) > 1500
-            or re.search(r"\d", content)
-            or expected not in content
-            or opposite in content
+            len(text) > 1500
+            or re.search(r"\d", text)
+            or expected not in content["taxBenefit"]
+            or opposite in text
         ):
             raise GuideGenerationError("생성된 설명의 검증에 실패했습니다.")
 
@@ -104,8 +130,19 @@ def generate_guide(code: str) -> dict:
         GuideGenerationError,
     ):
         # 5. 장애 또는 검증 실패 시 기본 설명 사용
-        content = guide["fallback_content"]
+        parts = re.split(r"(?<=\.)\s+", guide["fallback_content"])
+
+        if len(parts) != 3:
+            raise GuideGenerationError(
+                "기본 설명은 세 문장으로 구성되어야 합니다."
+            )
+
+        content = dict(zip(
+            ("description", "taxBenefit", "nextStep"),
+            parts,
+        ))
         source = "fallback"
+
 
     return {
         "code": code,

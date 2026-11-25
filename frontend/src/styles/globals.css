@@ -4053,3 +4053,157 @@ button:disabled {
 .comparison .after h2.amount-pay {
   color: var(--pay);
 }
+
+/* 맞춤 절세 가이드 */
+
+/* 추천이 없으면 오른쪽 패널과 빈 공간 제거 */
+.dashboard-grid:has(> .dash-ai:empty) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-ai:empty {
+  display: none;
+}
+
+/* 기존 card, chat-title, iconbox, tag 재사용 */
+.tax-guide {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.tax-guide-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tax-guide-title p {
+  margin: 0;
+  color: #8290a6;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.tax-guide .chat-title .tag {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.tax-guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.tax-guide-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tax-guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  padding: 13px 11px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tax-guide-toggle:hover,
+.tax-guide-toggle[aria-expanded="true"] {
+  background: #f4f8ff;
+}
+
+.tax-guide-name {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.tax-guide-name strong {
+  font-size: 12px;
+  color: #17345d;
+}
+
+.tax-guide-name .tag {
+  font-size: 9px;
+}
+
+.tax-guide-toggle > svg {
+  flex-shrink: 0;
+  color: #8290a6;
+  transition: transform 0.2s;
+}
+
+.tax-guide-toggle > svg.is-open {
+  transform: rotate(180deg);
+}
+
+.tax-guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.tax-guide-body h4 {
+  margin: 0 0 8px;
+  color: #273f61;
+  font-size: 12px;
+}
+
+.tax-guide-body p {
+  margin: 0;
+  color: #63728a;
+  font-size: 11px;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+
+.tax-guide-notice {
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+  color: #8290a6;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.tax-guide-notice svg {
+  flex-shrink: 0;
+}
+
+.tax-guide-status {
+  padding: 20px 16px;
+  color: #63728a;
+  font-size: 11px;
+}
+
+.tax-guide-status button {
+  margin-top: 10px;
+  color: var(--blue);
+  cursor: pointer;
+}
+/* 시뮬레이션 결과의 오른쪽 맞춤 절세 가이드 */
+.simulation-guide-grid > .dash-ai {
+  min-width: 0;
+  position: sticky;
+  top: 90px;
+}
+
+@media (max-width: 1000px) {
+  .simulation-guide-grid > .dash-ai {
+    position: static;
+  }
+}

@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC
+    "-//mybatis.org//DTD Mapper 3.0//EN"
+    "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hoperefund.chatbot.mapper.GuideMapper">
+     <!-- 본인 계산 결과의 추천 판단 입력값 조회 -->
+    <select id="findGuideInput"
+            resultType="com.hoperefund.chatbot.dto.GuideInputDTO">
+        SELECT i.TOTAL_SALARY,
+               i.HOMELESS_HEAD_YN,
+               i.HOUSING_SAVING,
+               i.PENSION_SAVING,
+               i.IRP_SAVING
+          FROM PREDICTION_INPUT i
+          JOIN PREDICTION p
+            ON p.PREDICTION_ID = i.PREDICTION_ID
+         WHERE p.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+    </select>
+
+    <!-- 본인 계산 결과에 저장된 추천 JSON 조회 -->
+    <select id="findRecommendationContents"
+            resultType="string">
+        SELECT r.CONTENT
+          FROM RECOMMENDATION r
+          JOIN PREDICTION p
+            ON p.PREDICTION_ID = r.PREDICTION_ID
+         WHERE r.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+         ORDER BY r.REC_ID
+    </select>
+
+    <!-- 본인 계산 결과에 추천 JSON 한 건 저장 -->
+    <insert id="insertRecommendation">
+        INSERT INTO RECOMMENDATION
+               (REC_ID,
+                PREDICTION_ID,
+                TYPE_ID,
+                CONTENT,
+                SAVING_AMOUNT,
+                LLM_MODEL)
+        SELECT SEQ_RECOMMENDATION.NEXTVAL,
+               p.PREDICTION_ID,
+               NULL,
+               #{content,jdbcType=CLOB},
+               NULL,
+               #{llmModel}
+          FROM PREDICTION p
+         WHERE p.PREDICTION_ID = #{predictionId}
+           AND p.MEMBER_ID = #{memberId}
+    </insert>
+</mapper>
