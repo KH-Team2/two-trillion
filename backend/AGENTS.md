@@ -99,7 +99,7 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 
 ## 기능명세서
 
-- 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit
+- 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit
 - 기능명세서 · ERD · 노션 링크는 로그인이 필요해 열리지 않을 수 있다. 열 수 없으면 내용을 추측하지 말고, 사용자에게 필요한 부분(복사본 · 캡처)을 요청한다.
 - ERD와 코드가 다르면 임의로 판단하지 말고 차이를 알린다. DB 변경이 필요하면 노션 「요청·전달」에 DB 변경 요청을 남긴다.
 

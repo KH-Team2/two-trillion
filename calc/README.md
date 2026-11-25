@@ -194,7 +194,7 @@ python -m scripts.compare_card_classify
 
 - `AGENTS.md`: Calc 서버 개발 규칙 및 담당 영역
 - `../database/README.md`: DB 작업 파일 실행 순서 · 계산 서버 읽기 계정 (프로젝트 최상위 폴더)
-- 희망환급 기능명세서 v1.14
+- 희망환급 기능명세서 v1.15
 - ERD v4.4
 - 팀 API 공통 규칙
 

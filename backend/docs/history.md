@@ -8,6 +8,7 @@
   - `backend/README.md` 구조도: `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가
   - `backend/AGENTS.md` 폴더 구조: `notification/` · `consult/` 두 줄 추가
   - ERD 버전 표기 v4.2 → v4.4: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+  - 기능명세서 v1.14 → v1.15 (새 구글 시트 주소): `backend/README.md` · `calc/README.md` 표기 · `backend/README.md` · `backend/AGENTS.md` · `calc/AGENTS.md` 링크
   - `frontend/docs/API_INTEGRATION.md`: 실시간 알림 · 관리자 상담 채팅 연결 흐름 추가 · 「아직 연결 안 된 부분」에서 해결된 카드 사용액 2건 정리
 - **변경 사유**: PR #46 · #51 · #58로 들어간 알림 · 상담 채팅과 ERD v4.3 · v4.4가 구조도 · 버전 표기에 빠져 있었음
 - **검증 결과**: 문서만 바꿈 (코드 변경 없음) · 폴더 · 파일 이름은 develop(e19fb07)의 실제 경로와 대조

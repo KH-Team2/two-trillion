@@ -328,7 +328,7 @@ mvnw -B verify
 | `docs/decisions/` | 주요 결정 사항 |
 | `docs/tasks.md` | 작업 현황 및 예정 작업 |
 
-기능 요구사항은 [희망환급 기능명세서 v1.14](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
+기능 요구사항은 [희망환급 기능명세서 v1.15](https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit)를 참고합니다.
 
 ERD는 팀에서 공유한 v4.4를 기준으로 합니다.
 https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
