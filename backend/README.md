@@ -173,6 +173,7 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
+| `ALLOWED_ORIGINS` | 허용할 화면 주소 (CORS · 상담 채팅 WebSocket) · 쉼표로 여러 개 · `*`는 안 됨 · **배포 때는 운영 화면 주소로 꼭 바꿈** | `http://localhost:5173` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
 | `MAIL_MODE` | 인증번호 메일 발송 방식 · `log`: 메일을 보내지 않고 로그만 · `smtp`: 실제 발송 (`CALC_MODE`와 같은 구조 · `member/client/EmailSender`) | `log` |
 | `MAIL_USERNAME` · `MAIL_PASSWORD` | 메일 계정 · Gmail은 「앱 비밀번호」 · `MAIL_MODE=smtp`일 때 필요 | 없음 |
@@ -284,7 +285,7 @@ mvnw -B verify
 - Oracle DB 연결 설정 및 실행 확인
 - MyBatis 기본 설정
 - 환경변수 기반 공통 설정
-- React 개발 서버 CORS 설정
+- CORS 설정 (허용 화면 주소는 환경변수 `ALLOWED_ORIGINS` · 기본 `http://localhost:5173` · 상담 채팅 WebSocket도 같은 값)
 - Health API
 - 공통 오류 응답 DTO
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)

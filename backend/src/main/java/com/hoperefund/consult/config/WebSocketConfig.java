@@ -1,5 +1,6 @@
 package com.hoperefund.consult.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.ChannelRegistration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
@@ -20,15 +21,20 @@ import org.springframework.web.socket.config.annotation.WebSocketMessageBrokerCo
 public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     private final StompAuthChannelInterceptor stompAuthChannelInterceptor;
+    private final String[] allowedOrigins; // [추가 11/25 · TT-179] CorsConfig 와 같은 설정값
 
-    public WebSocketConfig(StompAuthChannelInterceptor stompAuthChannelInterceptor) {
+    public WebSocketConfig(
+            StompAuthChannelInterceptor stompAuthChannelInterceptor,
+            @Value("${cors.allowed-origins}") String[] allowedOrigins) {
         this.stompAuthChannelInterceptor = stompAuthChannelInterceptor;
+        this.allowedOrigins = allowedOrigins;
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // 화면 개발 서버 주소만 허용 (CorsConfig 와 같은 주소) · 다른 사이트가 우리 서버에 WebSocket 으로 붙지 못하게
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("http://localhost:5173");
+        // 허용한 화면 주소만 (CorsConfig 와 같은 설정값 · 기본 localhost:5173) · 다른 사이트가 우리 서버에 WebSocket 으로 붙지 못하게
+        // [수정 11/25 · TT-179] 코드에 고정했던 주소 → application.yml cors.allowed-origins
+        registry.addEndpoint("/ws").setAllowedOriginPatterns(allowedOrigins);
     }
 
     @Override

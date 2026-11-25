@@ -2,6 +2,11 @@
 server:
   port: ${SERVER_PORT:8080}
 
+# [추가 11/25 · 이우진 · TT-179] 허용할 화면 주소 (CorsConfig · 상담 채팅 WebSocketConfig 가 같이 씀)
+# 개발: 기본값 그대로 · 배포: 환경변수 ALLOWED_ORIGINS 에 운영 화면 주소 (쉼표로 여러 개 · * 는 안 됨: 로그인 정보 허용과 같이 못 씀)
+cors:
+  allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}
+
 # Spring Boot 프로젝트 이름
 spring:
   application:
