@@ -75,7 +75,7 @@
   - 화면: `access-log-service.js` 신규 · `AdminTools.jsx` 접근 기록 탭을 체험 데이터 → 서버 API · `api-client.js`에 `withMeta` 옵션(기본 꺼짐)
   - 테스트: `AdminAccessLogServiceTest` 6건 · `tests/access-log-service.mjs`
 - **변경 사유**: PR #45 리뷰 4개(size 최대값 · 날짜 형식 · 전체 개수 · 회원 없는 기록) · 명세 F-08-02 비고 「관리자가 목록을 조회한 것도 ACCESS_LOG에 기록」
-- **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인
+- **검증 결과**: `mvnw verify` 325건 통과 · SCREEN 조건 추가 후 Oracle에서 `countIpBlockTriggers` 실행 확인 · SQL로 로그인 실패 기록 50건을 넣은 뒤 Talend 로그인 시도 → 429 `LOGIN_IP_BLOCKED` · `DENIED` 기록 · 차단 판단 숫자 그대로(차단 시간 안 늘어남) · 회원 실패 횟수 그대로 · 실패 시각을 13시간 전으로 바꾸면 정상 로그인 확인
 
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
 - **작업 내용**:

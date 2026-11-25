@@ -43,6 +43,7 @@
         
         [수정 11/25 고은] 로그인 실패만 세기
         이유: 다른 기능의 FAIL 기록까지 세면 로그인과 상관없이 IP가 막힐 수 있어서
+         · 로그인 화면(`/api/auth/login`) 실패만 셈 (11/25 수정)
     -->
     <select id="countIpBlockTriggers" resultType="int">
         SELECT COUNT(*)
