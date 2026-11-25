@@ -1,6 +1,6 @@
 import { getTaxYear } from '@/utils/tax-year.js';
-import React from 'react';
-import { ChevronRight, Bell, Menu, ChevronDown } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { ChevronRight, Bell, Menu, ChevronDown, UserRound, LogOut } from 'lucide-react';
 import { nav } from '@/components/common/site-primitives.jsx';
 
 // 기존 상단바의 구조·버튼·알림 상태를 유지합니다.
@@ -19,6 +19,7 @@ export default function Topbar({
   unreadCount,
   onReadAlerts,
   go,
+  onLogout,
 }) {
   // [수정 11/20 · 이우진 · TT-151] 고정 안내 문구 → 서버 실시간 알림(SSE) 목록 · 안 읽은 알림이 있을 때만 점 표시
   // [수정 11/23 · TT-159] 서버 안 읽은 개수가 있으면 그걸로 (목록 20개 밖의 안 읽은 알림도 셈) · 없으면 목록에서 셈
@@ -26,6 +27,28 @@ export default function Topbar({
   const toggle = () => {
     if (!notification) onReadAlerts?.(); // 열면 읽음 처리
     setNotification(!notification);
+    setAccountOpen(false);
+  };
+  // [추가 11/23] 계정 버튼(이름 ▾) → 마이페이지 · 로그아웃 메뉴 (전에는 마이페이지로만 이동)
+  const [accountOpen, setAccountOpen] = useState(false);
+  const accountRef = useRef(null);
+  useEffect(() => {
+    if (!accountOpen) return undefined;
+    // 메뉴 밖을 누르거나 Esc를 누르면 닫아요
+    const closeOutside = (e) => {
+      if (!accountRef.current?.contains(e.target)) setAccountOpen(false);
+    };
+    const closeEsc = (e) => e.key === 'Escape' && setAccountOpen(false);
+    document.addEventListener('mousedown', closeOutside);
+    document.addEventListener('keydown', closeEsc);
+    return () => {
+      document.removeEventListener('mousedown', closeOutside);
+      document.removeEventListener('keydown', closeEsc);
+    };
+  }, [accountOpen]);
+  const pick = (action) => {
+    setAccountOpen(false);
+    action();
   };
   return (
     <header className="topbar">
@@ -50,11 +73,33 @@ export default function Topbar({
           <Bell size={19} />
           {unread > 0 && <i aria-hidden="true">{unread > 9 ? '9+' : unread}</i>}
         </button>
-        <button className="top-profile" onClick={() => go('profile')}>
-          <span className="avatar">희</span>
-          {data.name}
-          <ChevronDown size={14} />
-        </button>
+        <div className="account-menu-wrap" ref={accountRef}>
+          <button
+            className="top-profile"
+            aria-haspopup="menu"
+            aria-expanded={accountOpen}
+            onClick={() => {
+              setAccountOpen(!accountOpen);
+              setNotification(false);
+            }}
+          >
+            <span className="avatar">희</span>
+            {data.name}
+            <ChevronDown size={14} />
+          </button>
+          {accountOpen && (
+            <div className="account-menu card" role="menu">
+              <button role="menuitem" onClick={() => pick(() => go('profile'))}>
+                <UserRound size={15} />
+                마이페이지
+              </button>
+              <button role="menuitem" onClick={() => pick(onLogout)}>
+                <LogOut size={15} />
+                로그아웃
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       {notification && (
         <div className="notification card">
