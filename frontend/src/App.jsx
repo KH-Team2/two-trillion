@@ -7,11 +7,8 @@ import { initial, normalizeTaxData, userService } from '@/api/services.js';
 import { fetchLatestCalculation, saveAndCalculate } from '@/api/calculation-service.js';
 import { fetchGroupStats } from '@/api/statistics-service.js';
 import { AUTH_EXPIRED_EVENT } from '@/api/api-client.js';
-import {
-  calculationMessage,
-  deadlineMessage,
-  openNotificationStream,
-} from '@/api/notification-stream.js';
+import { notificationFromEvent, openNotificationStream } from '@/api/notification-stream.js';
+import { fetchNotifications, markNotificationsRead, toAlert } from '@/api/notification-service.js';
 import { cardTotalsByMethod, fetchCardTotals, simulate } from '@/api/prediction-service.js';
 import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
@@ -30,6 +27,7 @@ import Sidebar from '@/components/layout/Sidebar.jsx';
 import AuthPage from '@/pages/auth/AuthPage.jsx';
 import HomePage from '@/pages/home/HomePage.jsx';
 import PublicHeader from '@/components/layout/PublicHeader.jsx';
+import FaqLayout from '@/components/chatbot/FaqLayout.jsx';
 
 // 로그인 전에 볼 수 있는 화면 (비회원은 회원가입, 비로그인 회원은 로그인만 · 홈은 소개 화면)
 // [추가 11/23] 체험판 삭제 · 이유: 로그인하지 않으면 이 목록 밖의 화면(대시보드 등)은 로그인 화면으로 보내요
@@ -79,8 +77,11 @@ export default function App() {
   const [simUpload, setSimUpload] = useState(null);
   const [histories, setHistories] = useState([]);
   const [notification, setNotification] = useState(false);
-  // 받은 서버 알림 목록 (TT-151 · 최근 20개 · 새로고침하면 비워짐) · 상단 종 아이콘에서 보여 줘요
+  // 서버 알림 목록 (TT-151 · 최근 20개) · 상단 종 아이콘에서 보여 줘요
+  // [수정 11/23 · TT-159] 로그인하면 서버에 저장된 목록을 불러와서, 새로고침해도 유지돼요
   const [alerts, setAlerts] = useState([]);
+  // 목록을 불러올 때 서버가 준 안 읽은 개수 (목록 20개 밖의 안 읽은 알림까지 포함 · 열면 0)
+  const [baseUnread, setBaseUnread] = useState(0);
   const [profileTab, setProfileTab] = useState('개인정보');
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('전체');
@@ -121,28 +122,43 @@ export default function App() {
   }, []);
   // 서버 알림(SSE · TT-151): 로그인한 동안 연결해 두고, 계산 완료 · 마감 안내 알림이 오면 토스트로 보여 줘요
   // 다른 탭에서 계산해도 이 탭에 알림이 와요 · 로그아웃 · 계정 바뀜 · 화면 닫힘이면 연결을 끊어요
+  // [수정 11/23 · 이우진 · TT-159] 저장된 목록을 먼저 불러오고, 그 마지막 번호부터 연결 → 그 사이 알림도 놓치지 않음
   useEffect(() => {
     setAlerts([]); // 계정이 바뀌면 이전 계정 알림은 지움
+    setBaseUnread(0);
     if (!session?.server) return undefined; // 로그인 전에는 연결하지 않음
-    return openNotificationStream({
-      onEvent: (event, data) => {
-        // [수정 11/20 · 이우진 · TT-152] 마감 안내(deadline) 알림도 같은 토스트 · 종 목록에 표시
-        const message =
-          event === 'calculation'
-            ? calculationMessage(data)
-            : event === 'deadline'
-              ? deadlineMessage(data)
-              : null;
-        if (!message) return;
-        setToast(message);
-        setAlerts((prev) =>
-          [
-            { id: `${Date.now()}-${prev.length}`, message, at: new Date(), read: false },
-            ...prev,
-          ].slice(0, 20),
-        );
-      },
-    });
+    let alive = true;
+    let close = null;
+    // 같은 번호가 두 번 오면(목록 · 다시 받은 알림) 하나만
+    const addAlert = (a) =>
+      setAlerts((prev) => (prev.some((p) => p.id === a.id) ? prev : [a, ...prev].slice(0, 20)));
+    const open = (lastEventId) => {
+      if (!alive) return;
+      close = openNotificationStream({
+        lastEventId,
+        onEvent: (event, data) => {
+          if (event !== 'notification') return;
+          const alert = notificationFromEvent(data);
+          if (!alert) return;
+          setToast(alert.message);
+          addAlert({ ...alert, fresh: true }); // 목록을 불러온 뒤 새로 온 알림 (배지에 더함)
+        },
+      });
+    };
+    fetchNotifications()
+      .then((list) => {
+        if (!alive) return;
+        const items = (list?.items ?? []).map(toAlert).filter((a) => a.message);
+        setAlerts(items);
+        setBaseUnread(Number.isInteger(list?.unreadCount) ? list.unreadCount : 0);
+        const ids = items.map((a) => a.id).filter(Number.isInteger);
+        open(ids.length ? Math.max(...ids) : undefined);
+      })
+      .catch(() => open(undefined)); // 목록을 못 불러와도 실시간 알림은 받음
+    return () => {
+      alive = false;
+      close?.();
+    };
   }, [session?.id, session?.server]);
   // 로그인한 계정에 해당하는 입력·거래·이력을 불러옵니다.
   useEffect(() => {
@@ -400,7 +416,7 @@ export default function App() {
   }, [shownPage, page]);
   const publicPage = PUBLIC_PAGES.includes(shownPage);
   return (
-    <>
+    <FaqLayout sessionId={session?.id ?? null} isAuthenticated={Boolean(session) && !publicPage}>
       {publicPage ? (
         <>
           <PublicHeader go={go} />
@@ -438,7 +454,12 @@ export default function App() {
               setMobile={setMobile}
               notification={notification}
               alerts={alerts}
-              onReadAlerts={() => setAlerts((prev) => prev.map((a) => ({ ...a, read: true })))}
+              unreadCount={baseUnread + alerts.filter((a) => a.fresh && !a.read).length}
+              onReadAlerts={() => {
+                setAlerts((prev) => prev.map((a) => ({ ...a, read: true })));
+                setBaseUnread(0);
+                markNotificationsRead().catch(() => {}); // 실패해도 화면은 읽음 · 다음 목록 불러올 때 다시 안 읽음으로 보일 수 있음
+              }}
               setNotification={setNotification}
               go={go}
             />
@@ -534,6 +555,7 @@ export default function App() {
                       setFaq={setFaq}
                       supportTab={supportTab}
                       setSupportTab={setSupportTab}
+                      notify={notify}
                     />
                   )}
                   {page === 'admin' && <AdminPage admin={admin} go={go} />}
@@ -552,6 +574,6 @@ export default function App() {
           </button>
         </div>
       )}
-    </>
+    </FaqLayout>
   );
 }

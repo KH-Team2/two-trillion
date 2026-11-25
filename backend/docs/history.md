@@ -2,6 +2,19 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
+- **작업 내용**:
+  - `backend/README.md`: `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`을 4.2 추가 환경변수 → 4.1 필수 환경변수로 이동 · 4.3 STS 등록 목록과 5.2 CMD 실행 안내를 필수 6개 기준으로 수정
+  - `backend/README.md`: 4.2 추가 환경변수 표에 `EMAIL_DEV_CODE_ENABLED` · `EMAIL_VERIFICATION_REQUIRED` 추가 (둘 다 기본 `false`)
+  - `backend/.env.example`: 「필수」 · 「기본값 있음(바꿀 때만)」 두 묶음으로 정리 · `CALC_API_TOKEN=` · `CHATBOT_API_TOKEN=`을 주석 없이 필수 묶음으로 이동 (예전에는 「기본값이 있어서 바꿀 때만」 아래에 주석으로 있었음) · 선택 묶음에 이메일 인증 설정 2개 추가
+- **변경 사유**:
+  - `FaqClient`(챗봇)는 항상 만들어지고 `CHATBOT_API_TOKEN`이 비면 서버 시작 때 예외 → 기본값이 없는 필수 값인데 「추가 · 기본값 있음」으로 안내돼 있었음
+  - `CardParseClient`(카드 업로드)는 `CALC_MODE`와 관계없이 항상 `X-Calc-Token`으로 계산 서버를 호출 → 비어 있으면 업로드가 실패 · `CALC_MODE=http`면 `HttpCalcClient`가 서버 시작을 막음
+  - `application.yml`에는 이메일 인증 설정 2개(`member.email-verification.dev-code-enabled` · `required`)가 있는데 README 4.2 · `.env.example`에 빠져 있었음 (리뷰 의견 반영)
+- **검증 결과**:
+  - 문서 수정만 (코드 변경 없음) · `application.yml` · `FaqClient` · `HttpCalcClient` · `CardParseClient`의 토큰 처리와 문구가 맞는지 대조
+  - 이메일 인증 설정 이름 · 기본값이 `application.yml`(`EMAIL_DEV_CODE_ENABLED:false` · `EMAIL_VERIFICATION_REQUIRED:false`)과 같은지 대조
+
 ### [2026-11-23] 업로드 삭제 성공 응답 204 → 200 (팀 API 규칙)
 - **작업 내용**
   - `ExpenseController.deleteUpload`: `ResponseEntity.noContent()`(204 · 본문 없음) → `ApiResponse.ok(null)`(200 · `{success: true, data: null}`)
@@ -11,6 +24,28 @@
   - `card-upload-service.js` · `ExpenseUpload.jsx`: Prettier 줄바꿈 정리 (기존 한글 문장 줄 나눔 위치만 · 동작 변화 없음)
 - **변경 사유**: `api-rules.md` 3번 「성공 응답은 모두 200 (201 · 204 안 씀 · 11/09 팀 합의)」과 어긋났음
 - **검증 결과**: `mvnw clean verify` 195건 통과 · 화면에서 업로드 삭제 → Network `DELETE /api/card-uploads/{id}` 200 · 응답 `{success: true, data: null}` · 목록에서 사라짐 확인
+
+### [2026-11-22] 세금 용어 FAQ 챗봇 연동 및 구조 정리
+- **작업 내용**
+  - React FAQ 챗봇을 Spring Boot API와 연결
+  - Spring Boot에 FAQ 목록·카테고리·상세·자유 질문 매칭 API 추가
+  - Spring Boot에서 Python FastAPI 챗봇 서버를 호출하는 `FaqClient` 추가
+  - Spring Boot → FastAPI 내부 통신에 `X-Chatbot-Token` 인증 적용
+  - FastAPI에 `tax_terms.json` 기반 FAQ 목록·카테고리·상세 조회 구현
+  - 자유 질문은 단순 용어 우선 매칭 후 Gemma 3를 이용해 등록된 FAQ ID로 분류하도록 구현
+  - Gemma 3가 답변을 직접 생성하지 않고 분류된 FAQ의 고정 답변을 반환하도록 구성
+  - 자유 질문이 LLM으로 전달되기 전에 개인정보 및 숫자 포함 여부 검사
+  - 챗봇 서버 연결 또는 AI 분류 실패 시 Spring 공통 예외 처리의 `CHATBOT_UNAVAILABLE` 503 응답 적용
+  - FastAPI의 API·서비스·FAQ 데이터 조회 책임을 분리
+  - React FAQ API 호출을 공통 `apiRequest()` 및 `/api/...` 상대경로 방식으로 통일
+- **변경 사유**
+  - 세금 용어를 버튼 또는 자유 질문으로 조회할 수 있도록 FAQ 챗봇을 실제 백엔드와 연결
+  - LLM이 세법 답변을 임의 생성하지 않고 검증된 FAQ만 반환하도록 제한
+  - React가 Python 서버를 직접 호출하지 않도록 팀의 React → Spring Boot → Python 서버 구조와 인증 규칙을 적용
+  - 챗봇 코드의 API 처리·업무 흐름·데이터 조회 책임을 분리해 유지보수성을 개선
+- **검증 결과**
+  - FAQ 카테고리 선택 → 용어 선택 → 상세 답변 조회 정상 동작 확인
+  - 자유 질문 → FAQ 분류 → 고정 FAQ 답변 반환 정상 동작 확인
 
 ### [2026-11-20] 정보 입력: 단계 버튼에도 입력칸 검사 · 소수 입력 안내 문구 (TT-132)
 - **작업 내용**: `frontend/src/pages/tax/TaxInfoForm.jsx`
@@ -43,7 +78,7 @@
 - **변경 사유**: 화면이 로그인 토큰만 보내게 바뀌어(11/17) 업로드 · 거래 API가 헤더 없음으로 실패 · 헤더 방식은 숫자만 바꾸면 남의 데이터 접근 가능
 - **검증 결과**: `mvnw clean verify` 195건 통과 · 로그인 후 화면에서 CSV 업로드 · 업로드 목록 · 삭제 동작 확인
   - 참고: 처음 `verify`에서 `contextLoads` 1건 실패 → 다른 브랜치(feature/admin)에서 빌드한 `target/classes/mapper/admin/*.xml`이 남아 있던 것 · `mvnw clean verify`로 해결 (코드 문제 아님)
-
+  
 ### [2026-11-17] 로그인 성공 알림 문구에서 「시연」 삭제
 - **작업 내용**: `frontend/src/pages/auth/AuthPage.jsx` 서버 로그인 성공 알림 「이 브라우저의 시연 계정으로 로그인했습니다.」 → 「로그인했습니다.」 (빠른 체험 문구는 그대로)
 - **변경 사유**: 실제 서버 계정으로 로그인하는데 「시연 · 이 브라우저의」로 보여 사용자가 가짜 로그인으로 오해할 수 있었음

@@ -244,7 +244,9 @@ const cases = [
   ['admin', <Admin {...base} admin />],
 ];
 // [추가 11/23] 서버 API가 아직 없는 화면은 체험 기능 대신 「준비 중」 안내를 보여야 함
-const comingSoon = ['reset', 'chatbot', 'admin'];
+const comingSoon = ['reset', 'chatbot'];
+// 관리자 첫 탭은 서버에 연결된 문의 관리(PR #53) → 준비 중이 아니어야 함
+const notComingSoon = ['admin'];
 for (const [name, node] of cases) {
   const html = renderToStaticMarkup(node);
   if (!html || /NaN|undefined/.test(html)) throw Error(name + ': 렌더링 값 확인 필요');
@@ -285,6 +287,8 @@ for (const [name, node] of cases) {
   )
     throw Error('지출 표의 연도/보류 제외/분류 집계 실패');
   if (comingSoon.includes(name) && !html.includes('준비 중')) throw Error(name + ': 준비 중 안내 누락');
+  if (notComingSoon.includes(name) && /coming-soon/.test(html))
+    throw Error(name + ': 서버에 연결된 화면이 준비 중으로 보임');
   // [추가 11/23] 체험판 삭제 후 화면에 체험 · 시연 문구가 남지 않음
   if (/체험|시연|DEMO/.test(html)) throw Error(name + ': 체험 · 시연 문구가 남음');
   if (
