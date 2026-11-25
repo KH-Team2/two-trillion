@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-25] 허용 화면 주소(CORS · WebSocket)를 설정 파일로 분리 (TT-182 · PR #59)
+- **작업 내용**:
+  - `application.yml`: `cors.allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}` 추가
+  - `common/config/CorsConfig` · `consult/config/WebSocketConfig`: 코드에 고정한 `http://localhost:5173` → 설정값 (쉼표로 여러 개)
+  - `CorsConfigAllowedOriginsTest` 3개: 설정에 넣은 주소 허용 · 쉼표 뒤 두 번째 주소 허용(공백 무시) · 없는 주소 거절
+  - `backend/README.md` 4.2 추가 환경변수에 `ALLOWED_ORIGINS` · `frontend/vite.config.js` 주석
+- **변경 사유**: 허용 주소가 코드에 고정돼 있어 배포하면 운영 주소에서 API · 알림 · 채팅이 막힘 · 개발은 기본값 그대로, 배포는 환경변수만 바꾸면 되게 (강사님 확인 · 팀 공유)
+- **검증 결과**: `mvnw.cmd -B clean verify` 248개 통과 · 기존 `CorsConfigTest` · `SecurityConfigTest` 그대로 통과
+
+
 ### [2026-11-25] 관리자 상담 채팅 (WebSocket · STOMP) · 종 알림 (TT-153 · TT-154 · PR #58)
 - **작업 내용**:
   - `pom.xml`: `spring-boot-starter-websocket` 추가
