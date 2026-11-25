@@ -2,6 +2,12 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-25] API 규칙 문서 7번 표에 알림 · 상담 API 추가 (TT-184)
+- **작업 내용**: `backend/docs/api-rules.md` 7번 표에 알림 3개(`/api/notifications/stream` · `/api/notifications` · `/api/notifications/read`) · 상담 3개(`/api/consult/rooms` · `/api/consult/rooms/{roomId}/messages` · `/api/admin/consult/rooms`) 행 추가 · 표 아래에 WebSocket(`/ws` · `/sub` · `/pub` · `/user/queue/errors`) 주소 규칙 한 줄
+- **변경 사유**: 계산 · 회원 API는 표에 있는데 PR #51 · #58로 들어간 알림 · 상담 API가 빠져 있었음
+- **검증 결과**: 문서만 바꿈 (코드 변경 없음) · 내용은 develop의 `NotificationController` · `ConsultController` · `ConsultService` · `WebSocketConfig`와 대조
+
+
 ### [2026-11-25] 허용 화면 주소(CORS · WebSocket)를 설정 파일로 분리 (TT-182 · PR #59)
 - **작업 내용**:
   - `application.yml`: `cors.allowed-origins: ${ALLOWED_ORIGINS:http://localhost:5173}` 추가

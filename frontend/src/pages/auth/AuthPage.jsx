@@ -1,7 +1,6 @@
 import React from 'react';
 import { Leaf } from 'lucide-react';
 import { AccountForms } from '@/pages/auth/AccountForms.jsx';
-import { accountService } from '@/api/account-service.js';
 
 // 공통 인증 화면 배치와 로그인 완료 처리를 유지합니다.
 export default function AuthPage({ page, setSession, go, notify }) {
@@ -32,11 +31,8 @@ export default function AuthPage({ page, setSession, go, notify }) {
         onLogin={(u) => {
           setSession(u);
           go(u.role === 'ADMIN' ? 'admin' : 'dashboard');
-          notify(
-            accountService.isDemo()
-              ? '로그인 없이 별도 데이터로 체험을 시작했습니다.'
-              : '로그인했습니다.',
-          );
+          // [수정 11/23] 빠른 체험 알림 문구 삭제 · 이유: 체험판 기능 삭제 결정
+          notify('로그인했습니다.');
         }}
       />
     </main>
