@@ -1,8 +1,10 @@
 import React from 'react';
 import { Plus, Clock } from 'lucide-react';
 import { settlementLabel } from '@/api/services.js';
-import ComingSoon from '@/components/common/ComingSoon.jsx';
+import { WithdrawAccount } from '@/pages/auth/AccountForms.jsx';
+import { ServerPasswordChange, ServerProfileDetails } from '@/pages/profile/ProfileDetails.jsx';
 import { money, Btn, Tag } from '@/components/common/site-primitives.jsx';
+
 
 // 계정 · 계산 이력을 보여 주는 마이페이지입니다.
 // [수정 11/23] 체험용 코드 삭제 · 이유: 체험판 기능 삭제 결정

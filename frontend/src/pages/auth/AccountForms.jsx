@@ -22,6 +22,7 @@ const agreements = [
     'privacy',
     '[필수] 개인정보 수집·이용 동의',
     '목적: 계정 식별, 로그인, 연령 확인, 그룹 비교 및 서비스 지원. 항목: 아이디, 이메일, 비밀번호 파생 해시, 생년월일, 성별, 동의 이력. 보유기간·보존 정책은 운영 검토가 필요합니다. 탈퇴 후 30일 유예기간 동안 아이디·이메일을 유지하고 이후 식별 정보 처리 예정입니다. 회원가입 정보는 희망환급 서버(DB)에 저장합니다. 주민등록번호 전체는 수집하지 않습니다. 필수 동의 거부 시 가입할 수 없습니다. 운영 주체·문의처·법적 보존 대상 및 기간·위탁 정책은 확정 전입니다.',
+    'PRIVACY_VERSION',
   ],
   [
     'financial',
@@ -29,7 +30,262 @@ const agreements = [
     '목적: 연말정산 예상 계산, 거래 자동 분류, 결과 조회 및 시뮬레이션. 저장 항목: 사용자가 제출한 급여·기납부세액·결제수단별 지출액, 거래일·상호명·금액·결제수단, 파일 처리 메타정보, 가족 수·월세·주거 및 감면 자격 입력, 계산·시뮬레이션 기록. 원본 CSV·XLSX 파일 자체와 카드번호 전체·계좌 비밀번호는 저장하지 않습니다. 탈퇴 요청 시 즉시 삭제하지 않으며 30일 유예 및 이후 식별 정보 처리 정책은 운영 검토가 필요합니다. 업로드 파일별 삭제도 가능합니다. 거부 시 가입할 수 없습니다. 실제 금융기관·국세청 조회는 하지 않습니다.',
   ],
 ];
+// 남은 시간(초) · 0 아래로 내려가지 않음
+const secondsLeft = (expiresAt, now) => Math.max(0, Math.ceil((expiresAt - now) / 1000));
+
+// 아이디 찾기 · 비밀번호 재설정 (F-01-03) · 서버 API에 연결됨 (memberApi)
+// 아이디 찾기: 이메일 → 일부를 가린 아이디 · 재설정: 이메일 → 인증 코드 메일(10분) → 코드 + 새 비밀번호
+function AccountRecovery({ go }) {
+  const [tab, setTab] = useState('id'),
+    [email, setEmail] = useState(''),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [maskedId, setMaskedId] = useState('');
+  const [sent, setSent] = useState(false),
+    [expiresAt, setExpiresAt] = useState(0),
+    [now, setNow] = useState(Date.now()),
+    [devCode, setDevCode] = useState(''),
+    [sendMessage, setSendMessage] = useState(''),
+    [code, setCode] = useState(''),
+    [newPassword, setNewPassword] = useState(''),
+    [newPasswordConfirm, setNewPasswordConfirm] = useState(''),
+    [done, setDone] = useState(false);
+  const submitting = useRef(false); // 요청 중복 전송 방지
+  useEffect(() => {
+    if (!expiresAt) return;
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+  const expired = expiresAt > 0 && now >= expiresAt;
+  // 코드를 다시 받아야 하는 상태로 되돌림 (이메일 변경 · 만료 · 5번 틀림)
+  const resetCode = () => {
+    setSent(false);
+    setExpiresAt(0);
+    setDevCode('');
+    setCode('');
+  };
+  const run = async (task) => {
+    if (submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await task();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      submitting.current = false;
+      setBusy(false);
+    }
+  };
+  const findId = () =>
+    run(async () => {
+      setMaskedId('');
+      if (!email.trim()) throw Error('이메일을 입력해 주세요');
+      const result = await memberApi.findLoginId(email);
+      setMaskedId(result.maskedLoginId);
+    });
+  const sendCode = () =>
+    run(async () => {
+      if (!email.trim()) throw Error('이메일을 입력해 주세요');
+      try {
+        const result = await memberApi.sendPasswordResetCode(email);
+        setSent(true);
+        setExpiresAt(Date.parse(result.expiresAt));
+        setNow(Date.now());
+        setDevCode(result.devCode || '');
+        setCode('');
+        setSendMessage(
+          result.devCode
+            ? '개발 환경: 메일 대신 아래 인증 코드를 사용하세요.'
+            : '인증 코드를 메일로 보냈어요. 메일이 보이지 않으면 스팸함도 확인해 주세요.',
+        );
+      } catch (err) {
+        resetCode();
+        throw err;
+      }
+    });
+  const complete = () =>
+    run(async () => {
+      if (expired) {
+        resetCode();
+        throw Error('인증 코드를 다시 받아 주세요');
+      }
+      const form = { email, code, newPassword, newPasswordConfirm };
+      const message = passwordResetFormError(form);
+      if (message) throw Error(message);
+      try {
+        await memberApi.completePasswordReset(form);
+      } catch (err) {
+        // 만료 · 5번 틀림 · 받은 코드 없음 → 코드를 다시 받아야 함
+        if (['RESET_CODE_EXPIRED', 'RESET_CODE_LIMIT'].includes(err.code)) resetCode();
+        throw err;
+      }
+      setNewPassword('');
+      setNewPasswordConfirm('');
+      resetCode();
+      setDone(true);
+    });
+  const switchTab = (next) => {
+    setTab(next);
+    setError('');
+    setMaskedId('');
+  };
+  return (
+    <section className="card auth-card">
+      <h2>아이디 찾기 · 비밀번호 재설정</h2>
+      <p className="muted">
+        가입할 때 입력한 이메일로 아이디를 확인하거나 비밀번호를 새로 정해요. 비밀번호는 암호화해
+        저장하기 때문에 원래 비밀번호는 알려 드릴 수 없어요.
+      </p>
+      <div className="tabs" role="tablist">
+        {[
+          ['id', '아이디 찾기'],
+          ['password', '비밀번호 재설정'],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            className={tab === key ? 'active' : ''}
+            onClick={() => switchTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {done ? (
+        <>
+          <p className="notice" role="status">
+            비밀번호를 바꿨어요. 새 비밀번호로 로그인해 주세요.
+          </p>
+          <button className="btn" type="button" onClick={() => go('login')}>
+            로그인하러 가기
+          </button>
+        </>
+      ) : (
+        <form
+          noValidate
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (tab === 'id') findId();
+            else if (sent) complete();
+            else sendCode();
+          }}
+        >
+          <div className="field">
+            <label htmlFor="recovery-email">이메일 *</label>
+            <div className="input-action">
+              <input
+                id="recovery-email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setMaskedId('');
+                  resetCode();
+                }}
+                autoComplete="email"
+              />
+              {tab === 'password' && sent && (
+                <button className="btn secondary" type="button" disabled={busy} onClick={sendCode}>
+                  다시 받기
+                </button>
+              )}
+            </div>
+          </div>
+          {tab === 'id' && maskedId && (
+            <p className="notice" role="status">
+              가입한 아이디는 <b>{maskedId}</b> 예요.
+            </p>
+          )}
+          {tab === 'password' && sent && (
+            <>
+              <p role="status">{sendMessage}</p>
+              {devCode && (
+                <p>
+                  개발용 인증 코드: <b>{devCode}</b>
+                </p>
+              )}
+              <p>
+                {expired
+                  ? '인증 코드가 만료됐어요. 다시 받아 주세요.'
+                  : `인증 코드 유효 시간 ${secondsLeft(expiresAt, now)}초 남음 · 5번 틀리면 다시 받아야 해요`}
+              </p>
+              <label className="field">
+                <span>인증 코드 *</span>
+                <input
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+                  placeholder="6자리 인증 코드"
+                  autoComplete="one-time-code"
+                />
+              </label>
+              <label className="field">
+                <span>새 비밀번호 *</span>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="8자 이상"
+                  autoComplete="new-password"
+                />
+              </label>
+              <label className="field">
+                <span>새 비밀번호 확인 *</span>
+                <input
+                  type="password"
+                  value={newPasswordConfirm}
+                  onChange={(e) => setNewPasswordConfirm(e.target.value)}
+                  autoComplete="new-password"
+                />
+                {newPasswordConfirm && (
+                  <small role="status">
+                    {newPassword === newPasswordConfirm
+                      ? '비밀번호가 일치합니다.'
+                      : '비밀번호가 일치하지 않습니다.'}
+                  </small>
+                )}
+              </label>
+            </>
+          )}
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+          <button disabled={busy} className="btn" type="submit">
+            {busy
+              ? '처리 중…'
+              : tab === 'id'
+                ? '아이디 찾기'
+                : sent
+                  ? '비밀번호 바꾸기'
+                  : '인증 코드 받기'}
+          </button>
+        </form>
+      )}
+      <p className="auth-switch">
+        비밀번호가 기억나셨나요?{' '}
+        <button type="button" onClick={() => go('login')}>
+          로그인
+        </button>
+      </p>
+    </section>
+  );
+}
+
 export function AccountForms({ page, go, onLogin }) {
+  // 아이디 찾기 · 비밀번호 재설정은 서버에 연결된 별도 카드 (F-01-03)
+  if (page === 'reset') return <AccountRecovery go={go} />;
+  return <AccountSignupLogin page={page} go={go} onLogin={onLogin} />;
+}
+
+function AccountSignupLogin({ page, go, onLogin }) {
   const [error, setError] = useState(''),
     [busy, setBusy] = useState(false);
   const [email, setEmail] = useState(''),
@@ -268,7 +524,7 @@ export function AccountForms({ page, go, onLogin }) {
         )}
         {signup && (
           <>
-            {/* 이메일 인증 UI: 실제 메일 발송 전이라 숨김 (코드는 그대로 · 켜려면 member-api.js EMAIL_VERIFICATION_REQUIRED = true) */}
+            {/* 이메일 인증 UI: frontend/.env 의 VITE_EMAIL_VERIFICATION_REQUIRED=true 일 때만 보임 (member-api.js) */}
             {EMAIL_VERIFICATION_REQUIRED && (
               <div className="email-verification">
                 <h3>이메일 인증</h3>
@@ -398,7 +654,7 @@ export function AccountForms({ page, go, onLogin }) {
                 />
                 전체 동의
               </label>
-              {agreements.map(([key, label, text]) => (
+              {agreements.map(([key, label, text, versionKey]) => (
                 <div key={key}>
                   <label className="checkline">
                     <input
@@ -407,9 +663,15 @@ export function AccountForms({ page, go, onLogin }) {
                       onChange={(e) => setConsent({ ...consent, [key]: e.target.checked })}
                     />
                     {label}
+                    {/* 서버 회원가입: 동의서 버전 표시 (VITE_*_VERSION · 가입 요청에도 같은 값을 보냄) */}
+                    {serverSignup &&
+                      consentVersions[versionKey] &&
+                      ` (v${consentVersions[versionKey]})`}
                   </label>
                   <details>
-                    <summary>동의문 초안 보기 · 내용·버전 확인 필요</summary>
+                    <summary>
+                      {serverSignup ? '동의문 보기' : '동의문 초안 보기 · 내용·버전 확인 필요'}
+                    </summary>
                     <p>{text}</p>
                   </details>
                 </div>

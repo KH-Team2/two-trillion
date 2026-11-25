@@ -110,6 +110,16 @@
 			<artifactId>jjwt-jackson</artifactId>
 			<version>0.12.6</version>
 			<scope>runtime</scope>
+    </dependency>
+		<!-- [추가 11/24 · 이우진 · TT-153] 상담 채팅 WebSocket · STOMP (consult/config/WebSocketConfig) · 버전은 Spring Boot가 관리 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+    </dependency>
+		<!-- 회원가입 이메일 인증번호 메일 발송 (member/client/SmtpEmailSender · MAIL_MODE=smtp) · 버전은 Spring Boot가 관리 -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
 		</dependency>
 	</dependencies>
 
