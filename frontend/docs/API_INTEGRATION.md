@@ -48,7 +48,7 @@
 
 ## 회원·동의
 
-`account-service.js`, `AccountForms.jsx`: 가입 · 로그인 · 중복 검사 · 이메일 인증은 서버 API를 씁니다 (`member-api.js`). 회원정보 수정 · 비밀번호 변경 · 탈퇴 · 관리자 회원 관리는 서버 API 전이라 「준비 중」입니다.
+`account-service.js`, `AccountForms.jsx`, `ProfileDetails.jsx`: 가입 · 로그인 · 중복 검사 · 이메일 인증 · 아이디 찾기 · 비밀번호 재설정 · 회원정보 수정 · 비밀번호 변경 · 탈퇴는 서버 API를 씁니다 (`member-api.js`). 관리자 회원 관리는 서버 API 연결 전이라 「준비 중」입니다.
 
 `src/config/consent-versions.js`의 환경변수는 팀의 운영 동의서 버전 설정입니다. `consentDTO()`는 누락·빈 문자열·미확정 체험 버전을 차단합니다. 최종 시각·버전은 서버가 검증하고 기록하세요. 클라이언트가 보낸 동의 시각을 신뢰하지 않습니다.
 

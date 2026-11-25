@@ -1,22 +1,28 @@
-// 회원가입(F-01-01) · 로그인(F-01-02) 화면입니다. 둘 다 Spring Boot API에 연결되어 있습니다
-// (memberApi · accountService.login). 관리자 권한은 DB(MEMBER.ROLE = ADMIN)에서 지정합니다.
-// [수정 11/23] 체험용 코드 삭제 · 이유: 체험판 기능 삭제 결정
-//   - 브라우저 회원가입 · 로그인 · 체험 인증번호 · 최초 관리자 설정(setup) · 「브라우저 시연」 안내 삭제 → 서버 API만 사용
-//   - MemberManagement(관리자 회원 관리) · WithdrawAccount(탈퇴) 삭제 → 서버 API 전이라 각 화면은 「준비 중」 안내
-//   - 비밀번호 재설정 화면(reset) → 「준비 중」 안내
+// 가입·로그인·이메일 인증·아이디 찾기·비밀번호 재설정·회원 탈퇴 화면입니다.
+// 회원가입(F-01-01) · 로그인(F-01-02) · 아이디 찾기 · 비밀번호 재설정(F-01-03) · 탈퇴(F-01-05)는
+// Spring Boot API에 연결되어 있습니다 (memberApi · accountService). 관리자 권한은 DB(MEMBER.ROLE = ADMIN)에서 지정합니다.
+// [수정 11/25] 체험용 코드 삭제 · 이유: 체험판 기능 삭제 결정
+//   - 브라우저 회원가입 · 로그인 · 체험 인증번호 · 최초 관리자 설정(setup) · 「브라우저 시연」 안내(notice) 삭제 → 서버 API만 사용
+//   - MemberManagement(브라우저 관리자 회원 관리) 삭제 → 관리자 회원 관리는 서버 API(F-20) 화면에서
+//   - WithdrawAccount의 체험 계정 안내 · 마지막 관리자 안내 삭제 → 서버 탈퇴만
 //   - recordAccess(브라우저 접근 기록) 삭제 → 로그인 기록은 서버(ACCESS_LOG)가 남겨요
-//   - demoCode → devCode 이름 변경 (서버가 개발 환경에서만 보내 주는 인증번호라서)
+//   - devCode → devCode 이름 변경 (서버가 개발 환경에서만 보내 주는 인증번호라서)
 import React, { useState, useEffect, useRef } from 'react';
 import { accountService } from '@/api/account-service.js';
-import { EMAIL_VERIFICATION_REQUIRED, memberApi, signupFormError } from '@/api/member-api.js';
-import ComingSoon from '@/components/common/ComingSoon.jsx';
-// 「비밀번호를 잊으셨나요?」 버튼 표시 여부 [추가 11/17] · 비밀번호 재설정 서버 API가 생기면 true
-const SHOW_PASSWORD_RESET = false;
+import {
+  EMAIL_VERIFICATION_REQUIRED,
+  memberApi,
+  passwordResetFormError,
+  signupFormError,
+} from '@/api/member-api.js';
+import { consentVersions } from '@/config/consent-versions.js';
+// 동의서 버전은 별도 설정합니다. 미확정 버전의 서버 DTO는 생성할 수 없습니다.
 const agreements = [
   [
     'terms',
     '[필수] 서비스 이용약관 동의',
     '희망환급은 소득·지출 입력, 예상 결과 조회, 시뮬레이션 및 안내를 제공합니다. 만 14세 이상 가입할 수 있으며 관리자는 기존 계정에 권한을 부여합니다. 본인에게 사용 권한이 있는 자료만 등록해야 합니다. 계산·분류 결과는 입력값 기준 예상치이며 실제 신고·자격 확정·세무 자문이 아닙니다. 마이페이지에서 탈퇴할 수 있으며 마지막 관리자는 인계가 필요합니다. 운영 주체·시행일·분쟁 처리 등은 서비스 정책 확정 전 보완해야 합니다.',
+    'TERMS_VERSION',
   ],
   [
     'privacy',
@@ -28,6 +34,7 @@ const agreements = [
     'financial',
     '[필수] 금융 정보 저장 동의',
     '목적: 연말정산 예상 계산, 거래 자동 분류, 결과 조회 및 시뮬레이션. 저장 항목: 사용자가 제출한 급여·기납부세액·결제수단별 지출액, 거래일·상호명·금액·결제수단, 파일 처리 메타정보, 가족 수·월세·주거 및 감면 자격 입력, 계산·시뮬레이션 기록. 원본 CSV·XLSX 파일 자체와 카드번호 전체·계좌 비밀번호는 저장하지 않습니다. 탈퇴 요청 시 즉시 삭제하지 않으며 30일 유예 및 이후 식별 정보 처리 정책은 운영 검토가 필요합니다. 업로드 파일별 삭제도 가능합니다. 거부 시 가입할 수 없습니다. 실제 금융기관·국세청 조회는 하지 않습니다.',
+    'FINANCE_VERSION',
   ],
 ];
 // 남은 시간(초) · 0 아래로 내려가지 않음
@@ -317,7 +324,7 @@ function AccountSignupLogin({ page, go, onLogin }) {
     return () => clearInterval(timer);
   }, [expiresAt]);
   const expired = expiresAt > 0 && now >= expiresAt;
-  // 서버 중복확인: 사용 불가면 서버 문구를 표시
+  // 아이디 · 이메일 서버 중복확인: 사용 불가면 서버 문구를 표시
   const check = async (kind) => {
     try {
       const value = kind === 'username' ? username : email;
@@ -335,13 +342,6 @@ function AccountSignupLogin({ page, go, onLogin }) {
       setError(err.message);
     }
   };
-  // 비밀번호 재설정: 서버 API가 아직 없어 「준비 중」 안내만 보여 줘요
-  if (page === 'reset')
-    return (
-      <ComingSoon title="아이디 찾기 · 비밀번호 재설정">
-        아이디 찾기와 비밀번호 재설정은 서버 연결 작업 중이에요.
-      </ComingSoon>
-    );
   return (
     <section className="card auth-card" key={page}>
       <h2>{signup ? '희망환급 회원가입' : '다시 만나 반가워요'}</h2>
@@ -529,8 +529,8 @@ function AccountSignupLogin({ page, go, onLogin }) {
               <div className="email-verification">
                 <h3>이메일 인증</h3>
                 <p>
-                  인증번호는 5분 동안 유효하며 5번 틀리면 다시 받아야 해요. 메일 발송 기능은 준비
-                  중이라 개발 환경에서는 인증번호가 아래에 표시됩니다.
+                  입력한 이메일로 인증번호를 보내 드려요. 인증번호는 5분 동안 유효하며 5번 틀리면
+                  다시 받아야 해요.
                 </p>
                 <button
                   className="btn secondary"
@@ -550,7 +550,7 @@ function AccountSignupLogin({ page, go, onLogin }) {
                       setVerificationMessage(
                         result.devCode
                           ? '개발 환경: 메일 대신 아래 인증번호를 사용하세요.'
-                          : '인증번호를 발급했어요. (메일 발송 기능은 아직 연결되지 않았어요)',
+                          : '인증번호를 메일로 보냈어요. 메일이 보이지 않으면 스팸함도 확인해 주세요.',
                       );
                     } catch (err) {
                       if (err.code === 'DUPLICATE_EMAIL') setCheckedEmail('');
@@ -664,14 +664,10 @@ function AccountSignupLogin({ page, go, onLogin }) {
                     />
                     {label}
                     {/* 서버 회원가입: 동의서 버전 표시 (VITE_*_VERSION · 가입 요청에도 같은 값을 보냄) */}
-                    {serverSignup &&
-                      consentVersions[versionKey] &&
-                      ` (v${consentVersions[versionKey]})`}
+                    {consentVersions[versionKey] && ` (v${consentVersions[versionKey]})`}
                   </label>
                   <details>
-                    <summary>
-                      {serverSignup ? '동의문 보기' : '동의문 초안 보기 · 내용·버전 확인 필요'}
-                    </summary>
+                    <summary>동의문 보기</summary>
                     <p>{text}</p>
                   </details>
                 </div>
@@ -688,10 +684,10 @@ function AccountSignupLogin({ page, go, onLogin }) {
           {busy ? '처리 중…' : signup ? '동의하고 회원가입' : '로그인'}
         </button>
       </form>
-      {/* 비밀번호 재설정: 서버 API가 아직 없어 화면에서만 숨김 (나중에 SHOW_PASSWORD_RESET = true) */}
-      {SHOW_PASSWORD_RESET && !signup && (
-        <button className="text-btn" onClick={() => go('reset')}>
-          비밀번호를 잊으셨나요?
+      {/* 아이디 찾기 · 비밀번호 재설정 (F-01-03) · 로그인 화면에서만 */}
+      {!signup && (
+        <button className="text-btn" type="button" onClick={() => go('reset')}>
+          아이디 · 비밀번호를 잊으셨나요?
         </button>
       )}
       <p className="auth-switch">
@@ -707,5 +703,65 @@ function AccountSignupLogin({ page, go, onLogin }) {
         </button>
       </p>
     </section>
+  );
+}
+// 회원 탈퇴(F-01-05) · 서버 API (accountService.withdraw)
+export function WithdrawAccount({ onDone }) {
+  const [open, setOpen] = useState(false),
+    [error, setError] = useState(''),
+    [busy, setBusy] = useState(false);
+  return (
+    <>
+      <h3>회원 탈퇴</h3>
+      <p className="muted">
+        탈퇴하면 바로 로그아웃되고 이 계정으로 다시 로그인할 수 없어요. 30일 유예기간 동안은
+        아이디·이메일을 그대로 보관하므로 같은 아이디·이메일로 다시 가입할 수 없어요. 30일이 지나면
+        아이디·이메일 등 회원을 알아볼 수 있는 정보를 식별할 수 없게 처리해요. 문의·접속 기록은
+        보존돼요.
+      </p>
+      <button className="btn secondary danger" onClick={() => setOpen(!open)}>
+        회원 탈퇴
+      </button>
+      {open && (
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            setError('');
+            const f = new FormData(e.currentTarget);
+            if (f.get('confirm') !== 'on') {
+              setError('탈퇴 및 30일 유예 안내를 확인해주세요.');
+              return;
+            }
+            if (!window.confirm('정말 탈퇴하시겠어요? 탈퇴하면 바로 로그아웃돼요.')) return;
+            setBusy(true);
+            try {
+              await accountService.withdraw(String(f.get('password') || ''));
+              onDone();
+            } catch (err) {
+              setError(err.message);
+            } finally {
+              setBusy(false);
+            }
+          }}
+        >
+          <label className="field">
+            <span>현재 비밀번호 재확인</span>
+            <input type="password" name="password" autoComplete="current-password" required />
+          </label>
+          <label className="checkline">
+            <input type="checkbox" name="confirm" required />
+            로그인 차단·30일 유예·이후 식별 정보 처리 안내를 확인했어요.
+          </label>
+          <button className="btn danger" disabled={busy}>
+            {busy ? '탈퇴 처리 중…' : '재확인하고 탈퇴하기'}
+          </button>
+          {error && (
+            <p className="error" role="alert">
+              {error}
+            </p>
+          )}
+        </form>
+      )}
+    </>
   );
 }

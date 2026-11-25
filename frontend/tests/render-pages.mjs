@@ -254,7 +254,8 @@ const cases = [
   ['admin', <Admin {...base} admin />],
 ];
 // [추가 11/23] 서버 API가 아직 없는 화면은 체험 기능 대신 「준비 중」 안내를 보여야 함
-const comingSoon = ['reset', 'chatbot'];
+// [수정 11/25] reset 제외 · 이유: 아이디 찾기 · 비밀번호 재설정(F-01-03)이 서버에 연결됨 (위에서 따로 검사)
+const comingSoon = ['chatbot'];
 // 관리자 첫 탭은 서버에 연결된 문의 관리(PR #53) → 준비 중이 아니어야 함
 const notComingSoon = ['admin'];
 for (const [name, node] of cases) {

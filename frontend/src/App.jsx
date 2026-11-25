@@ -540,10 +540,14 @@ export default function App() {
                   {page === 'profile' && (
                     <ProfilePage
                       data={data}
+                      setData={setData}
                       session={session}
+                      setSession={setSession}
                       histories={histories}
                       profileTab={profileTab}
                       setProfileTab={setProfileTab}
+                      go={go}
+                      notify={notify}
                       normalInput={normalInput}
                     />
                   )}

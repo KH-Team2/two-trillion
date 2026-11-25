@@ -2,9 +2,26 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-25] develop 병합(#60 feature/member · #59 · #61) · 회원 기능의 체험판 코드 정리
+- **작업 내용**:
+  - develop을 remove-demo에 병합: 윤경님 #60 `feature/member`(아이디 찾기 · 비밀번호 재설정 · 회원정보 수정 · 비밀번호 변경 · 회원 탈퇴 서버 연결)와 충돌난 4개 파일 정리
+  - `account-service.js`: 서버 탈퇴(`withdraw` → `memberApi.withdrawMe`)만 남기고 빠른 체험 · 브라우저 탈퇴 분기, `LOCK_MS` · `ACCOUNT_KEY`(브라우저 체험 계정 전용 상수) 삭제
+  - `AccountForms.jsx`: member 버전 기준으로 아이디 찾기 · 비밀번호 재설정(`AccountRecovery`) · 이메일 인증 환경변수(`VITE_EMAIL_VERIFICATION_REQUIRED`) · 동의서 버전 표시 · 서버 탈퇴(`WithdrawAccount`)는 그대로 두고, 체험 부분(`notice` · 최초 관리자 설정 `setup` · 브라우저 가입/로그인/중복확인/인증번호 · `recordAccess` · `MemberManagement` · 체험 계정 탈퇴 안내) 삭제 · `demoCode` → `devCode`
+  - `ProfileDetails.jsx`: remove-demo에서 지웠던 파일을 다시 살림 · 서버 화면(`ServerProfileDetails` · `ServerPasswordChange`)만 남기고 빠른 체험 폼(`ProfileDetails` 함수) 삭제
+  - `ProfilePage.jsx`: 개인정보 · 비밀번호 변경 · 계정 관리(탈퇴) 탭을 「준비 중」 → 서버 화면으로 · 「브라우저 내 저장」 표시 · 시연용 비밀번호 변경 폼 삭제 · 탈퇴 후에는 로그아웃과 같이 로그인 화면으로
+  - `App.jsx`: `ProfilePage`에 `setData` · `setSession` · `go` · `notify` 전달 (회원정보 저장 · 탈퇴 · 알림에 필요)
+  - `render-pages.mjs`: 「준비 중」 검사 목록에서 `reset` 제외 (재설정 화면은 서버 연결 화면인지 따로 검사)
+  - 문서: `frontend/README.md` 화면 표 · 「준비 중」 목록, `docs/API_INTEGRATION.md` 회원 기능 설명
+- **변경 사유**:
+  - 회원 기능(F-01-03 · 04 · 05)이 서버에 연결됐는데 remove-demo는 그 화면을 「준비 중」으로 바꾸고 `ProfileDetails.jsx`를 지워서 충돌함 → 서버 기능은 살리고 체험 코드만 지움
+- **검증 결과**:
+  - `npm test` 통과 (render-pages 포함 · 작업 환경에서는 `lucide-react` 아이콘을 빈 그림으로 바꿔서 실행) · esbuild 번들 성공 · ESLint 새 오류 없음 · 고친 파일 prettier 통과
+  - `npm test` 120건 통과 · `npm run build` 통과 (11/25 · `npm install`로 #59의 `@stomp/stompjs` 설치 후)
+  - 브라우저: 아이디 찾기 · 비밀번호 재설정 · 회원정보 조회 · 수정 · 비밀번호 변경 · 탈퇴 후 로그인 화면 이동 확인
+
 ### [2026-11-25] 체험판 기능 삭제 · 로그인 회원만 사용 (develop d09099a 기준 · #51 · #53 · #56 반영)
 - **작업 내용**:
-  - 로그인 검사: 로그인하지 않으면 홈 · 로그인 · 회원가입(· 비밀번호 재설정 안내)만 볼 수 있음 · 다른 주소는 로그인 화면으로 (`App.jsx` `PUBLIC_PAGES`) · 로그인한 회원이 로그인 · 가입 주소로 오면 대시보드로
+  - 로그인 검사: 로그인하지 않으면 홈 · 로그인 · 회원가입 · 아이디 찾기/비밀번호 재설정만 볼 수 있음 · 다른 주소는 로그인 화면으로 (`App.jsx` `PUBLIC_PAGES`) · 로그인한 회원이 로그인 · 가입 주소로 오면 대시보드로
   - 홈 화면: 「체험 먼저 해보기」 · 「예시 대시보드 둘러보기」 등 체험 진입 버튼 → 로그인 · 회원가입으로만 이동 · 공개 상단바의 「고객센터」 버튼 삭제
   - 체험 계정 삭제: `account-service.js`를 서버 로그인 · 로그아웃만 남김 (빠른 체험 · 브라우저 가입 · 체험 인증번호 · 관리자 회원 관리 · 성별 수정 · 비밀번호 변경 · 탈퇴 삭제) · `AccountForms.jsx`는 서버 가입 · 로그인만
   - 체험용 계산 삭제: `services.js`의 `taxService` · `sampleTransactions` · `merchantService` · `parseCSV` · `aiService`, `api-client.js`의 `canUseDemo` · `demoFallbackAllowed`, 화면의 `isDemo` · `calculationConnected` 분기(Dashboard · SimulationPage · GroupStats · DeductionDetails · group-model · dashboard-model), 혜택 진단 연결 실패 때 체험 판정(`benefit-model.js` 파일 삭제)

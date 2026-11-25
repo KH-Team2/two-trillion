@@ -2,10 +2,11 @@ import { ACCESS_TOKEN_KEY, LOGIN_MEMBER_KEY, clearLogin, readAccessToken } from 
 import { memberApi } from './member-api.js';
 // 계정 어댑터입니다.
 // - 로그인 · 로그아웃(F-01-02): Spring Boot 서버 (아래 accountService.login · logout · current) · 토큰은 localStorage
-// [수정 11/23] 브라우저 체험용 계정 전부 삭제 · 이유: 체험판 기능 삭제 결정
-//   (createAccountService · 빠른 체험(enterDemo · isDemo · demoStorage) · 브라우저 회원가입 · 이메일 인증 ·
-//    관리자 회원 관리 · 성별 수정 · 비밀번호 변경 · 탈퇴) → 서버 API가 있는 로그인 · 로그아웃만 남김
-//   회원정보 수정 · 탈퇴 · 관리자 회원 관리는 서버 API가 생기면 member-api.js에 추가해서 연결해요
+// - 회원 탈퇴(F-01-05): 서버 POST /api/members/me/withdrawal (아래 accountService.withdraw)
+// - 회원정보 조회 · 수정 · 비밀번호 변경(F-01-04) · 아이디 찾기 · 비밀번호 재설정(F-01-03)은 화면에서 memberApi를 바로 불러요
+// [수정 11/25] 브라우저 체험용 계정 전부 삭제 · 이유: 체험판 기능 삭제 결정
+//   (createAccountService · LOCK_MS · ACCOUNT_KEY · 빠른 체험(enterDemo · isDemo · demoStorage) · 브라우저 회원가입 ·
+//    관리자 회원 관리 · 성별 수정 · 브라우저 비밀번호 변경 · 브라우저 탈퇴) → 서버 API만 남김
 export const SESSION_KEY = 'hope-session-v1';
 // 화면에서만 쓰는 무작위 id (계산 이력 줄 구분용)
 export function newPrototypeId() {
@@ -81,6 +82,14 @@ export const accountService = {
     if (readAccessToken()) {
       memberApi.logout().catch(() => {});
     }
+    clearLogin();
+    sessionStorage.removeItem(SESSION_KEY);
+  },
+  // 회원 탈퇴(F-01-05): 서버 POST /api/members/me/withdrawal → 성공하면 저장된 로그인 정보 삭제
+  // 서버가 토큰을 이미 무효로 했으므로 로그아웃 API는 따로 부르지 않음 · 실패하면 서버 문구를 그대로 던짐 (로그인 유지)
+  // [수정 11/25] 빠른 체험 · 브라우저 탈퇴 분기 삭제 · 이유: 체험판 기능 삭제 (서버 회원만 있음)
+  withdraw: async (password) => {
+    await memberApi.withdrawMe(password);
     clearLogin();
     sessionStorage.removeItem(SESSION_KEY);
   },
