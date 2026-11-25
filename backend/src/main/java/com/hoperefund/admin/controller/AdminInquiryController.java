@@ -1,6 +1,7 @@
 package com.hoperefund.admin.controller;
 
 import com.hoperefund.admin.dto.AdminInquiryResponseDto;
+import com.hoperefund.admin.dto.InquiryAnswerRequestDto;
 import com.hoperefund.admin.dto.InquiryCreateRequestDto;
 import com.hoperefund.admin.service.AdminInquiryService;
 import com.hoperefund.common.dto.ApiResponse;
@@ -11,16 +12,20 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 고객센터 문의 API (F-17 · F-07-01) · 관리자 답변(F-18 · F-07-02)은 F-18 PR에서 추가
+ * 고객센터 문의 API (F-17 · F-07-01 / F-18 · F-07-02)
  *
  * <ul>
  *   <li>POST /api/inquiries : 문의 작성 (회원)
  *   <li>GET /api/inquiries : 내 문의 목록 (회원)
  *   <li>GET /api/inquiries/{id} : 내 문의 상세 · 남의 문의면 404 (회원)
+ *   <li>GET /api/admin/inquiries?status= : 전체 문의 목록 (관리자)
+ *   <li>PUT /api/admin/inquiries/{id}/answer : [확인 중] 처리 · 답변 등록 (관리자)
  * </ul>
  *
- * <p>[수정 11/20] F-17 API 반환값 ResponseEntity&lt;...&gt; → 팀 공통 봉투 ApiResponse&lt;...&gt; · 이유: 팀 API 규칙
- * (성공 · 실패 모두 {"success", "data", "meta", "error"} 한 모양 · backend/docs/api-rules.md)
+ * <p>/api/admin/** 주소는 SecurityConfig가 ROLE=ADMIN만 통과시킴 (일반 회원은 Controller까지 오지 못하고 403)
+ *
+ * <p>[수정 11/20] 반환값 ResponseEntity&lt;...&gt; → 팀 공통 봉투 ApiResponse&lt;...&gt; · 이유: 팀 API 규칙 (성공 · 실패 모두
+ * {"success", "data", "meta", "error"} 한 모양 · backend/docs/api-rules.md)
  */
 @RestController
 @RequestMapping("/api")
@@ -70,5 +75,34 @@ public class AdminInquiryController {
             @AuthenticationPrincipal Long memberId, @PathVariable("id") Long inquiryId) {
         AdminInquiryResponseDto detail = adminInquiryService.getInquiryDetail(memberId, inquiryId);
         return ApiResponse.ok(detail);
+    }
+
+    /**
+     * [추가 11/20] F-18: 관리자용 전체 문의 목록 (최신순)
+     * URI: GET /api/admin/inquiries?status=WAITING (status는 선택 · 비우면 전체)
+     * 이유: 관리자가 답변할 문의를 고를 목록이 없었음 (기능명세서 F-07-02 ① 답변 대기 최신순 목록)
+     */
+    @GetMapping("/admin/inquiries")
+    public ApiResponse<List<AdminInquiryResponseDto>> getAdminInquiryList(
+            @RequestParam(value = "status", required = false) String status) {
+        return ApiResponse.ok(adminInquiryService.getAdminInquiryList(status));
+    }
+
+    /**
+     * F-18: 관리자 문의 답변 등록 및 상태 변경 API ([확인 중] 뱃지 및 답변 완료 처리)
+     * URI: PUT /api/admin/inquiries/{id}/answer
+     * - [확인 중] 버튼: {"status": "CHECKING"}
+     * - 답변 등록: {"status": "ANSWERED", "answer": "답변 내용"}
+     *
+     * <p>[수정 11/20] ① @AuthenticationPrincipal Long adminId 추가 · 이유(PR #44 리뷰): 답변자는 로그인한 관리자(토큰)에서 받음
+     * ② @Valid 추가 · 이유: DTO의 상태값 검사(@Pattern)를 실행하려면 필요
+     */
+    @PutMapping("/admin/inquiries/{id}/answer")
+    public ApiResponse<Void> updateInquiryAnswer(
+            @AuthenticationPrincipal Long adminId, // /api/admin/** 라서 이 번호는 항상 관리자 (SecurityConfig)
+            @PathVariable("id") Long inquiryId,
+            @Valid @RequestBody InquiryAnswerRequestDto dto) {
+        adminInquiryService.updateInquiryAnswer(inquiryId, dto, adminId);
+        return ApiResponse.ok(null);
     }
 }
