@@ -40,6 +40,9 @@ public interface NotificationMapper {
     /** 안 읽은 알림 개수 */
     long countUnread(@Param("memberId") long memberId);
 
+    /** [추가 11/24 · 이우진 · TT-153] 그 종류의 안 읽은 알림 개수 (상담 알림이 메시지마다 쌓이지 않게) */
+    long countUnreadByType(@Param("memberId") long memberId, @Param("notiType") String notiType);
+
     /** lastId 보다 뒤에 생긴 알림 (오래된 것부터 · 최대 50개) · 다시 연결할 때 놓친 알림 */
     List<NotificationDTO> findAfter(@Param("memberId") long memberId, @Param("lastId") long lastId);
 

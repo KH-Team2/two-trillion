@@ -5,10 +5,11 @@ import com.hoperefund.notification.dto.NotificationListDTO;
 import com.hoperefund.notification.mapper.NotificationMapper;
 import java.io.IOException;
 import java.time.LocalDateTime;
+import java.util.Deque;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.MediaType;
@@ -33,16 +34,21 @@ public class NotificationService {
 
     public static final String TYPE_CALCULATION = "CALCULATION";
     public static final String TYPE_DEADLINE = "DEADLINE";
+    public static final String TYPE_CHAT = "CHAT"; // [추가 11/24 · 이우진 · TT-153] 상담 채팅
 
     private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
     private static final long TIMEOUT_MS = 30L * 60 * 1000; // 30분 지나면 연결을 닫음 → 화면이 다시 연결
     private static final long HEARTBEAT_MS = 25_000; // 할 말이 없어도 25초마다 신호 (화면은 60초 조용하면 다시 연결)
     private static final int LIST_LIMIT = 20; // 종 아이콘 목록에 보여 줄 최근 알림 개수
+    // [추가 11/24 · 이우진 · 코드 리뷰] 한 회원이 열어 둘 수 있는 연결(탭) 수 · 넘으면 가장 오래된 연결을 닫음
+    // 이유: 연결을 계속 열면 서버 메모리 · 연결 자원이 30분씩 묶임 (정상 사용은 탭 몇 개)
+    static final int MAX_CONNECTIONS_PER_MEMBER = 5;
 
     private final NotificationMapper notificationMapper;
 
-    // 여러 요청이 동시에 넣고 빼도 안전한 Map · Set
-    private final Map<Long, Set<SseEmitter>> emitters = new ConcurrentHashMap<>();
+    // 여러 요청이 동시에 넣고 빼도 안전한 Map · 목록
+    // [수정 11/24] Set → Deque(들어온 순서 유지) · 가장 오래된 연결을 앞에서 꺼내 닫으려고
+    private final Map<Long, Deque<SseEmitter>> emitters = new ConcurrentHashMap<>();
 
     public NotificationService(NotificationMapper notificationMapper) {
         this.notificationMapper = notificationMapper;
@@ -56,7 +62,16 @@ public class NotificationService {
      */
     public SseEmitter subscribe(long memberId, String lastEventId) {
         SseEmitter emitter = new SseEmitter(TIMEOUT_MS);
-        emitters.computeIfAbsent(memberId, id -> ConcurrentHashMap.newKeySet()).add(emitter);
+        Deque<SseEmitter> list =
+                emitters.compute(
+                        memberId,
+                        (id, current) -> {
+                            Deque<SseEmitter> next =
+                                    current == null ? new ConcurrentLinkedDeque<>() : current;
+                            next.addLast(emitter);
+                            return next;
+                        });
+        closeOldest(memberId, list);
 
         // 연결이 끝나면(정상 종료 · 시간 초과 · 오류) 목록에서 빼요 → 메모리가 계속 늘지 않게
         Runnable remove = () -> removeEmitter(memberId, emitter);
@@ -67,7 +82,7 @@ public class NotificationService {
         // 연결되자마자 한 번 보내야 브라우저가 「연결됨」을 바로 알아요
         send(memberId, emitter, SseEmitter.event().name("connected").data("ok"));
         replay(memberId, emitter, parseId(lastEventId));
-        log.info("알림 연결 member={} 연결 수={}", memberId, emitters.get(memberId).size());
+        log.info("알림 연결 member={} 연결 수={}", memberId, list.size());
         return emitter;
     }
 
@@ -94,13 +109,33 @@ public class NotificationService {
         }
         NotificationDTO n =
                 new NotificationDTO(id, type, content, linkUrl, "N", LocalDateTime.now());
-        Set<SseEmitter> set = emitters.get(memberId);
+        Deque<SseEmitter> set = emitters.get(memberId);
         if (set == null) {
             return; // 접속 중이 아니면 저장만 (다음에 목록에서 봄)
         }
         for (SseEmitter emitter : set) {
             sendNotification(memberId, emitter, n);
         }
+    }
+
+    /**
+     * [추가 11/24 · 이우진 · TT-153] 같은 종류의 안 읽은 알림이 없을 때만 notifyMember (상담 메시지마다 알림이 쌓이지 않게).
+     *
+     * <p>확인 조회가 실패하면(DB 오류) 알림을 빼먹지 않도록 그냥 보내요.
+     *
+     * @return 보냈으면 true · 안 읽은 알림이 있어서 건너뛰면 false
+     */
+    public boolean notifyMemberUnlessUnread(
+            long memberId, String type, String content, String linkUrl) {
+        try {
+            if (notificationMapper.countUnreadByType(memberId, type) > 0) {
+                return false;
+            }
+        } catch (RuntimeException e) {
+            log.warn("안 읽은 알림 확인 실패 member={} type={}", memberId, type, e);
+        }
+        notifyMember(memberId, type, content, linkUrl);
+        return true;
     }
 
     /**
@@ -217,6 +252,28 @@ public class NotificationService {
             // 브라우저가 이미 닫혔으면 보내기가 실패해요 → 목록에서 빼요
             removeEmitter(memberId, emitter);
         }
+    }
+
+    // [추가 11/24 · 코드 리뷰] 연결 수가 넘으면 가장 오래된 것부터 닫음 (그 탭은 화면이 알아서 다시 연결)
+    private void closeOldest(long memberId, Deque<SseEmitter> list) {
+        while (list.size() > MAX_CONNECTIONS_PER_MEMBER) {
+            SseEmitter oldest = list.pollFirst();
+            if (oldest == null) {
+                return;
+            }
+            log.info("알림 연결 수 초과 member={} → 가장 오래된 연결 닫음", memberId);
+            try {
+                oldest.complete();
+            } catch (RuntimeException e) {
+                log.debug("오래된 연결 닫기 실패 member={}", memberId, e);
+            }
+        }
+    }
+
+    /** 테스트용: 지금 열려 있는 그 회원의 연결 수 */
+    int connectionCount(long memberId) {
+        Deque<SseEmitter> list = emitters.get(memberId);
+        return list == null ? 0 : list.size();
     }
 
     private void removeEmitter(long memberId, SseEmitter emitter) {
