@@ -96,7 +96,7 @@ public class StompAuthChannelInterceptor implements ChannelInterceptor {
         }
         Long roomId = roomIdOf(destination);
         if (roomId == null || !consultService.canAccess(user, roomId)) {
-            throw new AccessDeniedException("구독할 수 없는 방이에요");
+            throw new AccessDeniedException("내 채팅방이 아니에요");
         }
     }
 
