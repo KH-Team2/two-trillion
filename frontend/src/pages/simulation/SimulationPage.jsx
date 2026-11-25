@@ -54,17 +54,10 @@ export default function SimulationPage({
           다시 조건 수정 <SlidersHorizontal size={16} />
         </Btn>
       </div>
-      {isDemo ? (
-        <div className="notice amber">
-          <Info size={16} />
-          체험용 계산 결과입니다. 실제 절세 효과나 법정 계산을 의미하지 않습니다.
-        </div>
-      ) : (
-        <div className="notice">
-          <Info size={16} />
-          기존 결과와 변경 후 결과 모두 계산 서버 결과예요. 원본 소득 · 지출 정보는 바뀌지 않아요.
-        </div>
-      )}
+      <div className="notice">
+        <Info size={16} />
+        기존 결과와 변경 후 결과 모두 계산 서버 결과예요. 원본 소득 · 지출 정보는 바뀌지 않아요.
+      </div>
       {/* 시뮬레이션 결과와 맞춤 절세 가이드를 좌우로 배치 */}
       <div className="dashboard-grid simulation-guide-grid">
         <div className="dashboard-left">
