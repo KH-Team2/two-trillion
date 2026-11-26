@@ -2,6 +2,22 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-26] 관리자 예측 결과 조회 (F-08-02 ② · TT-156 · TT-157)
+- **작업 내용** (새로 작성 · 원래 코드 없음)
+  - `GET /api/admin/predictions?keyword=&taxYear=&kind=&page=&size=`: 전체 회원의 예측 결과(`PREDICTION`) 목록 · 최신순(계산 일시 → 번호) · 이메일 일부 가림(회원 관리와 같은 식) · 계산에 쓴 총급여(`PREDICTION_INPUT` LEFT JOIN) · 과세표준 · 산출세액 · 결정세액 · 예상 환급액
+  - 검색: 이메일 일부 · 귀속 연도(2000~2100) · 종류 `CURRENT`(시나리오 이름 「현재」 = 처음 계산) / `SCENARIO`(조건 변경) · page 1부터 · size 1~100 · 값이 틀리면 400 · 응답 `ApiResponse.ok(목록, PageMeta)`
+  - 종류를 `BASE_PREDICTION_ID`가 아니라 시나리오 이름으로 나눈 이유: 기준 결과가 지워지면 시나리오의 `BASE_PREDICTION_ID`도 NULL이 돼서(`FK_PREDICTION_BASE ON DELETE SET NULL`) 처음 계산과 구별이 안 됨
+  - 조회한 것도 `ACCESS_LOG`에 `/api/admin/predictions`로 기록 (명세 F-08-02 비고 · 번호 겹치면 한 번 더 · 실패해도 화면은 그대로)
+  - 보기만 하는 기능이라 수정 · 삭제 API 없음
+  - 화면: `admin-prediction-service.js` 신규 · `AdminTools.jsx` `PredictionResults`(검색 · 표 · 쪽 이동 · 환급액이 음수면 「추가 납부」) · `AdminPage.jsx` 「예측 결과」 탭 연결 → 관리자 탭 5개 모두 서버 연결
+  - 테스트: `AdminPredictionServiceTest` 6건 · `tests/admin-prediction-service.mjs`
+- **변경 사유**: 명세 F-08-02 ② 「예측 결과 목록 조회·검색」 · develop 체험판 삭제(#64) 뒤 「준비 중」이던 탭
+- **리뷰에서 정할 것**: 검색 조건(이메일 · 연도 · 종류)이 충분한지 · 한 결과의 항목별 상세(`PREDICTION_DETAIL`)도 보여 줄지
+- **검증 결과**
+  - `mvnw verify` 350건 통과 · `npm test` 124건 통과 · Prettier 통과
+  - Talend: 목록 200 · 이메일 가림 · 연도 · 종류 · 이메일 검색 · 2쪽 이동 · 연도 1999 / 종류 ALL / size 101이면 400 · 일반 회원 403 · 조회할 때마다 ACCESS_LOG에 /api/admin/predictions 기록
+  - 화면: 예측 결과 탭 목록 · 검색 · 쪽 이동 · 시나리오 이름과 기준 번호 표시 · 음수 환급액 「추가 납부」 표시 · 결과 없을 때 안내
+
 ### [2026-11-26] 관리자 세법 기준값 관리 (F-19 · F-08-01 · TT-156 · TT-157)
 - **작업 내용** (`feature/admin`의 홍은님 F-19 코드를 바탕으로 고침)
   - `GET /api/admin/tax-criteria?taxYear=`: 연도별 공제 항목 · 세율/공제 구간 · 혜택 조건 + 연도 목록(`years`) · 마지막 수정(날짜 · 관리자 번호) · 카드 분류 이름
