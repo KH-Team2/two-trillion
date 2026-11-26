@@ -158,8 +158,10 @@ src/main/resources/application.yml
 | `DB_USERNAME` | Oracle DB 사용자 계정 |
 | `DB_PASSWORD` | Oracle DB 비밀번호 |
 | `JWT_SECRET` | 로그인 토큰 서명 비밀키 (32바이트 이상 · 없으면 서버가 켜지지 않음 · `CALC_API_TOKEN`과 다른 값) |
+| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값 · `X-Calc-Token`) · 카드 업로드(`POST /card/parse`)는 `CALC_MODE`와 관계없이 항상 이 토큰으로 계산 서버를 호출 · `CALC_MODE=http`인데 비어 있으면 서버가 시작되지 않음 |
+| `CHATBOT_API_TOKEN` | 챗봇 서버 내부 인증 토큰 (`chatbot/.env`와 같은 값 · `X-Chatbot-Token`) · 비어 있으면 서버가 시작되지 않음 |
 
-Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
+Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다. `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`은 각 서버(`calc/.env` · `chatbot/.env`)와 같은 값이어야 합니다.
 
 ### 4.2 추가 환경변수
 
@@ -168,10 +170,8 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 | `SERVER_PORT` | Spring Boot 실행 포트 | `8080` |
 | `CALC_MODE` | `mock`: 가짜 계산(세액 0 · 화면 연결용) · `http`: Python 계산 서버 호출 (카드 업로드는 모드와 관계없이 항상 계산 서버 `POST /card/parse`를 호출) | `mock` |
 | `CALC_BASE_URL` | Python 계산 서버 주소 | `http://localhost:8000` |
-| `CALC_API_TOKEN` | 계산 서버 내부 인증 토큰 (`calc/.env`와 같은 값) · `CALC_MODE=http`면 필수 (비우면 서버가 시작되지 않음 · 계산 서버도 같은 규칙) | 없음 |
 | `SAVE_ENABLED` | 계산 결과를 DB에 저장할지 (`CALC_MODE=http`일 때만 실제 저장) | `false` |
 | `CHATBOT_BASE_URL` | Python 챗봇 서버 주소 | `http://localhost:8001` |
-| `CHATBOT_API_TOKEN` | `chatbot/.env`와 동일해야 하는 Spring→FastAPI 내부 인증 토큰 (`X-Chatbot-Token`) | 설정 필요 |
 | `JWT_EXPIRATION` | 로그인 유지 시간 (지나면 다시 로그인) | `2h` |
 | `ALLOWED_ORIGINS` | 허용할 화면 주소 (CORS · 상담 채팅 WebSocket) · 쉼표로 여러 개 · `*`는 안 됨 · **배포 때는 운영 화면 주소로 꼭 바꿈** | `http://localhost:5173` |
 | `LOGIN_LOCK_ENABLED` | 5번 틀리면 10분 로그인 잠금 | `true` |
@@ -189,7 +189,7 @@ Oracle 접속 주소는 팀 DB 담당자가 제공한 정보를 사용합니다.
 1. `Run → Run Configurations...`를 선택합니다.
 2. `Spring Boot App`에서 Backend 프로젝트를 선택합니다.
 3. `Environment` 탭으로 이동합니다.
-4. `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`를 추가합니다.
+4. 4.1 필수 환경변수(`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `CALC_API_TOKEN`, `CHATBOT_API_TOKEN`)를 추가합니다.
 5. `Apply → Run`을 선택합니다.
 
 > **주의:** DB 비밀번호, API 토큰 등 민감정보는 GitHub에 업로드하거나 화면 캡처에 노출하지 않습니다.
@@ -212,7 +212,7 @@ Run As → Spring Boot App
 mvnw spring-boot:run
 ```
 
-CMD에서도 DB 환경변수가 설정되어 있어야 합니다. STS에 등록한 실행 환경변수는 CMD에 자동으로 전달되지 않습니다.
+CMD에서도 4.1 필수 환경변수가 설정되어 있어야 합니다 (`backend/.env` 파일을 쓰면 CMD에서도 같이 읽힙니다). STS에 등록한 실행 환경변수는 CMD에 자동으로 전달되지 않습니다.
 
 ### 5.3 정상 실행 확인
 

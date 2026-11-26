@@ -18,6 +18,14 @@ import {
 // [추가 11/25 고은] F-21 접근 기록 서버 API
 //   이유: develop의 체험판 삭제(#64)와 병합하면서 접근 기록 탭(AccessLog)이 같이 지워져서 되살림
 import { ACCESS_RESULT_LABEL, PAGE_SIZE, fetchAccessLogs } from '@/api/access-log-service.js';
+// [추가 11/23 고은] F-20 회원 관리 서버 API
+import {
+  MEMBER_PAGE_SIZE,
+  ROLE_LABEL,
+  STATUS_LABEL,
+  fetchMembers,
+  updateMemberRole,
+} from '@/api/admin-member-service.js';
 // [수정 11/20] F-18 문의 관리: 브라우저 체험 데이터(inquiryService) → 서버 API
 //   GET /api/admin/inquiries?status= (전체 목록) · PUT /api/admin/inquiries/{id}/answer ([확인 중] · 답변 등록)
 //   이름도 서버 응답에 맞춤: id → inquiryId · category → inquiryType · text → content
@@ -308,6 +316,7 @@ export function AccessLog() {
     </>
   );
 }
+
 // [추가 11/23 고은] F-20 회원 관리 · 관리자 권한 부여/해제 (서버 API: GET /api/admin/members · PUT …/{id}/role)
 //   이유: 원래 회원 관리 탭(AccountForms.jsx의 MemberManagement)은 이 브라우저에 저장된 체험 회원만 바꾸는 시연이었어요
 //   → 다른 팀원 파일(AccountForms.jsx)은 건드리지 않고, 관리자 화면 모음인 이 파일에 서버 연결 버전을 새로 만들었어요
@@ -472,194 +481,6 @@ export function MemberManagement({ onChange }) {
         </button>
       </div>
       <p role="status">{message}</p>
-    </>
-  );
-}
-
-export function Predictions() {
-  const [rows] = useState(() => predictionRecords()),
-    [search, setSearch] = useState('');
-  return (
-    <>
-      <h3>예측 결과 조회 · 브라우저 시연</h3>
-      <input
-        aria-label="예측 결과 검색"
-        placeholder="계정 ID 또는 시나리오명"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-      />
-      <div className="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              {['계정 ID', '종류', '계산일 / 시나리오', '결정세액', '환급 차액'].map((v) => (
-                <th key={v}>{v}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {rows
-              .filter((r) => (r.memberId + (r.scenarioName || '')).includes(search))
-              .map((r, i) => (
-                <tr key={i}>
-                  <td>{r.memberId}</td>
-                  <td>{r.kind}</td>
-                  <td>
-                    {r.date} {r.scenarioName}
-                  </td>
-                  <td>{r.decidedTax?.toLocaleString()}원</td>
-                  <td>{r.expectedRefund?.toLocaleString()}원</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
-      <p>
-        현재 브라우저에 보관된 체험 결과만 조회합니다. 실제 전체 회원 결과 DB 조회는 미연동입니다.
-      </p>
-    </>
-  );
-}
-// [수정 11/20] F-18 문의 관리: 브라우저 체험 데이터(inquiryService) → 서버 API
-//   GET /api/admin/inquiries?status= (전체 목록) · PUT /api/admin/inquiries/{id}/answer ([확인 중] · 답변 등록)
-//   이름도 서버 응답에 맞춤: id → inquiryId · category → inquiryType · text → content
-export function InquiryManagement() {
-  const [rows, setRows] = useState([]),
-    [type, setType] = useState(''),
-    [status, setStatus] = useState(''),
-    [err, setErr] = useState(''),
-    // [추가 11/20] 지금 서버에 보내는 중인 문의 번호 (그 문의의 버튼을 잠깐 막아 두 번 저장되지 않게)
-    [busyId, setBusyId] = useState(null),
-    // [추가 11/20] 숫자를 1 올리면 아래 useEffect가 목록을 다시 불러와요 (저장 뒤 새로 고침용)
-    [reload, setReload] = useState(0);
-
-  // [추가 11/20] 상태 필터를 바꾸거나 저장한 뒤 서버에서 목록을 다시 불러와요
-  //   상태 필터는 서버(?status=)에서 거르고, 유형 필터는 받아 온 목록을 화면에서 걸러요
-  useEffect(() => {
-    let ignore = false;
-    fetchAdminInquiries(status)
-      .then((list) => {
-        if (!ignore) setRows(list);
-      })
-      .catch((e) => {
-        // 관리자가 아니면 403 · 서버 꺼짐(OFFLINE) 등 → 서버 문구 그대로
-        if (!ignore) {
-          setRows([]);
-          setErr(e.message);
-        }
-      });
-    return () => {
-      ignore = true;
-    };
-  }, [status, reload]);
-
-  // [수정 11/20] 브라우저 저장(run(fn)) → 서버 저장 · 끝나면 목록을 다시 불러와요
-  async function run(inquiryId, form, doneMessage) {
-    setBusyId(inquiryId);
-    setErr('');
-    try {
-      await updateInquiryAnswer(inquiryId, form);
-      setErr(doneMessage);
-      setReload((n) => n + 1);
-    } catch (e) {
-      setErr(e.message);
-      // 다른 관리자가 먼저 답변을 끝낸 경우(409) → 최신 상태를 보여 주려고 다시 불러와요
-      if (e.code === 'ALREADY_ANSWERED') setReload((n) => n + 1);
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const visible = rows.filter((q) => !type || q.inquiryType === type);
-  return (
-    <>
-      <h3>문의 및 답변 관리</h3>
-      <div className="form-grid">
-        <select aria-label="문의 유형 필터" value={type} onChange={(e) => setType(e.target.value)}>
-          <option value="">모든 유형</option>
-          {Object.keys(INQUIRY_TYPE_LABEL).map((v) => (
-            <option key={v} value={v}>
-              {INQUIRY_TYPE_LABEL[v]}
-            </option>
-          ))}
-        </select>
-        <select
-          aria-label="문의 상태 필터"
-          value={status}
-          onChange={(e) => setStatus(e.target.value)}
-        >
-          <option value="">모든 상태</option>
-          {Object.keys(INQUIRY_STATUS_LABEL).map((v) => (
-            <option key={v} value={v}>
-              {INQUIRY_STATUS_LABEL[v]}
-            </option>
-          ))}
-        </select>
-      </div>
-      {visible.map((q) => {
-        const busy = busyId === q.inquiryId;
-        return (
-          <form
-            className="admin-inquiry"
-            key={q.inquiryId}
-            onSubmit={(e) => {
-              e.preventDefault();
-              const f = new FormData(e.currentTarget);
-              run(
-                q.inquiryId,
-                { status: 'ANSWERED', answer: f.get('answer') },
-                '답변을 저장했어요.',
-              );
-            }}
-          >
-            <span className={'tag ' + (q.status === 'ANSWERED' ? 'green' : 'amber')}>
-              {INQUIRY_STATUS_LABEL[q.status] || '접수'}
-            </span>
-            <span className="tag gray">{INQUIRY_TYPE_LABEL[q.inquiryType] || '문의'}</span>
-            <h3>{q.title}</h3>
-            {/* [추가 11/20] 누가 · 언제 쓴 문의인지 */}
-            <p>
-              회원 번호 {q.memberId} · 작성 {formatDateTime(q.createdAt)}
-            </p>
-            <p>{q.content}</p>
-            {q.status === 'CHECKING' && <p>문의자 화면 안내: {CHECKING_MESSAGE}</p>}
-            {q.status === 'ANSWERED' ? (
-              // [수정 11/20] 답변 완료된 문의는 읽기만 · 이유: 서버가 다시 바꾸는 것을 409로 막음 (답변 보호)
-              <>
-                <p>답변: {q.answer}</p>
-                <p>
-                  답변 시각 {formatDateTime(q.answeredAt)} · 답변자 번호 {q.answererId}
-                </p>
-              </>
-            ) : (
-              <>
-                {/* [수정 11/20] 접수(WAITING)일 때만 [확인 중] 버튼 · 이유: 이미 확인 중이면 누를 필요가 없음 */}
-                {q.status === 'WAITING' && (
-                  <button
-                    type="button"
-                    className="btn secondary"
-                    disabled={busy}
-                    onClick={() =>
-                      run(q.inquiryId, { status: 'CHECKING' }, '확인 중으로 바꿨어요.')
-                    }
-                  >
-                    확인 중
-                  </button>
-                )}
-                <label className="field">
-                  최종 답변
-                  <textarea name="answer" required rows={3} />
-                </label>
-                <button className="btn" disabled={busy}>
-                  최종 답변 저장
-                </button>
-              </>
-            )}
-          </form>
-        );
-      })}
-      {!visible.length && <p className="empty">접수된 문의가 없습니다.</p>}
-      <p role="status">{err}</p>
     </>
   );
 }

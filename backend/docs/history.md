@@ -2,17 +2,6 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
-### [2026-11-26] 관리자 회원 관리 · 권한 부여/해제 (F-20 · F-01-06 · F-08-02 ① · TT-156 · TT-157)
-- **작업 내용** (`feature/admin-2`의 홍은님 코드를 바탕으로 고침)
-  - `GET /api/admin/members`: 이메일 일부를 가린 목록 + 계정 상태 · 권한 · 가입일 · 검색(이메일 일부 · 권한 · 상태) · page 1부터 · size 1~100 · 응답 `ApiResponse.ok(목록, PageMeta)` · 조회한 것도 `ACCESS_LOG`에 기록
-  - `PUT /api/admin/members/{id}/role` 본문 `{"role":"ADMIN"|"USER"}`: 관리자 번호를 `@AuthenticationPrincipal`(토큰)에서 · 성공하면 `ACCESS_LOG`에 `/api/admin/members/{id}/role` 기록
-  - 거절(409): 자기 자신 해제 `SELF_DEMOTE`(D-06) · 성별 없는 관리자 → 일반 회원 `GENDER_REQUIRED`(10/28) · 이미 그 권한 `SAME_ROLE` · 탈퇴 회원 `WITHDRAWN_MEMBER` · 없는 회원 404 · role 값이 틀리면 400
-  - 이름(NAME) 마스킹 · 검색 삭제 (v3.5부터 이름 안 받음) · 이메일 마스킹은 @ 앞이 2글자 이하여도 가려지게
-  - 화면: `admin-member-service.js` 신규 · `AdminTools.jsx`에 서버 연결 `MemberManagement` 추가 · `AdminPage.jsx`가 그쪽을 쓰도록 (`AccountForms.jsx`의 체험용은 그대로 둠)
-  - 테스트: `AdminMemberServiceTest` 9건 · `tests/admin-member-service.mjs`
-- **변경 사유**: 원래 코드는 `@RequestAttribute("currentAdminId")`를 넣어 주는 곳이 없어 권한 변경이 항상 400 · 실패 응답이 팀 공통 모양이 아님 · 명세의 「계정 상태 · 권한 표시」 「변경 작업 기록」이 빠져 있었음
-- **리뷰에서 정할 것**: 탈퇴 회원 권한 변경 막기(명세에 없음) · 같은 권한 요청을 409로 할지 · 목록에 아이디(LOGIN_ID)를 보일지
-- **검증 결과**: `mvnw verify` 222건 통과 · `npm test` · Prettier 통과 · Talend로 목록 200 · 이메일 마스킹 · role/size 값 오류 400 · 일반 회원 403 · 권한 부여 200 · 같은 권한 409(SAME_ROLE) · 자기 자신 해제 409(SELF_DEMOTE) · 없는 회원 404 · ACCESS_LOG 조회/변경 기록 확인 · 화면 검색 · 권한 부여/해제 · 쪽 이동 확인 · 탈퇴 회원 버튼은 탈퇴 기능 병합 후 확인 예정
 ### [2026-11-25] API 규칙 문서 7번 표에 알림 · 상담 API 추가 (TT-184)
 - **작업 내용**: `backend/docs/api-rules.md` 7번 표에 알림 3개(`/api/notifications/stream` · `/api/notifications` · `/api/notifications/read`) · 상담 3개(`/api/consult/rooms` · `/api/consult/rooms/{roomId}/messages` · `/api/admin/consult/rooms`) 행 추가 · 표 아래에 WebSocket(`/ws` · `/sub` · `/pub` · `/user/queue/errors`) 주소 규칙 한 줄
 - **변경 사유**: 계산 · 회원 API는 표에 있는데 PR #51 · #58로 들어간 알림 · 상담 API가 빠져 있었음
@@ -78,6 +67,18 @@
 - **변경 사유**: 기능명세서 결정 필요 항목 D-15(IP 차단 기능 없음) · D-16(1분 50번 → 12시간) 확정
 - **검증 결과**: `mvnw verify` 325건 통과 · SCREEN 조건 추가 후 Oracle에서 `countIpBlockTriggers` 실행 확인 · SQL로 로그인 실패 기록 50건을 넣은 뒤 Talend 로그인 시도 → 429 `LOGIN_IP_BLOCKED` · `DENIED` 기록 · 차단 판단 숫자 그대로(차단 시간 안 늘어남) · 회원 실패 횟수 그대로 · 실패 시각을 13시간 전으로 바꾸면 정상 로그인 확인
 
+### [2026-11-23] 관리자 회원 관리 · 권한 부여/해제 (F-20 · F-01-06 · F-08-02 ① · TT-156 · TT-157)
+- **작업 내용** (`feature/admin-2`의 홍은님 코드를 바탕으로 고침)
+  - `GET /api/admin/members`: 이메일 일부를 가린 목록 + 계정 상태 · 권한 · 가입일 · 검색(이메일 일부 · 권한 · 상태) · page 1부터 · size 1~100 · 응답 `ApiResponse.ok(목록, PageMeta)` · 조회한 것도 `ACCESS_LOG`에 기록
+  - `PUT /api/admin/members/{id}/role` 본문 `{"role":"ADMIN"|"USER"}`: 관리자 번호를 `@AuthenticationPrincipal`(토큰)에서 · 성공하면 `ACCESS_LOG`에 `/api/admin/members/{id}/role` 기록
+  - 거절(409): 자기 자신 해제 `SELF_DEMOTE`(D-06) · 성별 없는 관리자 → 일반 회원 `GENDER_REQUIRED`(10/28) · 이미 그 권한 `SAME_ROLE` · 탈퇴 회원 `WITHDRAWN_MEMBER` · 없는 회원 404 · role 값이 틀리면 400
+  - 이름(NAME) 마스킹 · 검색 삭제 (v3.5부터 이름 안 받음) · 이메일 마스킹은 @ 앞이 2글자 이하여도 가려지게
+  - 화면: `admin-member-service.js` 신규 · `AdminTools.jsx`에 서버 연결 `MemberManagement` 추가 · `AdminPage.jsx`가 그쪽을 쓰도록 (11/25: develop 체험판 삭제(#64) 뒤 「준비 중」이던 회원 관리 탭을 서버 API로 연결)
+  - 테스트: `AdminMemberServiceTest` 9건 · `tests/admin-member-service.mjs`
+- **변경 사유**: 원래 코드는 `@RequestAttribute("currentAdminId")`를 넣어 주는 곳이 없어 권한 변경이 항상 400 · 실패 응답이 팀 공통 모양이 아님 · 명세의 「계정 상태 · 권한 표시」 「변경 작업 기록」이 빠져 있었음
+- **리뷰에서 정할 것**: 탈퇴 회원 권한 변경 막기(명세에 없음) · 같은 권한 요청을 409로 할지 · 목록에 아이디(LOGIN_ID)를 보일지
+- **검증 결과**: `mvnw verify` 222건 통과 · `npm test` · Prettier 통과 · Talend로 목록 200 · 이메일 마스킹 · role/size 값 오류 400 · 일반 회원 403 · 권한 부여 200 · 같은 권한 409(SAME_ROLE) · 자기 자신 해제 409(SELF_DEMOTE) · 없는 회원 404 · ACCESS_LOG 조회/변경 기록 확인 · 화면 검색 · 권한 부여/해제 · 쪽 이동 확인 · 탈퇴 회원 버튼은 탈퇴 기능 병합 후 확인 예정
+
 ### [2026-11-23] 관리자 접근 기록 조회 리뷰 반영 · 화면 연결 (F-21 · F-08-02 ③ · TT-156 · TT-157)
 - **작업 내용**
   - `GET /api/admin/access-logs`: 날짜를 `LocalDate`로 받기(형식 틀리면 400) · page 1부터(`@Min(1)`) · size `@Min(1) @Max(100)` · 응답 `ApiResponse.ok(목록, PageMeta)`
@@ -86,9 +87,6 @@
   - 화면: `access-log-service.js` 신규 · `AdminTools.jsx` 접근 기록 탭을 체험 데이터 → 서버 API · `api-client.js`에 `withMeta` 옵션(기본 꺼짐)
   - 테스트: `AdminAccessLogServiceTest` 6건 · `tests/access-log-service.mjs`
 - **변경 사유**: PR #45 리뷰 4개(size 최대값 · 날짜 형식 · 전체 개수 · 회원 없는 기록) · 명세 F-08-02 비고 「관리자가 목록을 조회한 것도 ACCESS_LOG에 기록」
-<<<<<<< HEAD
-- **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인
-=======
 - **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인 · (11/25) develop 체험판 삭제(#64) 병합 후 접근 기록 탭 다시 연결
 
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
@@ -103,7 +101,6 @@
 - **검증 결과**:
   - 문서 수정만 (코드 변경 없음) · `application.yml` · `FaqClient` · `HttpCalcClient` · `CardParseClient`의 토큰 처리와 문구가 맞는지 대조
   - 이메일 인증 설정 이름 · 기본값이 `application.yml`(`EMAIL_DEV_CODE_ENABLED:false` · `EMAIL_VERIFICATION_REQUIRED:false`)과 같은지 대조
->>>>>>> feature/admin-assistant2
 
 ### [2026-11-23] 업로드 삭제 성공 응답 204 → 200 (팀 API 규칙)
 - **작업 내용**

@@ -108,8 +108,6 @@
 | GET | `/api/predictions?year={taxYear}` | 결과 이력 목록 · 현재와 시나리오 함께 · 최신순 · 없으면 빈 목록 (F-04-02) |
 | GET | `/api/predictions/{predictionId}` | 결과 하나 다시 열기 · 항목별 내역 포함 · 없거나 남의 것이면 404 (F-04-02) |
 | GET | `/api/group-stats/{taxYear}` | 내 성별·연령대 그룹과 총급여 구간 그룹의 통계 평균 · 못 찾은 그룹은 null (F-06-02) |
-| GET | `/api/admin/members?keyword=&role=&status=&page=&size=` | 관리자 전용 회원 목록 · 이메일 일부 가림 · 계정 상태 · 권한 · 가입일 · `meta`에 쪽 정보 · 조회한 것도 기록 (F-08-02 ①) |
-| PUT | `/api/admin/members/{memberId}/role` | 관리자 권한 부여 · 해제 · 본문 `{"role":"ADMIN"\|"USER"}` · 200 `data: null` · 자기 자신 해제 · 성별 없는 관리자 해제 · 같은 권한 · 탈퇴 회원이면 409 · 없으면 404 · 기록 남김 (F-01-06) |
 | GET | `/api/notifications/stream` | 실시간 알림 연결 (SSE · `text/event-stream`) · 이벤트 `notification` · 다시 연결할 때 `Last-Event-ID` 헤더로 놓친 알림만 다시 받음 · 회원당 연결 5개까지 (넘으면 가장 오래된 연결을 닫음) (F-09-03) |
 | GET | `/api/notifications` | 내 알림 목록 · `{unreadCount, items}` · 안 읽은 개수 + 최근 20개 · 새것부터 (F-09-03) |
 | PUT | `/api/notifications/read` | 안 읽은 알림 모두 읽음 · 본문 없음 → `null` · `READ_YN='Y'` · `READ_AT=SYSDATE` (F-09-03) |
@@ -123,6 +121,8 @@
 | PUT | `/api/members/me` | 회원정보 · 자격 정보 저장 · 본문 `{gender, militaryMonths, hireDate, companySize, homelessHeadYn}` (모든 칸) → 저장된 회원정보 · 군 복무 음수 400 「0 이상으로 입력해 주세요」 · `ROLE` · `STATUS` 안 바뀜 (F-01-04 · 제안 주소) |
 | PUT | `/api/members/me/password` | 비밀번호 변경 · 본문 `{currentPassword, newPassword, newPasswordConfirm}` → `null` · 현재 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` (F-01-04 · 제안 주소) |
 | POST | `/api/members/me/withdrawal` | 회원 탈퇴 · 본문 `{password}` (D-05 재확인) → `null` · `STATUS=WITHDRAWN` · `WITHDRAWN_AT=SYSDATE` · `ROLE=USER` · 아이디 · 이메일은 30일 유지 · 지금 토큰 무효 · 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` · 이미 탈퇴 404 (F-01-05 · 제안 주소) |
+| GET | `/api/admin/members?keyword=&role=&status=&page=&size=` | 관리자 전용 회원 목록 · 이메일 일부 가림 · 계정 상태 · 권한 · 가입일 · `meta`에 쪽 정보 · 조회한 것도 기록 (F-08-02 ①) |
+| PUT | `/api/admin/members/{memberId}/role` | 관리자 권한 부여 · 해제 · 본문 `{"role":"ADMIN"\|"USER"}` · 200 `data: null` · 자기 자신 해제 · 성별 없는 관리자 해제 · 같은 권한 · 탈퇴 회원이면 409 · 없으면 404 · 기록 남김 (F-01-06) |
 | GET | `/api/admin/access-logs?startDate=&endDate=&ipAddress=&page=&size=` | 관리자 전용 접근 기록 목록 · 최신순 · `meta`에 쪽 정보 · 같은 IP 실패 수 포함 · 날짜 형식 · page(1~) · size(1~100) 틀리면 400 · 조회한 것도 기록 (F-08-02 ③) |
 | GET | `/api/faqs` | FAQ 목록 조회 |
 | GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
