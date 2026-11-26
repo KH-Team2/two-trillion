@@ -1,5 +1,6 @@
 package com.hoperefund.admin.service;
 
+<<<<<<< HEAD
 import java.util.List;
 
 import org.springframework.dao.DataAccessException;
@@ -8,14 +9,28 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+=======
+import com.hoperefund.admin.dto.AdminMemberRoleTargetDto;
+>>>>>>> db68705e28145ea518a7b85159408da8ab05e40f
 import com.hoperefund.admin.dto.MaskedMemberResponseDto;
 import com.hoperefund.admin.mapper.AdminMemberMapper;
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.common.exception.NotFoundException;
 import com.hoperefund.common.mapper.AccessLogMapper;
+<<<<<<< HEAD
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+=======
+import java.util.List;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+>>>>>>> db68705e28145ea518a7b85159408da8ab05e40f
 
 @Slf4j // [추가 11/23 고은] log.error(...)로 서버 기록을 남기려고 (F-21 · LoginService와 같은 방식)
 @Service
@@ -41,7 +56,23 @@ public class AdminMemberService {
     // [수정 11/23 고은] ① page를 0부터 → 1부터 (팀 공통 PageMeta) · offset = (page - 1) * size
     //                   ② status(계정 상태) 조건 추가
     //                   ③ 읽기만 하니까 @Transactional(readOnly = true)
+<<<<<<< HEAD
     
+=======
+    @Transactional(readOnly = true)
+    public List<MaskedMemberResponseDto> getMaskedMemberList(
+            String keyword, String role, String status, int page, int size) {
+        int offset = (page - 1) * size;
+        return adminMemberMapper.selectMaskedMemberList(keyword, role, status, offset, size);
+    }
+
+    // [추가 11/23 고은] 검색 조건에 맞는 전체 회원 수 (화면의 「전체 N명 · 쪽 수」용)
+    @Transactional(readOnly = true)
+    public int countMembers(String keyword, String role, String status) {
+        return adminMemberMapper.countMembers(keyword, role, status);
+    }
+
+>>>>>>> db68705e28145ea518a7b85159408da8ab05e40f
     // [추가 11/23 고은] 관리자가 회원 목록을 본 것을 ACCESS_LOG에 남겨요 (명세 F-08-02 비고)
     @Transactional
     public void recordView(Long adminId, String ipAddress) {
@@ -56,7 +87,53 @@ public class AdminMemberService {
     //           → 팀 공통 예외를 던져야 화면이 { success:false, error:{code, message} } 모양으로 받아요
     //   - ipAddress 매개변수 추가 · 이유: 명세 F-01-06 ④ 「변경 작업을 ACCESS_LOG에 기록」
     @Transactional
+<<<<<<< HEAD
      /**
+=======
+    public void updateMemberRole(
+            Long targetMemberId, String newRole, Long currentAdminId, String ipAddress) {
+        AdminMemberRoleTargetDto targetUser = adminMemberMapper.selectRoleTarget(targetMemberId);
+
+        if (targetUser == null) {
+            throw new NotFoundException("회원을 찾을 수 없어요");
+        }
+
+        // [추가 11/23 고은] 탈퇴 회원은 권한을 바꾸지 않아요
+        //   이유: 탈퇴할 때 ROLE=USER로 내려요(명세 F-01-05 ①) → 탈퇴 회원을 관리자로 올리면 그 규칙이 깨져요
+        //   ※ 명세에 없는 검사라 PR 리뷰에서 같이 정해요
+        if (STATUS_WITHDRAWN.equals(targetUser.getStatus())) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT, "WITHDRAWN_MEMBER", "탈퇴한 회원의 권한은 바꿀 수 없어요");
+        }
+
+        // [추가 11/23 고은] 이미 그 권한이면 바꿀 것이 없어요 · 이유: 아무것도 안 바뀌었는데 「변경 기록」이 남지 않게
+        if (newRole.equals(targetUser.getRole())) {
+            throw new BusinessException(HttpStatus.CONFLICT, "SAME_ROLE", "이미 그 권한이에요");
+        }
+
+        // 예외 1: 자기 자신의 관리자 권한 해제 시도 방지 (D-06 · 관리자 최소 1명)
+        // [수정 11/23 고은] 같은 권한은 위에서 걸러서, 「대상이 나 + USER로」만 보면 돼요
+        if (targetMemberId.equals(currentAdminId) && ROLE_USER.equals(newRole)) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT, "SELF_DEMOTE", "자기 자신의 관리자 권한은 해제할 수 없어요");
+        }
+
+        // 예외 2: 성별 정보가 없는 관리자는 일반 회원(USER)으로 변경 불가 (10/28 · DB CK_MEMBER_GENDER_REQ)
+        // [수정 11/23 고은] 문구를 명세 F-01-06 그대로 · 대상은 위 검사로 이미 ADMIN이에요
+        if (ROLE_USER.equals(newRole)
+                && (targetUser.getGender() == null || targetUser.getGender().trim().isEmpty())) {
+            throw new BusinessException(
+                    HttpStatus.CONFLICT, "GENDER_REQUIRED", "성별이 없는 관리자는 일반 회원으로 바꿀 수 없어요");
+        }
+
+        adminMemberMapper.updateMemberRole(targetMemberId, newRole);
+
+        // [추가 11/23 고은] 누가 · 어느 회원의 권한을 바꿨는지 · 예) /api/admin/members/1002/role
+        writeAccessLog(currentAdminId, LIST_SCREEN + "/" + targetMemberId + "/role", ipAddress);
+    }
+
+    /**
+>>>>>>> db68705e28145ea518a7b85159408da8ab05e40f
      * [추가 11/23 고은] ACCESS_LOG 한 줄 저장 (LoginService.writeAccessLog · F-21 recordView와 같은 규칙)
      *
      * <ul>

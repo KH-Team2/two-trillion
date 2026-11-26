@@ -305,7 +305,7 @@ mvnw -B verify
 - Health API
 - 공통 오류 응답 DTO
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
-- 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 · 관리자 접근 기록 조회 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
+- 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 · 관리자 회원 관리 · 권한 변경 · 관리자 접근 기록 조회 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - 세금 용어 FAQ 챗봇 연동
 - JUnit 자동 테스트 및 코드 품질 검사 환경
@@ -330,7 +330,7 @@ mvnw -B verify
 
 기능 요구사항은 [희망환급 기능명세서 v1.15](https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit)를 참고합니다.
 
-ERD는 팀에서 공유한 v4.5를 기준으로 합니다.
+ERD는 팀에서 공유한 v4.6을 기준으로 합니다.
 https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
 일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.

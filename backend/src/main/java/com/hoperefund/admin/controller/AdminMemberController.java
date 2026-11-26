@@ -36,5 +36,52 @@ public class AdminMemberController {
      * ③ role · status는 정해진 값만 (@Pattern) · 틀리면 400
      * ④ 조회할 때마다 「누가 · 어느 IP에서 봤는지」 ACCESS_LOG에 기록 (명세 F-08-02 비고)
      */
+<<<<<<< HEAD
 
+=======
+    @GetMapping
+    public ApiResponse<List<MaskedMemberResponseDto>> getMemberList(
+            // [추가 11/23 고은] 로그인 토큰에서 꺼낸 관리자 회원 번호 (기록의 MEMBER_ID)
+            @AuthenticationPrincipal Long adminId,
+            // [추가 11/23 고은] 접속 IP를 꺼내려고 (getRemoteAddr · X-Forwarded-For는 바꿀 수 있어 안 씀)
+            HttpServletRequest request,
+            @RequestParam(value = "keyword", required = false) String keyword,
+            // [수정 11/23 고은] @Pattern 추가 · 빈 글자("")도 허용 = 조건 없음
+            @RequestParam(value = "role", required = false) @Pattern(regexp = "|USER|ADMIN")
+                    String role,
+            // [추가 11/23 고은] 계정 상태 ACTIVE / WITHDRAWN
+            @RequestParam(value = "status", required = false) @Pattern(regexp = "|ACTIVE|WITHDRAWN")
+                    String status,
+            @RequestParam(value = "page", defaultValue = "1") @Min(1) int page,
+            @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(MAX_SIZE) int size) {
+        List<MaskedMemberResponseDto> members =
+                adminMemberService.getMaskedMemberList(keyword, role, status, page, size);
+        int total = adminMemberService.countMembers(keyword, role, status);
+        adminMemberService.recordView(adminId, request.getRemoteAddr());
+        return ApiResponse.ok(members, PageMeta.of(page, size, total));
+    }
+
+    /**
+     * F-20: 회원 권한 변경 (USER ↔ ADMIN) (PUT /api/admin/members/{id}/role · 본문 {"role":"ADMIN"})
+     * - 예외 처리: 자기 자신 권한 해제 불가, 성별 미입력 관리자의 일반 회원 변경 불가
+     *
+     * <p>[수정 11/23 고은]
+     * ① @RequestAttribute("currentAdminId") → @AuthenticationPrincipal
+     *    이유: 우리 서버에는 currentAdminId를 넣어 주는 곳이 없어서 매번 400이었어요 · 문의 답변(F-18)과 같은 방식
+     * ② try-catch + ResponseEntity&lt;String&gt; 삭제 → 공통 예외(404 · 409)를 GlobalExceptionHandler가 처리
+     *    이유: 실패해도 팀 공통 실패 모양 { success:false, error:{code, message} }으로 나가게
+     * ③ @Valid 추가 · role이 USER/ADMIN이 아니면 400
+     * ④ 성공 응답: ApiResponse.ok(null) → { success:true, data:null }
+     */
+    @PutMapping("/{id}/role")
+    public ApiResponse<Void> updateMemberRole(
+            @PathVariable("id") Long memberId,
+            @Valid @RequestBody MemberRoleUpdateDto requestDto,
+            @AuthenticationPrincipal Long currentAdminId, // 현재 로그인한 관리자 ID (토큰에서)
+            HttpServletRequest request) {
+        adminMemberService.updateMemberRole(
+                memberId, requestDto.getRole(), currentAdminId, request.getRemoteAddr());
+        return ApiResponse.ok(null);
+    }
+>>>>>>> db68705e28145ea518a7b85159408da8ab05e40f
 }

@@ -2,6 +2,15 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-26] ERD v4.6 · 안 쓰는 칸 7개 삭제 (MEMBER.NAME · GROUP_STAT 6칸) (TT-187)
+- **작업 내용**:
+  - `database/01_schema.sql`: `MEMBER.NAME` · `GROUP_STAT`의 `TOTAL_SALARY_MIL` · `AVG_WITHHELD_TAX` · `AVG_PAYABLE_TAX` · `AVG_CARD_DEDUCTION` · `AVG_RENT_CREDIT` · `AVG_SME_REDUCTION` 칸 · COMMENT 삭제 · `CK_GROUP_STAT_AMOUNT`는 남는 4칸(인원 · 평균 급여 · 결정세액 · 환급세액)으로 (칸 226 → 219 · CHECK 53 그대로)
+  - `database/02_기준데이터.sql`: `GROUP_STAT` 28행 INSERT에서 6칸 이름 · 값 삭제 (남는 칸 값은 그대로)
+  - `database/README.md`: v4.6 안내 · zip 이름 · ERD 버전 표기
+  - ERD 버전 표기 v4.5 → v4.6: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+- **변경 사유**: 코드에서 안 쓰는 칸 정리 (11/26 팀 채널 공유) · 실명은 v3.5부터 안 받고, 그룹 비교(`GroupStatMapper`)는 4칸만 읽음 · `STAT_FILE` · `GROUP_STAT.FILE_ID` · `MERCHANT_LIST.EXCLUDE_ITEM` · `BASE_DATE`는 출처 · 근거 기록이라 남김
+- **검증 결과**: 팀 깃 전체 브랜치 + PR #67에서 백엔드 · 계산 서버 · 챗봇 · 화면 코드가 지운 칸을 안 쓰는 것 확인 (가입 INSERT에 `NAME` 없음 · 화면 통계 정적 파일은 DB를 읽지 않음) · `02` GROUP_STAT 28행의 남는 칸 값이 v4.5와 같음을 대조 · 이미 만든 계정(공용 DB)은 DB 담당이 `74_v4.5에서_v4.6로.sql`로 적용
+
 ### [2026-11-26] ERD v4.5 · 챗봇 대화 테이블 CHAT_SESSION · CHAT_MESSAGE 삭제 (TT-186)
 - **작업 내용**:
   - `database/01_schema.sql`: `CHAT_SESSION` · `CHAT_MESSAGE` 테이블 · 인덱스 3개 · 시퀀스 2개 · COMMENT 삭제 (테이블 24 → 22 · 칸 237 → 226 · CHECK 54 → 53 · 인덱스 30 → 27 · 시퀀스 22 → 20)
@@ -86,6 +95,18 @@
   - 테스트: `LoginServiceTest` 3건 추가
 - **변경 사유**: 기능명세서 결정 필요 항목 D-15(IP 차단 기능 없음) · D-16(1분 50번 → 12시간) 확정
 - **검증 결과**: `mvnw verify` 325건 통과 · SCREEN 조건 추가 후 Oracle에서 `countIpBlockTriggers` 실행 확인 · SQL로 로그인 실패 기록 50건을 넣은 뒤 Talend 로그인 시도 → 429 `LOGIN_IP_BLOCKED` · `DENIED` 기록 · 차단 판단 숫자 그대로(차단 시간 안 늘어남) · 회원 실패 횟수 그대로 · 실패 시각을 13시간 전으로 바꾸면 정상 로그인 확인
+
+### [2026-11-23] 관리자 회원 관리 · 권한 부여/해제 (F-20 · F-01-06 · F-08-02 ① · TT-156 · TT-157)
+- **작업 내용** (`feature/admin-2`의 홍은님 코드를 바탕으로 고침)
+  - `GET /api/admin/members`: 이메일 일부를 가린 목록 + 계정 상태 · 권한 · 가입일 · 검색(이메일 일부 · 권한 · 상태) · page 1부터 · size 1~100 · 응답 `ApiResponse.ok(목록, PageMeta)` · 조회한 것도 `ACCESS_LOG`에 기록
+  - `PUT /api/admin/members/{id}/role` 본문 `{"role":"ADMIN"|"USER"}`: 관리자 번호를 `@AuthenticationPrincipal`(토큰)에서 · 성공하면 `ACCESS_LOG`에 `/api/admin/members/{id}/role` 기록
+  - 거절(409): 자기 자신 해제 `SELF_DEMOTE`(D-06) · 성별 없는 관리자 → 일반 회원 `GENDER_REQUIRED`(10/28) · 이미 그 권한 `SAME_ROLE` · 탈퇴 회원 `WITHDRAWN_MEMBER` · 없는 회원 404 · role 값이 틀리면 400
+  - 이름(NAME) 마스킹 · 검색 삭제 (v3.5부터 이름 안 받음) · 이메일 마스킹은 @ 앞이 2글자 이하여도 가려지게
+  - 화면: `admin-member-service.js` 신규 · `AdminTools.jsx`에 서버 연결 `MemberManagement` 추가 · `AdminPage.jsx`가 그쪽을 쓰도록 (11/25: develop 체험판 삭제(#64) 뒤 「준비 중」이던 회원 관리 탭을 서버 API로 연결)
+  - 테스트: `AdminMemberServiceTest` 9건 · `tests/admin-member-service.mjs`
+- **변경 사유**: 원래 코드는 `@RequestAttribute("currentAdminId")`를 넣어 주는 곳이 없어 권한 변경이 항상 400 · 실패 응답이 팀 공통 모양이 아님 · 명세의 「계정 상태 · 권한 표시」 「변경 작업 기록」이 빠져 있었음
+- **리뷰에서 정할 것**: 탈퇴 회원 권한 변경 막기(명세에 없음) · 같은 권한 요청을 409로 할지 · 목록에 아이디(LOGIN_ID)를 보일지
+- **검증 결과**: `mvnw verify` 334건 통과 · `npm test` · Prettier 통과 · Talend로 목록 200 · 이메일 마스킹 · role/size 값 오류 400 · 일반 회원 403 · 권한 부여 200 · 같은 권한 409(SAME_ROLE) · 자기 자신 해제 409(SELF_DEMOTE) · 없는 회원 404 · ACCESS_LOG 조회/변경 기록 확인 · 화면 검색 · 권한 부여/해제 · 쪽 이동 확인 · 탈퇴 회원은 상태 「탈퇴」 표시 · 권한 버튼 꺼짐 확인 (develop 탈퇴 기능 #60 병합 후)
 
 ### [2026-11-23] 관리자 접근 기록 조회 리뷰 반영 · 화면 연결 (F-21 · F-08-02 ③ · TT-156 · TT-157)
 - **작업 내용**
