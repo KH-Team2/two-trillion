@@ -34,6 +34,14 @@
   - `mvnw verify` 344건 통과 · `npm test` 123건 통과 · Prettier 통과
   - Talend: 기준값 조회 200 · 없는 연도 400 · 값 수정 200 · 수정 후 CRITERIA_HISTORY에 바뀐 칸 · 관리자 번호 기록 · 같은 값 재수정 시 이력 안 늘어남 · 구간 끝 ≤ 시작 400 · 근거 비움 400 · 없는 번호 404 · 이력 조회 200 · 연도 복사 200 · 같은 연도 다시 복사 409 · 일반 회원 403 · ACCESS_LOG 수정/복사 기록
   - 화면: 연도 선택 · 공제 항목/구간/혜택 표 · 수정 · 구간 추가 · 연도 추가 · 이력 · 되돌리기 · 모달 · 필수 칸 표시
+### [2026-11-26] ERD v4.6 · 안 쓰는 칸 7개 삭제 (MEMBER.NAME · GROUP_STAT 6칸) (TT-187)
+- **작업 내용**:
+  - `database/01_schema.sql`: `MEMBER.NAME` · `GROUP_STAT`의 `TOTAL_SALARY_MIL` · `AVG_WITHHELD_TAX` · `AVG_PAYABLE_TAX` · `AVG_CARD_DEDUCTION` · `AVG_RENT_CREDIT` · `AVG_SME_REDUCTION` 칸 · COMMENT 삭제 · `CK_GROUP_STAT_AMOUNT`는 남는 4칸(인원 · 평균 급여 · 결정세액 · 환급세액)으로 (칸 226 → 219 · CHECK 53 그대로)
+  - `database/02_기준데이터.sql`: `GROUP_STAT` 28행 INSERT에서 6칸 이름 · 값 삭제 (남는 칸 값은 그대로)
+  - `database/README.md`: v4.6 안내 · zip 이름 · ERD 버전 표기
+  - ERD 버전 표기 v4.5 → v4.6: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+- **변경 사유**: 코드에서 안 쓰는 칸 정리 (11/26 팀 채널 공유) · 실명은 v3.5부터 안 받고, 그룹 비교(`GroupStatMapper`)는 4칸만 읽음 · `STAT_FILE` · `GROUP_STAT.FILE_ID` · `MERCHANT_LIST.EXCLUDE_ITEM` · `BASE_DATE`는 출처 · 근거 기록이라 남김
+- **검증 결과**: 팀 깃 전체 브랜치 + PR #67에서 백엔드 · 계산 서버 · 챗봇 · 화면 코드가 지운 칸을 안 쓰는 것 확인 (가입 INSERT에 `NAME` 없음 · 화면 통계 정적 파일은 DB를 읽지 않음) · `02` GROUP_STAT 28행의 남는 칸 값이 v4.5와 같음을 대조 · 이미 만든 계정(공용 DB)은 DB 담당이 `74_v4.5에서_v4.6로.sql`로 적용
 
 ### [2026-11-26] ERD v4.5 · 챗봇 대화 테이블 CHAT_SESSION · CHAT_MESSAGE 삭제 (TT-186)
 - **작업 내용**:
