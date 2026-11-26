@@ -1,12 +1,10 @@
 package com.hoperefund.admin.mapper;
 
-import java.util.List;
-
-import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
-
 import com.hoperefund.admin.dto.TaxCriteriaRequestDTO;
 import com.hoperefund.admin.dto.TaxCriteriaResponseDTO;
+import java.util.List;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 /*
 - F-19 (F-08-01): 세법 기준값 관리 MyBatis 매퍼 인터페이스

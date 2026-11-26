@@ -1,37 +1,6 @@
 package com.hoperefund.admin.service;
 
-<<<<<<< HEAD
 import com.hoperefund.admin.dto.AccessLogResponseDTO;
-import com.hoperefund.admin.mapper.AdminAccessLogMapper;
-import com.hoperefund.common.dto.ApiResponse;
-import com.hoperefund.common.dto.PageMeta;
-import java.time.LocalDate;
-import java.util.List;
-import lombok.RequiredArgsConstructor;
-import org.springframework.stereotype.Service;
-
-/**
- * F-21: 접근 기록 조회 비즈니스 로직
- */
-@Service
-@RequiredArgsConstructor
-public class AdminAccessLogService {
-
-    private final AdminAccessLogMapper adminAccessLogMapper;
-
-    /**
-     * 1-based page 번호를 DB 오프셋으로 변환해 목록과 전체 건수를 조회하고
-     * 공통 응답 봉투(ApiResponse)와 페이지 메타정보(PageMeta)로 반환
-     */
-    public ApiResponse<List<AccessLogResponseDTO>> getAccessLogs(
-            LocalDate startDate, LocalDate endDate, String ipAddress, int page, int size) {
-        int offset = (page - 1) * size;
-        List<AccessLogResponseDTO> list =
-                adminAccessLogMapper.selectAccessLogs(startDate, endDate, ipAddress, offset, size);
-        long total = adminAccessLogMapper.countAccessLogs(startDate, endDate, ipAddress);
-        return ApiResponse.ok(list, PageMeta.of(page, size, (int) total));
-=======
-import com.hoperefund.admin.dto.AccessLogResponseDto;
 import com.hoperefund.admin.mapper.AdminAccessLogMapper;
 import com.hoperefund.common.mapper.AccessLogMapper;
 import java.time.LocalDate;
@@ -65,7 +34,7 @@ public class AdminAccessLogService {
     //   ① String startDate · endDate → LocalDate (형식이 틀린 날짜는 컨트롤러에서 400으로 막힘)
     //   ② page를 0부터 → 1부터 (팀 공통 PageMeta 규칙) · 그래서 offset = (page - 1) * size
     //      예: page=1, size=10 → 0건 건너뛰고 10건 / page=2 → 10건 건너뛰고 10건
-    public List<AccessLogResponseDto> getAccessLogs(
+    public List<AccessLogResponseDTO> getAccessLogs(
             LocalDate startDate, LocalDate endDate, String ipAddress, int page, int size) {
         int offset = (page - 1) * size;
         return adminAccessLogMapper.selectAccessLogs(
@@ -113,6 +82,5 @@ public class AdminAccessLogService {
     //   → 「다음 날 0시 미만(<)」으로 비교해야 끝 날짜 하루 전체가 들어감 (원래 SQL의 TO_DATE(...) + 1과 같은 뜻)
     private static LocalDate nextDay(LocalDate endDate) {
         return endDate == null ? null : endDate.plusDays(1);
->>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
     }
 }

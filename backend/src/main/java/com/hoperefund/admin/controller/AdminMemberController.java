@@ -1,51 +1,40 @@
 package com.hoperefund.admin.controller;
 
-import com.hoperefund.admin.dto.MaskedMemberResponseDTO;
-import com.hoperefund.admin.dto.MemberRoleUpdateDTO;
+import com.hoperefund.admin.dto.MaskedMemberResponseDto;
+import com.hoperefund.admin.dto.MemberRoleUpdateDto;
 import com.hoperefund.admin.service.AdminMemberService;
 import com.hoperefund.common.dto.ApiResponse;
+import com.hoperefund.common.dto.PageMeta;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-/**
- * F-20: 관리자 회원 목록 조회(마스킹) 및 회원 권한(USER <-> ADMIN) 변경 API 컨트롤러
- */
 @RestController
 @RequestMapping("/api/admin/members")
 @RequiredArgsConstructor
 public class AdminMemberController {
-
+    /*F-20: 회원 목록 조회 및 권한 변경*/
     private final AdminMemberService adminMemberService;
 
-    /**
-     * F-20: 마스킹 처리된 회원 목록 조회 API
-     * URI: GET /api/admin/members
-     */
-    @GetMapping
-    public ApiResponse<List<MaskedMemberResponseDTO>> getMemberList(
-            @RequestParam(value = "keyword", required = false) String keyword,
-            @RequestParam(value = "role", required = false) String role,
-            @RequestParam(value = "page", defaultValue = "1") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-        // 1-based 페이지 번호 및 최대 조회 건수(100건) 보정
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.min(Math.max(size, 1), 100);
-        return adminMemberService.getMaskedMemberList(keyword, role, safePage, safeSize);
-    }
+    // [추가 11/23 고은] 한 쪽 최대 건수 · 이유: F-21 리뷰(PR #45 ①)와 같이 size=100000으로 통째로 가져가는 것 막기
+    private static final int MAX_SIZE = 100;
 
     /**
-     * F-20: 회원 권한 변경 API (USER <-> ADMIN)
-     * URI: PUT /api/admin/members/{id}/role
+     * F-20: 마스킹 회원 목록 조회 (GET /api/admin/members)
+     * - 예: /api/admin/members?keyword=naver&role=ADMIN&status=ACTIVE&page=1&size=20
+     * - /api/admin/** 라서 관리자 토큰만 들어와요 (아니면 SecurityConfig가 403)
+     *
+     * <p>[수정 11/23 고은]
+     * ① 반환값: ResponseEntity&lt;List&gt; → ApiResponse.ok(목록, PageMeta) · 팀 공통 응답 모양 + 전체 개수
+     * ② page 기본값 0 → 1 (팀 공통 PageMeta는 1부터) · @Min(1) · size는 @Min(1) @Max(100)
+     * ③ role · status는 정해진 값만 (@Pattern) · 틀리면 400
+     * ④ 조회할 때마다 「누가 · 어느 IP에서 봤는지」 ACCESS_LOG에 기록 (명세 F-08-02 비고)
      */
-    @PutMapping("/{id}/role")
-    public ApiResponse<Void> updateMemberRole(
-            @PathVariable("id") Long targetMemberId,
-            @Valid @RequestBody MemberRoleUpdateDTO dto,
-            @AuthenticationPrincipal Long currentAdminId) {
-        adminMemberService.updateMemberRole(targetMemberId, dto.getRole(), currentAdminId);
-        return ApiResponse.ok(null);
-    }
+
 }

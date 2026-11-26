@@ -1,53 +1,23 @@
 package com.hoperefund.admin.controller;
 
-<<<<<<< HEAD
 import com.hoperefund.admin.dto.AccessLogResponseDTO;
-import com.hoperefund.admin.service.AdminAccessLogService;
-import com.hoperefund.common.dto.ApiResponse;
-=======
-import com.hoperefund.admin.dto.AccessLogResponseDto;
 import com.hoperefund.admin.service.AdminAccessLogService;
 import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.common.dto.PageMeta;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
->>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
 import java.time.LocalDate;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
-<<<<<<< HEAD
-import org.springframework.web.bind.annotation.*;
-
-/**
- * F-21: 관리자 접근 기록 조회 API 컨트롤러
- */
-=======
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
->>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
 @RestController
 @RequestMapping("/api/admin/access-logs")
 @RequiredArgsConstructor
 public class AdminAccessLogController {
-<<<<<<< HEAD
-
-    // 한 페이지당 조회 가능한 최대 건수 제한
-    private static final int MAX_PAGE_SIZE = 100;
-
-    private final AdminAccessLogService adminAccessLogService;
-
-    /**
-     * 접근 기록 목록 조회 (GET /api/admin/access-logs)
-     * - startDate, endDate: ISO 날짜(YYYY-MM-DD) 형식으로 바인딩 (형식 오류 시 400 처리)
-     * - page: 1부터 시작하는 페이지 번호 (최소 1 보정)
-     * - size: 페이지 크기 (1 ~ 100 범위로 제한)
-     */
-    @GetMapping
-    public ApiResponse<List<AccessLogResponseDTO>> getAccessLogs(
-=======
     /* F-21 (접근 기록 조회 및 실패 횟수 모니터링) */
     private final AdminAccessLogService adminAccessLogService;
 
@@ -70,7 +40,7 @@ public class AdminAccessLogController {
      * <p>[추가 11/23] 조회할 때마다 「누가 · 어느 IP에서 봤는지」를 ACCESS_LOG에 남겨요 (기능명세서 F-08-02 비고)
      */
     @GetMapping
-    public ApiResponse<List<AccessLogResponseDto>> getAccessLogs(
+    public ApiResponse<List<AccessLogResponseDTO>> getAccessLogs(
             // [추가 11/23] 로그인 토큰에서 꺼낸 관리자 회원 번호 (기록의 MEMBER_ID로 저장)
             @AuthenticationPrincipal Long adminId,
             // [추가 11/23] HttpServletRequest: 지금 들어온 요청 자체 · getRemoteAddr()로 접속 IP를 꺼내요
@@ -78,7 +48,6 @@ public class AdminAccessLogController {
             HttpServletRequest request,
             // @DateTimeFormat(iso = ISO.DATE): "2026-11-20" 모양의 글자를 LocalDate(날짜)로 바꿔 줌 · 바꿀 수 없으면
             // 400
->>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
             @RequestParam(value = "startDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate startDate,
@@ -86,25 +55,14 @@ public class AdminAccessLogController {
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate endDate,
             @RequestParam(value = "ipAddress", required = false) String ipAddress,
-<<<<<<< HEAD
-            @RequestParam(value = "page", defaultValue = "1") int page,
-            @RequestParam(value = "size", defaultValue = "10") int size) {
-
-        int safePage = Math.max(page, 1);
-        int safeSize = Math.min(Math.max(size, 1), MAX_PAGE_SIZE);
-
-        return adminAccessLogService.getAccessLogs(
-                startDate, endDate, ipAddress, safePage, safeSize);
-=======
             // @Min · @Max: 숫자 범위 검사 · 벗어나면 Controller 실행 전에 400 (공통 처리기: 「요청 값을 확인해 주세요」)
             @RequestParam(value = "page", defaultValue = "1") @Min(1) int page,
             @RequestParam(value = "size", defaultValue = "10") @Min(1) @Max(MAX_SIZE) int size) {
-        List<AccessLogResponseDto> logs =
+        List<AccessLogResponseDTO> logs =
                 adminAccessLogService.getAccessLogs(startDate, endDate, ipAddress, page, size);
         int total = adminAccessLogService.countAccessLogs(startDate, endDate, ipAddress);
         // [추가 11/23] 조회가 끝난 뒤에 기록 → 이번 조회 기록은 다음 조회부터 목록에 보여요
         adminAccessLogService.recordView(adminId, request.getRemoteAddr());
         return ApiResponse.ok(logs, PageMeta.of(page, size, total));
->>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
     }
 }
