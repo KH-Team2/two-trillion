@@ -3800,7 +3800,7 @@ button:disabled {
 }
 
 .tax-guide-toggle:hover,
-.tax-guide-toggle[aria-expanded="true"] {
+.tax-guide-toggle[aria-expanded='true'] {
   background: #f4f8ff;
 }
 

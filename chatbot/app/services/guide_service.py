@@ -1,4 +1,3 @@
-
 import json
 import os
 import re
@@ -27,7 +26,6 @@ def generate_guide(code: str) -> dict:
     prompt = (
         "당신은 연말정산을 처음 접하는 사용자를 위한 안내문 작성 도우미입니다.\n"
         "제공된 JSON의 facts만 사용해 금융상품을 설명하세요.\n\n"
-        
         "[작성 조건]\n"
         "1. 반드시 JSON 객체만 출력하세요.\n"
         "2. 키는 description, taxBenefit, nextStep 세 개만 사용하세요.\n"
@@ -40,7 +38,6 @@ def generate_guide(code: str) -> dict:
         "9. 제공된 facts에 없는 사실이나 수치를 추가하지 마세요.\n"
         "10. 숫자를 사용하지 마세요.\n"
         "11. 제목, 목록, Markdown 문법은 사용하지 마세요.\n\n"
-
         "[상품 정보]\n"
         + json.dumps(
             {"name": guide["name"], "facts": facts},
@@ -49,20 +46,18 @@ def generate_guide(code: str) -> dict:
     )
 
     # 3. 기존 Ollama 설정 재사용
-    base_url = os.getenv(
-        "OLLAMA_BASE_URL", "http://localhost:11434"
-    ).rstrip("/")
+    base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434").rstrip("/")
     model = os.getenv("OLLAMA_MODEL", "gemma3:4b")
 
-    body = json.dumps({
-        "model": model,
-        "stream": False,
-        "format": "json",
-        "options": {"temperature": 0},
-        "messages": [
-            {"role": "user", "content": prompt}
-        ],
-    }).encode("utf-8")
+    body = json.dumps(
+        {
+            "model": model,
+            "stream": False,
+            "format": "json",
+            "options": {"temperature": 0},
+            "messages": [{"role": "user", "content": prompt}],
+        }
+    ).encode("utf-8")
 
     request = Request(
         f"{base_url}/api/chat",
@@ -76,7 +71,6 @@ def generate_guide(code: str) -> dict:
         with urlopen(request, timeout=60) as response:
             result = json.load(response)
 
-        
         content = json.loads(result["message"]["content"])
 
         required = ("description", "taxBenefit", "nextStep")
@@ -85,29 +79,19 @@ def generate_guide(code: str) -> dict:
             not isinstance(content, dict)
             or set(content) != set(required)
             or any(
-                not isinstance(content[key], str)
-                or not content[key].strip()
+                not isinstance(content[key], str) or not content[key].strip()
                 for key in required
             )
         ):
             raise GuideGenerationError("설명 형식이 올바르지 않습니다.")
 
-        content = {
-            key: content[key].strip()
-            for key in required
-        }
+        content = {key: content[key].strip() for key in required}
 
         text = " ".join(content.values())
 
         # 임의의 숫자 생성이나 공제 유형 혼동 방지
-        expected = (
-            "소득공제" if code == "HOUSING_SAVINGS"
-            else "세액공제"
-        )
-        opposite = (
-            "세액공제" if expected == "소득공제"
-            else "소득공제"
-        )
+        expected = "소득공제" if code == "HOUSING_SAVINGS" else "세액공제"
+        opposite = "세액공제" if expected == "소득공제" else "소득공제"
 
         if (
             len(text) > 1500
@@ -133,16 +117,15 @@ def generate_guide(code: str) -> dict:
         parts = re.split(r"(?<=\.)\s+", guide["fallback_content"])
 
         if len(parts) != 3:
-            raise GuideGenerationError(
-                "기본 설명은 세 문장으로 구성되어야 합니다."
+            raise GuideGenerationError("기본 설명은 세 문장으로 구성되어야 합니다.")
+
+        content = dict(
+            zip(
+                ("description", "taxBenefit", "nextStep"),
+                parts,
             )
-
-        content = dict(zip(
-            ("description", "taxBenefit", "nextStep"),
-            parts,
-        ))
+        )
         source = "fallback"
-
 
     return {
         "code": code,

@@ -1,13 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import {
-  Sparkles,
-  ChevronDown,
-  House,
-  PiggyBank,
-  Wallet,
-  Info,
-} from 'lucide-react';
+import { Sparkles, ChevronDown, House, PiggyBank, Wallet, Info } from 'lucide-react';
 import { fetchTaxGuides } from '@/api/guide-service.js';
 
 // 추천 조건은 Spring Boot가 판단하며,
@@ -40,8 +32,7 @@ export default function TaxGuidePanel({ predictionId }) {
   const [opened, setOpened] = useState(null);
   const [retry, setRetry] = useState(0);
 
-  const validId =
-    Number.isInteger(predictionId) && predictionId > 0;
+  const validId = Number.isInteger(predictionId) && predictionId > 0;
 
   useEffect(() => {
     if (!validId) {
@@ -96,11 +87,7 @@ export default function TaxGuidePanel({ predictionId }) {
           <p>입력하신 정보를 바탕으로 확인할 항목을 안내합니다.</p>
         </div>
 
-        {!loading && items.length > 0 && (
-          <span className="tag">
-            추천 {items.length}개
-          </span>
-        )}
+        {!loading && items.length > 0 && <span className="tag">추천 {items.length}개</span>}
       </div>
 
       {loading && (
@@ -112,10 +99,7 @@ export default function TaxGuidePanel({ predictionId }) {
       {error && (
         <div className="tax-guide-status" role="alert">
           <p>{error}</p>
-          <button
-            type="button"
-            onClick={() => setRetry((value) => value + 1)}
-          >
+          <button type="button" onClick={() => setRetry((value) => value + 1)}>
             다시 시도
           </button>
         </div>
@@ -135,9 +119,7 @@ export default function TaxGuidePanel({ predictionId }) {
                     type="button"
                     className="tax-guide-toggle"
                     aria-expanded={isOpen}
-                    onClick={() =>
-                      setOpened(isOpen ? null : item.code)
-                    }
+                    onClick={() => setOpened(isOpen ? null : item.code)}
                   >
                     <span className="iconbox">
                       <Icon size={18} />
@@ -145,15 +127,10 @@ export default function TaxGuidePanel({ predictionId }) {
 
                     <span className="tax-guide-name">
                       <strong>{item.name}</strong>
-                      <small className="tag">
-                        {info?.type}
-                      </small>
+                      <small className="tag">{info?.type}</small>
                     </span>
 
-                    <ChevronDown
-                      size={16}
-                      className={isOpen ? 'is-open' : ''}
-                    />
+                    <ChevronDown size={16} className={isOpen ? 'is-open' : ''} />
                   </button>
 
                   {isOpen && (
@@ -186,8 +163,8 @@ export default function TaxGuidePanel({ predictionId }) {
 
           <p className="tax-guide-notice">
             <Info size={14} />
-            실제 공제 여부와 절세 효과는 귀속 연도,
-            개인별 요건 및 납입 내역에 따라 달라질 수 있습니다.
+            실제 공제 여부와 절세 효과는 귀속 연도, 개인별 요건 및 납입 내역에 따라 달라질 수
+            있습니다.
           </p>
         </>
       )}

@@ -1,6 +1,6 @@
 // 열림 상태, 대화 내용, 요청 처리 관리
-import React, {createContext, useContext, useEffect, useRef, useState,} from "react";
-import { askFaq, getFaqById, FAQ_FALLBACK } from "../../api/faq-service.js";
+import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { askFaq, getFaqById, FAQ_FALLBACK } from '../../api/faq-service.js';
 const Context = createContext({
   openFaq: () => {},
   open: false,
@@ -13,7 +13,7 @@ export function FaqProvider({ children, sessionId }) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [busy, setBusy] = useState(false);
-    // 요청 횟수 제한
+  // 요청 횟수 제한
   const [blockedUntil, setBlockedUntil] = useState(0);
   const [remainingSeconds, setRemainingSeconds] = useState(0);
   const blockedUntilRef = useRef(0);
@@ -30,14 +30,11 @@ export function FaqProvider({ children, sessionId }) {
     setBlockedUntil(0);
     setRemainingSeconds(0);
   }, [sessionId]);
-    // 30초 카운트다운
+  // 30초 카운트다운
   useEffect(() => {
     if (!blockedUntil) return;
     function updateRemaining() {
-      const seconds = Math.max(
-        0,
-        Math.ceil((blockedUntil - Date.now()) / 1000)
-      );
+      const seconds = Math.max(0, Math.ceil((blockedUntil - Date.now()) / 1000));
       setRemainingSeconds(seconds);
       if (seconds === 0) {
         blockedUntilRef.current = 0;
@@ -49,7 +46,8 @@ export function FaqProvider({ children, sessionId }) {
     return () => clearInterval(timer);
   }, [blockedUntil]);
   async function submit({ id, question }) {
-    if (pending.current ||  Date.now() < blockedUntilRef.current || (!id && !question?.trim())) return false;
+    if (pending.current || Date.now() < blockedUntilRef.current || (!id && !question?.trim()))
+      return false;
     pending.current = true;
     setBusy(true);
     const current = generation.current;
@@ -59,11 +57,11 @@ export function FaqProvider({ children, sessionId }) {
       setMessages((previous) => [
         ...previous,
         {
-          role: "user",
-          text: question?.trim() || faq?.term || faq?.question || "선택한 용어",
+          role: 'user',
+          text: question?.trim() || faq?.term || faq?.question || '선택한 용어',
         },
         {
-          role: "assistant",
+          role: 'assistant',
           text: faq?.answer || FAQ_FALLBACK,
           source: faq?.source,
         },
@@ -71,11 +69,9 @@ export function FaqProvider({ children, sessionId }) {
       return true;
     } catch (error) {
       if (current !== generation.current) return false;
-      const isPrivacyError =
-        error?.code === "PERSONAL_INFO_DETECTED";
-      const isRateLimitError =
-        error?.code === "RATE_LIMIT_EXCEEDED";
-        // 개인정보 차단 또는 요청 횟수 초과
+      const isPrivacyError = error?.code === 'PERSONAL_INFO_DETECTED';
+      const isRateLimitError = error?.code === 'RATE_LIMIT_EXCEEDED';
+      // 개인정보 차단 또는 요청 횟수 초과
       const isBlocked = isPrivacyError || isRateLimitError;
       // HTTP 429 발생 시 30초 제한 시작
       if (isRateLimitError) {
@@ -91,20 +87,18 @@ export function FaqProvider({ children, sessionId }) {
         ...(!isBlocked
           ? [
               {
-                role: "user",
-                text: question?.trim() || "선택한 용어",
+                role: 'user',
+                text: question?.trim() || '선택한 용어',
               },
             ]
           : []),
 
         {
-          role: "assistant",
-          text: isBlocked
-            ? error.message
-            : "답변을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.",
+          role: 'assistant',
+          text: isBlocked ? error.message : '답변을 불러오지 못했어요. 잠시 후 다시 시도해 주세요.',
         },
       ]);
-        return false;
+      return false;
     } finally {
       if (current === generation.current) {
         pending.current = false;
@@ -117,9 +111,7 @@ export function FaqProvider({ children, sessionId }) {
     if (id) void submit({ id });
   }
   return (
-    <Context.Provider
-      value={{ open, setOpen, messages, busy, submit, openFaq, remainingSeconds, }}
-    >
+    <Context.Provider value={{ open, setOpen, messages, busy, submit, openFaq, remainingSeconds }}>
       {children}
     </Context.Provider>
   );
