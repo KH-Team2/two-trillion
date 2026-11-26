@@ -67,7 +67,17 @@ export function apiError(code, message, errorId) {
  */
 export async function apiRequest(
   path,
-  { method = 'GET', body, fetchImpl = globalThis.fetch, accessToken, offlineMessage } = {},
+  // [수정 11/23 고은] withMeta 옵션 추가 (기본 false → 지금까지 쓰던 곳은 그대로 data만 받아요)
+  //   이유: 관리자 접근 기록(F-21)은 페이지 정보(meta: page · size · total · totalPages)가 있어야
+  //   화면이 「전체 N건 · 1 / 4쪽」과 다음 쪽 버튼을 그릴 수 있음 → true면 { data, meta }를 돌려줘요
+  {
+    method = 'GET',
+    body,
+    fetchImpl = globalThis.fetch,
+    accessToken,
+    offlineMessage,
+    withMeta = false,
+  } = {},
 ) {
   // 토큰에 공백 · 줄바꿈이 있으면 헤더에 넣지 않아요 (깨진 값 · 헤더 끼워넣기 방지) → 서버가 401
   const headers = { Accept: 'application/json', ...bearerHeader(accessToken ?? readAccessToken()) };
@@ -116,7 +126,8 @@ export async function apiRequest(
       err.errorId,
     );
   }
-  return json.data;
+  // [수정 11/23 고은] withMeta면 봉투의 meta도 같이 · 아니면 지금처럼 data만
+  return withMeta ? { data: json.data, meta: json.meta ?? null } : json.data;
 }
 
 /** 귀속 연도 검사 (주소에 들어가는 값) */

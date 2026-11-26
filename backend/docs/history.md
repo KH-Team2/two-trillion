@@ -77,6 +77,26 @@
   - 화면 `npm test` 통과
   - 미검증: 실제 Oracle DB에서 `countRecentResets` 쿼리 실행 (Mock 테스트만)
 
+### [2026-11-24] IP 기준 로그인 제한 (D-15 · D-16 · F-09-01)
+- **작업 내용**
+  - D-15: IP 차단 목록(관리자가 IP 차단) 기능은 만들지 않음 → `BLOCKED_IP` 테이블 추가 없음
+  - D-16: 한 IP가 1분에 50번 이상 로그인 실패 → 12시간 동안 그 IP 로그인 429 `LOGIN_IP_BLOCKED`
+  - `AccessLogMapper.countIpBlockTriggers`: ACCESS_LOG 실패 기록을 `COUNT(*) OVER (RANGE 1분)`으로 세서 최근 12시간 안에 50번이 된 적 있는지 확인 (인덱스 `IX_ACCESS_LOG_IP`)
+  - `LoginService`: 회원 조회 전에 IP 확인 · 막힌 동안의 시도는 `DENIED` 기록(FAIL로 남기면 다시 세어져 차단이 늘어나서 · 회원 잠금처럼 처음 막힌 때부터 정확히 12시간) · IP 없음 · 확인 중 DB 오류면 막지 않음
+  - 테스트: `LoginServiceTest` 3건 추가
+- **변경 사유**: 기능명세서 결정 필요 항목 D-15(IP 차단 기능 없음) · D-16(1분 50번 → 12시간) 확정
+- **검증 결과**: `mvnw verify` 325건 통과 · SCREEN 조건 추가 후 Oracle에서 `countIpBlockTriggers` 실행 확인 · SQL로 로그인 실패 기록 50건을 넣은 뒤 Talend 로그인 시도 → 429 `LOGIN_IP_BLOCKED` · `DENIED` 기록 · 차단 판단 숫자 그대로(차단 시간 안 늘어남) · 회원 실패 횟수 그대로 · 실패 시각을 13시간 전으로 바꾸면 정상 로그인 확인
+
+### [2026-11-23] 관리자 접근 기록 조회 리뷰 반영 · 화면 연결 (F-21 · F-08-02 ③ · TT-156 · TT-157)
+- **작업 내용**
+  - `GET /api/admin/access-logs`: 날짜를 `LocalDate`로 받기(형식 틀리면 400) · page 1부터(`@Min(1)`) · size `@Min(1) @Max(100)` · 응답 `ApiResponse.ok(목록, PageMeta)`
+  - `AdminAccessLogMapper.xml`: `LEFT JOIN MEMBER`(회원 없는 실패 기록도 보이게) · `COUNT(...) OVER (PARTITION BY IP)`로 같은 IP 실패 수 · 목록 · 개수가 검색 조건 `<sql>` 공유
+  - `AdminAccessLogService.recordView`: 관리자가 목록을 본 것도 `ACCESS_LOG`에 기록 (번호 겹치면 한 번 더 · 실패해도 화면은 그대로 · `LoginService`와 같은 규칙)
+  - 화면: `access-log-service.js` 신규 · `AdminTools.jsx` 접근 기록 탭을 체험 데이터 → 서버 API · `api-client.js`에 `withMeta` 옵션(기본 꺼짐)
+  - 테스트: `AdminAccessLogServiceTest` 6건 · `tests/access-log-service.mjs`
+- **변경 사유**: PR #45 리뷰 4개(size 최대값 · 날짜 형식 · 전체 개수 · 회원 없는 기록) · 명세 F-08-02 비고 「관리자가 목록을 조회한 것도 ACCESS_LOG에 기록」
+- **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인 · (11/25) develop 체험판 삭제(#64) 병합 후 접근 기록 탭 다시 연결
+
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
 - **작업 내용**:
   - `backend/README.md`: `CALC_API_TOKEN` · `CHATBOT_API_TOKEN`을 4.2 추가 환경변수 → 4.1 필수 환경변수로 이동 · 4.3 STS 등록 목록과 5.2 CMD 실행 안내를 필수 6개 기준으로 수정
