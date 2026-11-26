@@ -2,6 +2,14 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-26] ERD v4.5 · 챗봇 대화 테이블 CHAT_SESSION · CHAT_MESSAGE 삭제 (TT-186)
+- **작업 내용**:
+  - `database/01_schema.sql`: `CHAT_SESSION` · `CHAT_MESSAGE` 테이블 · 인덱스 3개 · 시퀀스 2개 · COMMENT 삭제 (테이블 24 → 22 · 칸 237 → 226 · CHECK 54 → 53 · 인덱스 30 → 27 · 시퀀스 22 → 20)
+  - `database/00_초기화.sql`: 두 테이블 · 시퀀스 삭제 줄은 그대로 두고 주석만 추가 (v4.4 이하로 만든 계정을 비울 때 필요)
+  - `database/README.md`: v4.5 안내 추가 · 테이블 수 · zip 이름 · ERD 버전 표기
+- **변경 사유**: 팀 노션 DB 변경 요청(김동석 · 11/26) · 절세 가이드는 `RECOMMENDATION`만 쓰고 두 테이블을 쓰는 코드가 없음 (팀 깃 전체 브랜치에서 확인)
+- **검증 결과**: 백엔드 · 계산 서버 · 화면 코드 변경 없음 · 다른 테이블이 두 테이블을 가리키는 FK 없음 · 이미 만든 계정(공용 DB)은 DB 담당이 `75_v4.4에서_v4.5로.sql`로 적용
+
 ### [2026-11-25] API 규칙 문서 7번 표에 알림 · 상담 API 추가 (TT-184)
 - **작업 내용**: `backend/docs/api-rules.md` 7번 표에 알림 3개(`/api/notifications/stream` · `/api/notifications` · `/api/notifications/read`) · 상담 3개(`/api/consult/rooms` · `/api/consult/rooms/{roomId}/messages` · `/api/admin/consult/rooms`) 행 추가 · 표 아래에 WebSocket(`/ws` · `/sub` · `/pub` · `/user/queue/errors`) 주소 규칙 한 줄
 - **변경 사유**: 계산 · 회원 API는 표에 있는데 PR #51 · #58로 들어간 알림 · 상담 API가 빠져 있었음
