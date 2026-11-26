@@ -19,6 +19,26 @@
   - Talend: 기준값 조회 200 · 없는 연도 400 · 값 수정 200 · 수정 후 CRITERIA_HISTORY에 바뀐 칸 · 관리자 번호 기록 · 같은 값 재수정 시 이력 안 늘어남 · 구간 끝 ≤ 시작 400 · 근거 비움 400 · 없는 번호 404 · 이력 조회 200 · 연도 복사 200 · 같은 연도 다시 복사 409 · 일반 회원 403 · ACCESS_LOG 수정/복사 기록
   - 화면: 연도 선택 · 공제 항목/구간/혜택 표 · 수정 · 구간 추가 · 연도 추가 · 이력 · 되돌리기 · 모달 · 필수 칸 표시
 
+### [2026-11-26] ERD v4.5 · 챗봇 대화 테이블 CHAT_SESSION · CHAT_MESSAGE 삭제 (TT-186)
+- **작업 내용**:
+  - `database/01_schema.sql`: `CHAT_SESSION` · `CHAT_MESSAGE` 테이블 · 인덱스 3개 · 시퀀스 2개 · COMMENT 삭제 (테이블 24 → 22 · 칸 237 → 226 · CHECK 54 → 53 · 인덱스 30 → 27 · 시퀀스 22 → 20)
+  - `database/00_초기화.sql`: 두 테이블 · 시퀀스 삭제 줄은 그대로 두고 주석만 추가 (v4.4 이하로 만든 계정을 비울 때 필요)
+  - `database/README.md`: v4.5 안내 추가 · 테이블 수 · zip 이름 · ERD 버전 표기
+- **변경 사유**: 팀 노션 DB 변경 요청(김동석 · 11/26) · 절세 가이드는 `RECOMMENDATION`만 쓰고 두 테이블을 쓰는 코드가 없음 (팀 깃 전체 브랜치에서 확인)
+- **검증 결과**: 백엔드 · 계산 서버 · 화면 코드 변경 없음 · 다른 테이블이 두 테이블을 가리키는 FK 없음 · 이미 만든 계정(공용 DB)은 DB 담당이 `75_v4.4에서_v4.5로.sql`로 적용
+
+### [2026-11-25] 구조도에 알림 · 상담 채팅 추가 · ERD 버전 표기 v4.5 (TT-185)
+- **작업 내용**:
+  - `README.md`(루트) 구조도: 백엔드 `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가 · 화면 `api/`에 계산 · 혜택 진단 · 시뮬레이션 · 통계 · 알림 · 상담 호출 파일 9개 · `pages/support/ConsultChat.jsx` · 화면 테스트 5개 추가
+  - `backend/README.md` 구조도: `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가
+  - `backend/AGENTS.md` 폴더 구조: `notification/` · `consult/` 두 줄 추가
+  - ERD 버전 표기 v4.2 → v4.4: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+  - [추가 11/26] ERD 버전 표기 v4.4 → v4.5 (PR #66 · 챗봇 대화 테이블 2개 삭제 · 공용 DB는 11/26 v4.5 적용): 같은 3개 파일 · 루트 `README.md` 구조도 `01_schema.sql` 테이블 21개 → 22개
+  - 기능명세서 v1.14 → v1.15 (새 구글 시트 주소): `backend/README.md` · `calc/README.md` 표기 · `backend/README.md` · `backend/AGENTS.md` · `calc/AGENTS.md` 링크
+  - `frontend/docs/API_INTEGRATION.md`: 실시간 알림 · 관리자 상담 채팅 연결 흐름 추가 · 「아직 연결 안 된 부분」에서 해결된 카드 사용액 2건 정리
+- **변경 사유**: PR #46 · #51 · #58로 들어간 알림 · 상담 채팅과 ERD v4.3 · v4.4가 구조도 · 버전 표기에 빠져 있었음
+- **검증 결과**: 문서만 바꿈 (코드 변경 없음) · 폴더 · 파일 이름은 develop(e19fb07)의 실제 경로와 대조
+
 ### [2026-11-25] API 규칙 문서 7번 표에 알림 · 상담 API 추가 (TT-184)
 - **작업 내용**: `backend/docs/api-rules.md` 7번 표에 알림 3개(`/api/notifications/stream` · `/api/notifications` · `/api/notifications/read`) · 상담 3개(`/api/consult/rooms` · `/api/consult/rooms/{roomId}/messages` · `/api/admin/consult/rooms`) 행 추가 · 표 아래에 WebSocket(`/ws` · `/sub` · `/pub` · `/user/queue/errors`) 주소 규칙 한 줄
 - **변경 사유**: 계산 · 회원 API는 표에 있는데 PR #51 · #58로 들어간 알림 · 상담 API가 빠져 있었음
