@@ -1,5 +1,5 @@
 -- 계정_1_생성.sql · DB 계정 2개 만들기 (DB 관리자 계정으로 · 맨 먼저 실행)
--- 주인 계정: 테이블 · 시퀀스 · 함수 주인 · Spring(backend/.env)이 사용 · 롤(CONNECT · RESOURCE) 대신 필요한 권한 4개만
+-- 주인 계정: 테이블 · 시퀀스 · 함수 주인 · Spring(backend/.env)이 사용 · 롤(CONNECT · RESOURCE) 대신 필요한 권한 5개만
 -- 계산 서버 계정: 기준값 3개 읽기 전용 · 계산 서버(calc/.env)가 사용 · 읽기 권한은 테이블이 생긴 뒤 계정_2에서 줌
 -- 계정 이름 · 비밀번호는 실행할 때 입력받아요 (저장소 · 노션에 적지 않음 · 실제 값은 팀 단톡)
 -- 공용 DB처럼 CDB 루트(CDB$ROOT)에서 만들 때는 이름이 C##으로 시작해야 해요 (아니면 ORA-65096)
@@ -17,8 +17,9 @@ CREATE USER &owner_user IDENTIFIED BY "&owner_pw"
   DEFAULT TABLESPACE USERS
   QUOTA 2G ON USERS;
 
--- CREATE SESSION 접속 · CREATE TABLE 테이블 21개(인덱스 · LOB 포함) · CREATE SEQUENCE 시퀀스 · CREATE PROCEDURE 함수 FN_NORMALIZE_NAME
-GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE PROCEDURE TO &owner_user;
+-- CREATE SESSION 접속 · CREATE TABLE 테이블 24개(인덱스 · LOB 포함) · CREATE SEQUENCE 시퀀스 · CREATE PROCEDURE 함수 FN_NORMALIZE_NAME
+-- CREATE TRIGGER 기준값 변경 이력 트리거 3개 (v4.4 · 이미 만든 계정은 DB 관리자가 GRANT CREATE TRIGGER TO 주인 계정 한 번)
+GRANT CREATE SESSION, CREATE TABLE, CREATE SEQUENCE, CREATE PROCEDURE, CREATE TRIGGER TO &owner_user;
 
 -- 2) 계산 서버 계정: 접속만 (테이블을 만들지 않으므로 저장 공간 · 다른 권한 없음)
 CREATE USER &calc_user IDENTIFIED BY "&calc_pw";

@@ -2,7 +2,6 @@
 // 응답은 항상 공통 봉투예요 (팀 합의 11/09 · back ApiResponse)
 //   성공: {"success": true,  "data": {...}, "meta": null, "error": null}        → data만 돌려줘요
 //   실패: {"success": false, "data": null, "error": {"code", "message", "errorId"?}} → code · message를 가진 Error로 바꿔요
-const env = import.meta.env || {};
 
 // 로그인 토큰(JWT) 보관 이름 (localStorage · backend/docs/decisions/0004)
 // 로그인 화면 연결 때 로그인 응답의 accessToken을 이 이름으로 저장 · 로그아웃 때 지워요
@@ -48,15 +47,8 @@ export function expireLogin() {
   }
 }
 
-// 서버에 연결할 수 없을 때(OFFLINE) 체험용 계산으로 대신 보여 줘도 되는지.
-// 개발 서버(npm run dev)에서만 허용해요 → 백엔드 없이 화면만 띄워 개발할 수 있게.
-// 빌드한 파일(배포본)에서는 허용하지 않아요 → 서버가 꺼졌을 때 가짜 숫자가 결과처럼 보이지 않게.
-export const demoFallbackAllowed = Boolean(env.DEV);
-
-/** 이 오류를 체험용 계산으로 대신해도 되는지 (연결 실패 + 개발 서버일 때만) */
-export function canUseDemo(error, allowed = demoFallbackAllowed) {
-  return error?.code === 'OFFLINE' && allowed;
-}
+// [수정 11/23] demoFallbackAllowed · canUseDemo 삭제 · 이유: 체험판 기능 삭제 결정
+//   (서버에 연결할 수 없을 때 개발 서버에서 체험용 계산으로 대신 보여 주던 기능)
 
 export function apiError(code, message, errorId) {
   // 서버 오류(500 · 503)엔 추적 번호가 와요 → 문구 뒤에 붙여서 사용자가 알려줄 수 있게
@@ -126,7 +118,7 @@ export async function apiRequest(
   }
   if (!response.ok || !json.success) {
     const err = json.error || {};
-    // 토큰을 보냈는데 401 → 만료 · 로그아웃된 토큰 → 로그인 화면으로 (토큰 없이 보낸 체험 요청은 그대로 오류만)
+    // 토큰을 보냈는데 401 → 만료 · 로그아웃된 토큰 → 로그인 화면으로 (토큰 없이 보낸 요청은 그대로 오류만)
     if (response.status === 401 && headers.Authorization) expireLogin();
     throw apiError(
       err.code || `HTTP_${response.status}`,

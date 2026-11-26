@@ -10,8 +10,10 @@ const modules = {
   expense: 'src/api/expense-service.js',
   erd: 'src/api/erd-contract.js',
   services: 'src/api/services.js',
-  benefits: 'src/utils/benefit-model.js',
 };
+// [수정 11/23] 체험판 기능 삭제에 맞춰 정리 · 이유: 테스트하던 코드가 삭제됨
+//   parseUploadCSV(브라우저 파일 해석) → 서버 업로드 결과 모양의 거래를 직접 만들어 검사
+//   taxService(체험용 계산) · benefitChecks(체험 혜택 판정) 검사 삭제
 const loaded = {};
 for (const [name, entry] of Object.entries(modules)) {
   await build({
@@ -36,13 +38,35 @@ try {
     ['2027-01-01T00:00:00+09:00', 2026],
   ])
     assert.equal(getDefaultTaxYear(new Date(date)), year);
-  const rows = loaded.expense.parseUploadCSV(
-    '거래일자,가맹점명,이용금액,사용구분\n2026-12-01,교보문고,10000,CHECK\n2027-01-02,가게,20000,CREDIT',
-  );
+  // 서버 업로드 결과와 같은 모양의 거래 (서버가 분류 · 결제수단을 채워 보냄)
+  const rows = [
+    {
+      id: 1,
+      date: '2026-12-01',
+      merchant: '교보문고',
+      amount: 10000,
+      category: '문화체육',
+      CATEGORY_CODE: 'CULTURE',
+      paymentMethod: '체크카드',
+      PAY_METHOD: 'CHECK',
+      source: 'upload',
+    },
+    {
+      id: 2,
+      date: '2027-01-02',
+      merchant: '가게',
+      amount: 20000,
+      category: '일반',
+      CATEGORY_CODE: 'GENERAL',
+      paymentMethod: '신용카드',
+      PAY_METHOD: 'CREDIT',
+      source: 'upload',
+    },
+  ];
   assert.deepEqual(loaded.expense.uploadTotals(rows, 2026), { credit: 0, debit: 10000, cash: 0 });
   assert.deepEqual(loaded.expense.uploadTotals(rows, 2027), { credit: 20000, debit: 0, cash: 0 });
   assert.equal(rows.length, 2);
-  const { initial, taxService } = loaded.services;
+  const { initial } = loaded.services;
   const input = {
     ...initial,
     taxYear: 2026,
@@ -141,17 +165,6 @@ try {
     () => loaded.result.parseCalculationResult({ ...raw, expectedRefund: NaN }),
     /결과/,
   );
-  const result = taxService.calculate(input);
-  assert.equal(result.details.find((d) => d.typeCode === 'RENT').baseAmount, 6000000);
-  for (const key of ['tax', 'paid', 'refund', 'deductions', 'beforeDeductions'])
-    assert(!(key in result));
-  for (const item of result.details)
-    for (const key of ['effect', 'formula', 'status', 'note']) assert(!(key in item));
-  assert.equal(result.taxableIncome, null); // 미연동 과세표준은 임의 숫자를 만들지 않음
-  assert.equal(loaded.benefits.benefitChecks(initial).length, 3);
-  assert.equal(loaded.benefits.benefitChecks(initial)[0].status, '확인 필요');
-  assert.equal(loaded.benefits.benefitChecks({ ...initial, sme: '아니요' })[0].status, '비해당');
-  assert.equal(loaded.benefits.benefitChecks({ ...initial, sme: '예' })[0].status, '해당');
   assert.equal(
     loaded.result.migrateCalculationHistory({ refund: -50, tax: 200, paid: 150 }).expectedRefund,
     -50,

@@ -12,12 +12,13 @@
     "preview": "vite preview",
     "format": "prettier --write \"src/**/*.{js,jsx,css,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,jsx,css,json}\"",
-    "test": "node src/api/http.test.js && node src/api/member-api.test.js && node tests/prototype-flows.mjs && node tests/feedback-contract.mjs && node tests/benefit-service.mjs && node tests/calculation-service.mjs && node tests/prediction-service.mjs && node tests/inquiry-service.mjs && node tests/access-log-service.mjs && node tests/admin-member-service.mjs && node tests/notification-stream.mjs && node tests/render-pages.mjs"
+    "test": "node src/api/http.test.js && node src/api/member-api.test.js && node tests/prototype-flows.mjs && node tests/feedback-contract.mjs && node tests/benefit-service.mjs && node tests/calculation-service.mjs && node tests/prediction-service.mjs && node tests/inquiry-service.mjs && node tests/access-log-service.mjs && node tests/admin-member-service.mjs && node tests/consult-chat.mjs && node tests/notification-stream.mjs && node tests/render-pages.mjs"
   },
   "dependencies": {
     "@base-ui/react": "1.7.0",
     "@hookform/resolvers": "5.7.1",
     "@shadcn/react": "0.3.0",
+    "@stomp/stompjs": "7.3.0",
     "class-variance-authority": "0.7.1",
     "clsx": "2.1.1",
     "cmdk": "1.1.1",

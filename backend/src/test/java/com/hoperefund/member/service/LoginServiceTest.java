@@ -2,8 +2,11 @@ package com.hoperefund.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -36,6 +40,8 @@ class LoginServiceTest {
 
     private static final String IP = "127.0.0.1";
     private static final String PASSWORD = "password123";
+    private static final String WRONG_PASSWORD = "wrong-password";
+    private static final String JWT_SECRET = "test-jwt-secret-must-be-at-least-32-bytes";
 
     private MemberMapper memberMapper;
     private AccessLogMapper accessLogMapper;
@@ -49,13 +55,24 @@ class LoginServiceTest {
         accessLogMapper = mock(AccessLogMapper.class);
         passwordEncoder = new BCryptPasswordEncoder(4); // 테스트 속도를 위해 낮은 강도
         passwordHash = passwordEncoder.encode(PASSWORD);
-        tokenService =
-                new TokenService("test-jwt-secret-must-be-at-least-32-bytes", Duration.ofHours(2));
+        tokenService = new TokenService(JWT_SECRET, Duration.ofHours(2));
     }
 
     private LoginService service(boolean lockEnabled) {
         return new LoginService(
                 memberMapper, accessLogMapper, passwordEncoder, tokenService, lockEnabled);
+    }
+
+    // 로그인 요청 → 성공 응답
+    private LoginResponseDTO login(boolean lockEnabled, String loginId, String password) {
+        return service(lockEnabled).login(new LoginRequestDTO(loginId, password), IP);
+    }
+
+    // 로그인 요청 → 난 오류를 꺼낸다 (BusinessException 이 안 나면 테스트 실패)
+    private BusinessException loginError(boolean lockEnabled, String loginId, String password) {
+        Throwable thrown = catchThrowable(() -> login(lockEnabled, loginId, password));
+        assertThat(thrown).isInstanceOf(BusinessException.class);
+        return (BusinessException) thrown;
     }
 
     private LoginMemberDTO member(String status, String lockedYn, int failCount) {
@@ -77,8 +94,7 @@ class LoginServiceTest {
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 2));
 
         // 아이디는 앞뒤 공백 · 대문자를 정리해서 찾는다
-        LoginResponseDTO response =
-                service(true).login(new LoginRequestDTO(" Hope_User ", PASSWORD), IP);
+        LoginResponseDTO response = login(true, " Hope_User ", PASSWORD);
 
         assertThat(response.getTokenType()).isEqualTo("Bearer");
         assertThat(response.getLoginId()).isEqualTo("hope_user");
@@ -98,7 +114,7 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
 
-        service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
+        login(true, "hope_user", PASSWORD);
 
         verify(memberMapper, never()).resetLoginFail(anyLong());
     }
@@ -109,13 +125,9 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("nobody")).willReturn(null);
 
-        assertThatThrownBy(() -> service(true).login(new LoginRequestDTO("nobody", PASSWORD), IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> {
-                            assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
-                            assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
-                        });
+        BusinessException e = loginError(true, "nobody", PASSWORD);
+        assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
 
         verify(accessLogMapper)
                 .insertAccessLog(isNull(), eq("/api/auth/login"), eq(IP), eq("FAIL"));
@@ -127,18 +139,9 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
 
-        assertThatThrownBy(
-                        () ->
-                                service(true)
-                                        .login(
-                                                new LoginRequestDTO("hope_user", "wrong-password"),
-                                                IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> {
-                            assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
-                            assertThat(e.getMessage()).isEqualTo("아이디 또는 비밀번호가 맞지 않아요");
-                        });
+        BusinessException e = loginError(true, "hope_user", WRONG_PASSWORD);
+        assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
+        assertThat(e.getMessage()).isEqualTo("아이디 또는 비밀번호가 맞지 않아요");
 
         verify(memberMapper).increaseLoginFail(3L, 5, 10);
         verify(accessLogMapper).insertAccessLog(3L, "/api/auth/login", IP, "FAIL");
@@ -150,15 +153,10 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "Y", 0));
 
-        assertThatThrownBy(
-                        () -> service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> {
-                            assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
-                            assertThat(e.getCode()).isEqualTo("LOGIN_LOCKED");
-                            assertThat(e.getMessage()).isEqualTo("10분 뒤 다시 시도해 주세요");
-                        });
+        BusinessException e = loginError(true, "hope_user", PASSWORD);
+        assertThat(e.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+        assertThat(e.getCode()).isEqualTo("LOGIN_LOCKED");
+        assertThat(e.getMessage()).isEqualTo("10분 뒤 다시 시도해 주세요");
 
         verify(memberMapper, never())
                 .increaseLoginFail(anyLong(), any(Integer.class), any(Integer.class));
@@ -171,17 +169,10 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "Y", 0));
 
-        LoginResponseDTO response =
-                service(false).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
+        LoginResponseDTO response = login(false, "hope_user", PASSWORD);
         assertThat(response.getAccessToken()).isNotBlank();
 
-        assertThatThrownBy(
-                        () ->
-                                service(false)
-                                        .login(
-                                                new LoginRequestDTO("hope_user", "wrong-password"),
-                                                IP))
-                .isInstanceOf(BusinessException.class);
+        loginError(false, "hope_user", WRONG_PASSWORD);
         verify(memberMapper, never())
                 .increaseLoginFail(anyLong(), any(Integer.class), any(Integer.class));
     }
@@ -192,14 +183,9 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("WITHDRAWN", "N", 0));
 
-        assertThatThrownBy(
-                        () -> service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> {
-                            assertThat(e.getCode()).isEqualTo("WITHDRAWN_MEMBER");
-                            assertThat(e.getMessage()).isEqualTo("탈퇴한 계정이에요");
-                        });
+        BusinessException e = loginError(true, "hope_user", PASSWORD);
+        assertThat(e.getCode()).isEqualTo("WITHDRAWN_MEMBER");
+        assertThat(e.getMessage()).isEqualTo("탈퇴한 계정이에요");
         verify(accessLogMapper).insertAccessLog(3L, "/api/auth/login", IP, "FAIL");
     }
 
@@ -209,15 +195,8 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("WITHDRAWN", "N", 0));
 
-        assertThatThrownBy(
-                        () ->
-                                service(true)
-                                        .login(
-                                                new LoginRequestDTO("hope_user", "wrong-password"),
-                                                IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> assertThat(e.getCode()).isEqualTo("LOGIN_FAILED"));
+        BusinessException e = loginError(true, "hope_user", WRONG_PASSWORD);
+        assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
     }
 
     // BCrypt 한도(72바이트)를 넘는 비밀번호 → 서버 오류가 아니라 LOGIN_FAILED
@@ -226,15 +205,8 @@ class LoginServiceTest {
 
         given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
 
-        assertThatThrownBy(
-                        () ->
-                                service(true)
-                                        .login(
-                                                new LoginRequestDTO("hope_user", "a".repeat(80)),
-                                                IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> assertThat(e.getCode()).isEqualTo("LOGIN_FAILED"));
+        BusinessException e = loginError(true, "hope_user", "a".repeat(80));
+        assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
     }
 
     // ACCESS_LOG 번호가 겹치면 한 번 더 시도하고, 그래도 안 되면 로그인은 그대로 성공
@@ -245,8 +217,7 @@ class LoginServiceTest {
         given(accessLogMapper.insertAccessLog(any(), any(), any(), any()))
                 .willThrow(new DuplicateKeyException("겹침"));
 
-        LoginResponseDTO response =
-                service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
+        LoginResponseDTO response = login(true, "hope_user", PASSWORD);
 
         assertThat(response.getAccessToken()).isNotBlank();
         verify(accessLogMapper, times(2)).insertAccessLog(3L, "/api/auth/login", IP, "SUCCESS");
@@ -260,10 +231,8 @@ class LoginServiceTest {
         given(accessLogMapper.insertAccessLog(any(), any(), any(), any()))
                 .willThrow(new DataIntegrityViolationException("저장 실패"));
 
-        assertThatThrownBy(() -> service(true).login(new LoginRequestDTO("nobody", PASSWORD), IP))
-                .isInstanceOfSatisfying(
-                        BusinessException.class,
-                        e -> assertThat(e.getCode()).isEqualTo("LOGIN_FAILED"));
+        BusinessException e = loginError(true, "nobody", PASSWORD);
+        assertThat(e.getCode()).isEqualTo("LOGIN_FAILED");
         verify(accessLogMapper, times(1)).insertAccessLog(any(), any(), any(), any());
     }
 
@@ -276,5 +245,58 @@ class LoginServiceTest {
         service(true).logout(tokenService.verify(token).orElseThrow());
 
         assertThat(tokenService.verify(token)).isEmpty();
+    }
+
+    // [추가 11/24 고은] D-16 IP 기준 로그인 제한 테스트 3건
+
+    // 막힌 IP → 429 LOGIN_IP_BLOCKED · 회원 조회도 안 함 · 회원번호 없이 DENIED 기록 (FAIL 아님 → 차단 시간이 늘지 않음) · 기준
+    // 숫자(50번 · 1분 · 12시간) 확인
+    @Test
+    void blockedIpIsRejectedBeforeMemberLookup() {
+
+        given(accessLogMapper.countIpBlockTriggers(IP, 50, 1, 12)).willReturn(1);
+
+        assertThatThrownBy(
+                        () -> service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP))
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        e -> {
+                            assertThat(e.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+                            assertThat(e.getCode()).isEqualTo("LOGIN_IP_BLOCKED");
+                        });
+
+        verify(memberMapper, never()).selectLoginMember(anyString());
+        verify(memberMapper, never())
+                .increaseLoginFail(anyLong(), any(Integer.class), any(Integer.class));
+        verify(accessLogMapper)
+                .insertAccessLog(isNull(), eq("/api/auth/login"), eq(IP), eq("DENIED"));
+    }
+
+    // IP 를 모르면(null) 세지 않고 평소처럼 로그인
+    @Test
+    void unknownIpIsNotChecked() {
+
+        given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
+
+        LoginResponseDTO response =
+                service(true).login(new LoginRequestDTO("hope_user", PASSWORD), null);
+
+        assertThat(response.getLoginId()).isEqualTo("hope_user");
+        verify(accessLogMapper, never()).countIpBlockTriggers(any(), anyInt(), anyInt(), anyInt());
+    }
+
+    // IP 확인 중 DB 오류 → 막지 않고 평소처럼 로그인
+    @Test
+    void ipCheckFailureDoesNotBlockLogin() {
+
+        given(accessLogMapper.countIpBlockTriggers(any(), anyInt(), anyInt(), anyInt()))
+                .willThrow(new QueryTimeoutException("시간 초과"));
+        given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
+
+        LoginResponseDTO response =
+                service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
+
+        assertThat(response.getLoginId()).isEqualTo("hope_user");
+        verify(accessLogMapper).insertAccessLog(3L, "/api/auth/login", IP, "SUCCESS");
     }
 }

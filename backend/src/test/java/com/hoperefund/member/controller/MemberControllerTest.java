@@ -28,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 /**
  * 회원가입 API 테스트
@@ -39,8 +40,14 @@ import org.springframework.test.web.servlet.MockMvc;
 class MemberControllerTest {
 
     private static final String URL = "/api/auth/members";
+    private static final String EMAIL = "hope@example.com";
 
     @Autowired private MockMvc mockMvc;
+
+    // JSON 본문으로 POST 요청
+    private ResultActions postJson(String url, String body) throws Exception {
+        return mockMvc.perform(post(url).contentType(MediaType.APPLICATION_JSON).content(body));
+    }
 
     @MockitoBean private MemberService memberService;
 
@@ -69,17 +76,12 @@ class MemberControllerTest {
     @Test
     void signupReturns200() throws Exception {
 
-        given(memberService.signup(any()))
-                .willReturn(
-                        new MemberSignupResponseDTO(
-                                1L,
-                                "hope_user",
-                                "hope@example.com",
-                                null,
-                                "USER",
-                                LocalDateTime.of(2026, 11, 10, 12, 0)));
+        LocalDateTime createdAt = LocalDateTime.of(2026, 11, 10, 12, 0);
+        MemberSignupResponseDTO response =
+                new MemberSignupResponseDTO(1L, "hope_user", EMAIL, null, "USER", createdAt);
+        given(memberService.signup(any())).willReturn(response);
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        postJson(URL, VALID_BODY)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.memberId").value(1))
@@ -96,7 +98,7 @@ class MemberControllerTest {
 
         String body = VALID_BODY.replace("\"financeAgreed\": true", "\"financeAgreed\": false");
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        postJson(URL, body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"))
                 .andExpect(jsonPath("$.error.message").value("소득·카드 내역 저장에 동의해야 가입할 수 있어요"));
@@ -110,7 +112,7 @@ class MemberControllerTest {
 
         String body = VALID_BODY.replace("\"termsAgreed\": true", "\"termsAgreed\": false");
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        postJson(URL, body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("이용약관에 동의해야 가입할 수 있어요"));
     }
@@ -121,7 +123,7 @@ class MemberControllerTest {
 
         String body = VALID_BODY.replace("\"privacyAgreed\": true", "\"privacyAgreed\": false");
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        postJson(URL, body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("개인정보 수집·이용에 동의해야 가입할 수 있어요"));
     }
@@ -132,7 +134,7 @@ class MemberControllerTest {
 
         String body = VALID_BODY.replace("hope@example.com", "not-an-email");
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        postJson(URL, body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"))
                 .andExpect(jsonPath("$.error.message").value("이메일 형식을 확인해 주세요"));
@@ -144,7 +146,7 @@ class MemberControllerTest {
 
         String body = VALID_BODY.replace("\"gender\": \"F\"", "\"gender\": \"\"");
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        postJson(URL, body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("성별을 선택해 주세요"));
     }
@@ -155,7 +157,7 @@ class MemberControllerTest {
 
         String body = VALID_BODY.replace("\"gender\": \"F\"", "\"gender\": \"여성\"");
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(body))
+        postJson(URL, body)
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"));
     }
@@ -166,12 +168,12 @@ class MemberControllerTest {
     @Test
     void duplicateLoginIdReturns409() throws Exception {
 
-        given(memberService.signup(any()))
-                .willThrow(
-                        new BusinessException(
-                                HttpStatus.CONFLICT, "DUPLICATE_LOGIN_ID", "이미 사용 중인 아이디예요"));
+        String message = "이미 사용 중인 아이디예요";
+        BusinessException error =
+                new BusinessException(HttpStatus.CONFLICT, "DUPLICATE_LOGIN_ID", message);
+        given(memberService.signup(any())).willThrow(error);
 
-        mockMvc.perform(post(URL).contentType(MediaType.APPLICATION_JSON).content(VALID_BODY))
+        postJson(URL, VALID_BODY)
                 .andExpect(status().isConflict())
                 .andExpect(jsonPath("$.error.code").value("DUPLICATE_LOGIN_ID"))
                 .andExpect(jsonPath("$.error.message").value("이미 사용 중인 아이디예요"));
@@ -222,22 +224,12 @@ class MemberControllerTest {
     @Test
     void loginReturns200WithToken() throws Exception {
 
-        given(loginService.login(any(LoginRequestDTO.class), anyString()))
-                .willReturn(
-                        new LoginResponseDTO(
-                                "token-value",
-                                "Bearer",
-                                LocalDateTime.of(2026, 11, 16, 12, 0),
-                                "hope_user",
-                                "USER"));
+        LocalDateTime expiresAt = LocalDateTime.of(2026, 11, 16, 12, 0);
+        LoginResponseDTO response =
+                new LoginResponseDTO("token-value", "Bearer", expiresAt, "hope_user", "USER");
+        given(loginService.login(any(LoginRequestDTO.class), anyString())).willReturn(response);
 
-        mockMvc.perform(
-                        post(LOGIN_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        """
-                                        {"loginId": "hope_user", "password": "password123"}
-                                        """))
+        postJson(LOGIN_URL, "{\"loginId\": \"hope_user\", \"password\": \"password123\"}")
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data.accessToken").value("token-value"))
@@ -252,24 +244,12 @@ class MemberControllerTest {
     @Test
     void loginWithBlankFieldsReturns400() throws Exception {
 
-        mockMvc.perform(
-                        post(LOGIN_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        """
-                                        {"loginId": "", "password": "password123"}
-                                        """))
+        postJson(LOGIN_URL, "{\"loginId\": \"\", \"password\": \"password123\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.code").value("VALIDATION"))
                 .andExpect(jsonPath("$.error.message").value("아이디를 입력해 주세요"));
 
-        mockMvc.perform(
-                        post(LOGIN_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        """
-                                        {"loginId": "hope_user"}
-                                        """))
+        postJson(LOGIN_URL, "{\"loginId\": \"hope_user\"}")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("비밀번호를 입력해 주세요"));
 
@@ -280,18 +260,12 @@ class MemberControllerTest {
     @Test
     void loginFailureReturns401WithCode() throws Exception {
 
-        given(loginService.login(any(LoginRequestDTO.class), anyString()))
-                .willThrow(
-                        new BusinessException(
-                                HttpStatus.UNAUTHORIZED, "LOGIN_FAILED", "아이디 또는 비밀번호가 맞지 않아요"));
+        String message = "아이디 또는 비밀번호가 맞지 않아요";
+        BusinessException error =
+                new BusinessException(HttpStatus.UNAUTHORIZED, "LOGIN_FAILED", message);
+        given(loginService.login(any(LoginRequestDTO.class), anyString())).willThrow(error);
 
-        mockMvc.perform(
-                        post(LOGIN_URL)
-                                .contentType(MediaType.APPLICATION_JSON)
-                                .content(
-                                        """
-                                        {"loginId": "hope_user", "password": "wrong-password"}
-                                        """))
+        postJson(LOGIN_URL, "{\"loginId\": \"hope_user\", \"password\": \"wrong-password\"}")
                 .andExpect(status().isUnauthorized())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.error.code").value("LOGIN_FAILED"))

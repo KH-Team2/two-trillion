@@ -21,6 +21,7 @@ import java.time.ZoneId;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
@@ -32,6 +33,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
  * DB 없이 Mapper · 이메일 인증을 대신해 업무 검증 · 암호화 · 저장 값을 확인한다.
  */
 class MemberServiceTest {
+
+    private static final LocalDate BIRTH_DATE = LocalDate.of(2000, 1, 15);
 
     private MemberMapper memberMapper;
     private PasswordEncoder passwordEncoder;
@@ -46,26 +49,33 @@ class MemberServiceTest {
         memberService = new MemberService(memberMapper, passwordEncoder, emailVerificationService);
     }
 
-    private MemberSignupRequestDTO request(
-            String loginId, String password, String confirm, LocalDate birthDate) {
-        return new MemberSignupRequestDTO(
-                loginId,
-                " Hope@Example.com ",
-                password,
-                confirm,
-                birthDate,
-                "M",
-                true,
-                true,
-                true,
-                "v1.0",
-                "v1.0",
-                "v1.0",
-                "verify-1");
+    // 가입 요청 (바꿔 볼 칸만 받고 나머지는 정상 값)
+    private MemberSignupRequestDTO request(String id, String pw, String confirm, LocalDate birth) {
+        MemberSignupRequestDTO request = new MemberSignupRequestDTO();
+        request.setLoginId(id);
+        request.setEmail(" Hope@Example.com ");
+        request.setPassword(pw);
+        request.setPasswordConfirm(confirm);
+        request.setBirthDate(birth);
+        request.setGender("M");
+        request.setTermsAgreed(true);
+        request.setPrivacyAgreed(true);
+        request.setFinanceAgreed(true);
+        request.setTermsVersion("v1.0");
+        request.setPrivacyVersion("v1.0");
+        request.setFinanceVersion("v1.0");
+        request.setVerificationId("verify-1");
+        return request;
     }
 
     private MemberSignupRequestDTO validRequest() {
-        return request("Hope_User", "password123", "password123", LocalDate.of(2000, 1, 15));
+        return request("Hope_User", "password123", "password123", BIRTH_DATE);
+    }
+
+    // insertMember 대역: XML 의 selectKey 처럼 새 번호(7)를 채운다
+    private int assignMemberId(InvocationOnMock invocation) {
+        invocation.<MemberInsertDTO>getArgument(0).setMemberId(7L);
+        return 1;
     }
 
     // 정상 가입: 소문자 정리 · BCrypt 암호화 · 인증 확인 · 서버 지정 값 저장 · 인증 사용 처리
@@ -74,12 +84,7 @@ class MemberServiceTest {
 
         given(memberMapper.countByLoginId("hope_user")).willReturn(0);
         given(memberMapper.countByEmail("hope@example.com")).willReturn(0);
-        given(memberMapper.insertMember(any()))
-                .willAnswer(
-                        invocation -> {
-                            invocation.<MemberInsertDTO>getArgument(0).setMemberId(7L);
-                            return 1;
-                        });
+        given(memberMapper.insertMember(any())).willAnswer(this::assignMemberId);
 
         MemberSignupResponseDTO response = memberService.signup(validRequest());
 
@@ -109,9 +114,10 @@ class MemberServiceTest {
     @Test
     void unverifiedEmailThrows() {
 
-        willThrow(
-                        new BusinessException(
-                                HttpStatus.BAD_REQUEST, "EMAIL_NOT_VERIFIED", "이메일 인증을 완료해 주세요"))
+        String message = "이메일 인증을 완료해 주세요";
+        BusinessException notVerified =
+                new BusinessException(HttpStatus.BAD_REQUEST, "EMAIL_NOT_VERIFIED", message);
+        willThrow(notVerified)
                 .given(emailVerificationService)
                 .requireVerified("verify-1", "hope@example.com");
 
@@ -128,21 +134,8 @@ class MemberServiceTest {
     @Test
     void blankVerificationIdThrowsWhenRequired() {
 
-        MemberSignupRequestDTO blank =
-                new MemberSignupRequestDTO(
-                        "hope_user",
-                        "hope@example.com",
-                        "password123",
-                        "password123",
-                        LocalDate.of(2000, 1, 15),
-                        "M",
-                        true,
-                        true,
-                        true,
-                        "v1.0",
-                        "v1.0",
-                        "v1.0",
-                        " ");
+        MemberSignupRequestDTO blank = validRequest();
+        blank.setVerificationId(" ");
 
         assertThatThrownBy(() -> memberService.signup(blank))
                 .isInstanceOf(BusinessException.class)
@@ -158,21 +151,9 @@ class MemberServiceTest {
 
         MemberService noVerification =
                 new MemberService(memberMapper, passwordEncoder, emailVerificationService, false);
-        MemberSignupRequestDTO noId =
-                new MemberSignupRequestDTO(
-                        "hope_user",
-                        "hope@example.com",
-                        "password123",
-                        "password123",
-                        LocalDate.of(2000, 1, 15),
-                        "F",
-                        true,
-                        true,
-                        true,
-                        "v1.0",
-                        "v1.0",
-                        "v1.0",
-                        null);
+        MemberSignupRequestDTO noId = validRequest();
+        noId.setGender("F");
+        noId.setVerificationId(null);
 
         noVerification.signup(noId);
 
@@ -186,14 +167,10 @@ class MemberServiceTest {
     @Test
     void passwordMismatchThrows() {
 
-        assertThatThrownBy(
-                        () ->
-                                memberService.signup(
-                                        request(
-                                                "hope_user",
-                                                "password123",
-                                                "password999",
-                                                LocalDate.of(2000, 1, 15))))
+        MemberSignupRequestDTO mismatch =
+                request("hope_user", "password123", "password999", BIRTH_DATE);
+
+        assertThatThrownBy(() -> memberService.signup(mismatch))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("비밀번호 확인이 일치하지 않아요");
 
@@ -206,14 +183,10 @@ class MemberServiceTest {
 
         LocalDate thirteen = LocalDate.now(ZoneId.of("Asia/Seoul")).minusYears(13);
 
-        assertThatThrownBy(
-                        () ->
-                                memberService.signup(
-                                        request(
-                                                "hope_user",
-                                                "password123",
-                                                "password123",
-                                                thirteen)))
+        MemberSignupRequestDTO underAge =
+                request("hope_user", "password123", "password123", thirteen);
+
+        assertThatThrownBy(() -> memberService.signup(underAge))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("만 14세 이상만 가입할 수 있어요")
                 .extracting("code")
@@ -224,14 +197,10 @@ class MemberServiceTest {
     @Test
     void withdrawnPrefixLoginIdThrows() {
 
-        assertThatThrownBy(
-                        () ->
-                                memberService.signup(
-                                        request(
-                                                "withdrawn_abc",
-                                                "password123",
-                                                "password123",
-                                                LocalDate.of(2000, 1, 15))))
+        MemberSignupRequestDTO withdrawnId =
+                request("withdrawn_abc", "password123", "password123", BIRTH_DATE);
+
+        assertThatThrownBy(() -> memberService.signup(withdrawnId))
                 .isInstanceOf(BusinessException.class)
                 .hasMessage("사용할 수 없는 아이디예요")
                 .extracting("code")

@@ -1,5 +1,6 @@
 import DeductionDetails from '@/components/common/DeductionDetails.jsx';
 // 예상 계산 결과·공제 내역·거래 분포를 보여주는 기존 대시보드입니다.
+// [수정 11/23] 체험용 계산(isDemo) 분기 삭제 · 이유: 체험판 기능 삭제 결정 → 서버 계산 결과만 표시해요
 import React from 'react';
 import { TransactionExamples } from '@/components/expense/ExpenseUpload.jsx';
 import {
@@ -18,7 +19,7 @@ const money = (value) => value.toLocaleString('ko-KR');
 const pending = '계산 연동 필요';
 // [수정 11/19 TT-124] 공제·감면 목록 상태 이름: 「확인 필요」 → 「증빙 확인」
 // 이유: 공제액은 서버가 계산하고, 이 상태는 「입력은 됐고 요건·증빙 서류는 본인이 확인」이라는 뜻이라
-//   「확인 필요」는 계산이 안 된 것처럼 읽힘 (체험 모드도 같은 이름 · 증빙 확인은 어느 쪽이든 본인 몫)
+//   「확인 필요」는 계산이 안 된 것처럼 읽힘 (증빙 확인은 본인 몫)
 const REVIEW = '증빙 확인';
 const reviewLabel = (status) => (status === '확인 필요' ? REVIEW : status);
 function Badge({ children, tone = 'blue' }) {
@@ -41,7 +42,6 @@ export default function Dashboard({
   chart,
   chat,
   result,
-  isDemo = true,
   groupStats = null,
 }) {
   const m = dashboardModel(data, transactions, result, groupStats),
@@ -51,7 +51,6 @@ export default function Dashboard({
   const insuranceTotal = (data.nationalPension ?? 0) + (data.healthEmploymentInsurance ?? 0);
   const cardDetails = r.details.filter((item) => ['CARD', 'CARD_RULE'].includes(item.kind));
   const groupAmount = (group) => {
-    if (isDemo) return pending;
     const codes = {
       family: ['FAMILY'],
       rent: ['RENT'],
@@ -76,10 +75,8 @@ export default function Dashboard({
       type: '소득공제',
       name: '신용·체크카드·현금영수증',
       status: REVIEW,
-      // [수정 11/19 TT-124] 서버 계산 결과일 때 「미연동」 문구 → 서버가 계산한다는 문구 (체험 모드는 그대로)
-      reason: isDemo
-        ? '업로드된 결제수단 정보는 조회할 수 있지만, 적격 증빙·최저사용기준·한도 계산은 미연동입니다. 실제 사용금액은 업로드된 거래내역을 집계합니다.'
-        : '업로드된 거래를 서버가 분류해 문턱(총급여 25%)·공제율·한도를 적용해 계산했습니다. 카드 사용분의 적격 여부와 증빙은 본인 확인이 필요합니다.',
+      reason:
+        '업로드된 거래를 서버가 분류해 문턱(총급여 25%)·공제율·한도를 적용해 계산했습니다. 카드 사용분의 적격 여부와 증빙은 본인 확인이 필요합니다.',
     },
     {
       id: 'family',
@@ -88,26 +85,22 @@ export default function Dashboard({
       status: data.family > 0 ? REVIEW : '미적용',
       reason:
         data.family > 0
-          ? isDemo
-            ? `${data.family}명 입력 · 가족별 소득·연령·중복공제 요건 및 증빙 확인 필요. 공제액은 미산출입니다.`
-            : `${data.family}명 입력 · 인적공제는 서버 계산 결과에 반영됩니다. 가족별 소득·연령·중복공제 요건과 증빙은 본인 확인이 필요합니다.`
-          : isDemo
-            ? '추가 부양가족 0명 입력. 법정 인적공제 계산은 미연동입니다.'
-            : '추가 부양가족 0명 입력. 본인 기본공제만 계산에 반영됩니다.',
+          ? `${data.family}명 입력 · 인적공제는 서버 계산 결과에 반영됩니다. 가족별 소득·연령·중복공제 요건과 증빙은 본인 확인이 필요합니다.`
+          : '추가 부양가족 0명 입력. 본인 기본공제만 계산에 반영됩니다.',
     },
     {
       id: 'rent',
       type: '세액공제',
       name: '월세',
       status: data.rent <= 0 || data.housing === '주택 보유' ? '미적용' : REVIEW,
-      reason: `월세 월 납부액 ${money(data.rent)}원 입력 · 주택 상태 ${data.housing}. ${data.housing === '주택 보유' ? '무주택 요건 미충족으로 표시합니다.' : data.rent <= 0 ? '월세 입력 금액이 없습니다.' : '급여·세대·주택·계약·납부증빙 등 확인 필요.'} ${isDemo ? '법정 계산은 미연동이며 상단 데모 계산과 별개입니다.' : '세액공제액은 서버 계산 결과입니다.'}`,
+      reason: `월세 월 납부액 ${money(data.rent)}원 입력 · 주택 상태 ${data.housing}. ${data.housing === '주택 보유' ? '무주택 요건 미충족으로 표시합니다.' : data.rent <= 0 ? '월세 입력 금액이 없습니다.' : '급여·세대·주택·계약·납부증빙 등 확인 필요.'} 세액공제액은 서버 계산 결과입니다.`,
     },
     {
       id: 'social',
       type: '소득공제',
       name: '사회보험료',
       status: insuranceTotal > 0 ? REVIEW : '미적용',
-      reason: `국민연금 ${money(data.nationalPension ?? 0)}원 / 건강·고용보험료 ${money(data.healthEmploymentInsurance ?? 0)}원 (합계 ${money(insuranceTotal)}원). ${isDemo ? '법정 인정액·공제 산식은 미연동입니다.' : '본인 부담분이 소득공제로 계산에 반영됩니다. 납부액은 급여명세서로 확인하세요.'}`,
+      reason: `국민연금 ${money(data.nationalPension ?? 0)}원 / 건강·고용보험료 ${money(data.healthEmploymentInsurance ?? 0)}원 (합계 ${money(insuranceTotal)}원). 본인 부담분이 소득공제로 계산에 반영됩니다. 납부액은 급여명세서로 확인하세요.`,
     },
     {
       id: 'housingSaving',
@@ -121,7 +114,7 @@ export default function Dashboard({
       type: '세액공제',
       name: '연금저축·IRP',
       status: (data.pensionSaving ?? 0) + (data.irp ?? 0) > 0 ? REVIEW : '미적용',
-      reason: `연금저축 ${money(data.pensionSaving ?? 0)}원 / IRP ${money(data.irp ?? 0)}원 입력. ${isDemo ? '실제 세액공제율·한도는 미연동입니다.' : '세액공제율·한도는 서버 계산 결과입니다.'}`,
+      reason: `연금저축 ${money(data.pensionSaving ?? 0)}원 / IRP ${money(data.irp ?? 0)}원 입력. 세액공제율·한도는 서버 계산 결과입니다.`,
     },
     {
       id: 'sme',
@@ -131,7 +124,7 @@ export default function Dashboard({
       reason: m.youth.reason,
     },
   ];
-  // 계산 API 결과일 때만 항목별 내역(details)에서 단계 금액을 모아요 (체험 계산은 '계산 연동 필요')
+  // 계산 API 결과의 항목별 내역(details)에서 단계 금액을 모아요
   const sumOf = (filter) =>
     r.details.filter(filter).reduce((sum, item) => sum + item.deductionAmount, 0);
   const earnedDeduction = sumOf((item) => item.typeCode === 'EARNED_DEDUCTION');
@@ -140,40 +133,28 @@ export default function Dashboard({
       item.typeCode !== 'EARNED_DEDUCTION' &&
       ['INCOME_DEDUCTION', 'CARD', 'CARD_RULE'].includes(item.kind),
   );
-  const step = (amount) => (isDemo ? pending : `${money(amount)}원`);
+  const step = (amount) => `${money(amount)}원`;
   const taxSteps = [
     ['총급여', `${money(r.totalSalary)}원`, `${r.taxYear}년 귀속 · 사용자 입력값`],
-    ['근로소득공제', step(earnedDeduction), isDemo ? '법정 산식 미연동' : '총급여 구간별 공제'],
+    ['근로소득공제', step(earnedDeduction), '총급여 구간별 공제'],
     [
       '근로소득금액',
       step(r.totalSalary - earnedDeduction),
       '총급여에서 근로소득공제를 차감하는 단계',
     ],
-    [
-      '그 밖의 소득공제',
-      step(otherIncomeDeduction),
-      isDemo ? '인적·연금·특별·카드 등 소득공제 세부 계산 필요' : '인적·보험료·주택·카드 등 합계',
-    ],
+    ['그 밖의 소득공제', step(otherIncomeDeduction), '인적·보험료·주택·카드 등 합계'],
     [
       '과세표준',
       r.taxableIncome === null ? pending : `${money(r.taxableIncome)}원`,
       '소득공제와 종합한도 반영 후 산출',
     ],
-    [
-      '산출세액',
-      `${money(r.calculatedTax)}원`,
-      isDemo ? '체험용 계산 결과 · 법정 계산 미연동' : '계산 API 결과',
-    ],
-    [
-      '세액감면·공제',
-      step(r.calculatedTax - r.decidedTax),
-      isDemo ? '개별 요건·한도·적용 순서 미연동' : '산출세액 − 결정세액',
-    ],
-    ['결정세액', `${money(r.decidedTax)}원`, isDemo ? '체험용 계산 결과' : '계산 API 결과'],
+    ['산출세액', `${money(r.calculatedTax)}원`, '계산 API 결과'],
+    ['세액감면·공제', step(r.calculatedTax - r.decidedTax), '산출세액 − 결정세액'],
+    ['결정세액', `${money(r.decidedTax)}원`, '계산 API 결과'],
     [
       settlementLabel(r.expectedRefund),
       `${money(Math.abs(r.expectedRefund))}원`,
-      isDemo ? '기납부세액과 데모 결정세액의 차이' : '기납부세액과 결정세액의 차이',
+      '기납부세액과 결정세액의 차이',
     ],
   ];
   return (
@@ -194,31 +175,22 @@ export default function Dashboard({
       <div className="notice">
         <Info size={16} />
         <span>
-          <b>
-            {r.taxYear}년 귀속 · {isDemo ? '체험용 계산' : '계산 결과'}
-          </b>{' '}
-          {isDemo && '실제 세법·증빙·자격 검증은 미연동입니다.'}
+          <b>{r.taxYear}년 귀속 · 계산 결과</b>
         </span>
-        <Badge tone="gray">{isDemo ? 'DEMO' : '계산 결과'}</Badge>
+        <Badge tone="gray">계산 결과</Badge>
       </div>
       <div className="dashboard-grid">
         <div className="dashboard-left">
           <section className="dash-results" aria-label="연말정산 핵심 지표">
             <div className="dash-metrics">
               <div className="dash-primary">
-                <Badge>
-                  {r.taxYear}년 귀속 · {isDemo ? '체험값' : '계산값'}
-                </Badge>
+                <Badge>{r.taxYear}년 귀속 · 계산값</Badge>
                 <p>{resultLabel}</p>
                 <h2 className={settlementTone(r.expectedRefund)}>
                   {money(Math.abs(r.expectedRefund))}
                   <span>원</span>
                 </h2>
-                <small>
-                  {isDemo
-                    ? '실제 신고·환급 금액이 아닌 시연 결과'
-                    : '입력값 기준 예상 금액 · 실제 신고 결과와 다를 수 있어요'}
-                </small>
+                <small>입력값 기준 예상 금액 · 실제 신고 결과와 다를 수 있어요</small>
               </div>
               <div className="dash-secondary">
                 <Wallet size={18} />
@@ -236,7 +208,7 @@ export default function Dashboard({
                   {money(r.decidedTax)}
                   <small>원</small>
                 </b>
-                <p>최종 부담할 세금 · {isDemo ? '데모값' : '계산값'}</p>
+                <p>최종 부담할 세금 · 계산값</p>
               </div>
             </div>
             <div className="dash-equation">
@@ -261,7 +233,7 @@ export default function Dashboard({
                   <p>과세표준과 공제 적용 흐름을 확인하세요.</p>
                 </div>
                 <span>
-                  <Badge tone="gray">{isDemo ? '법정 계산 미연동' : '계산 결과'}</Badge>
+                  <Badge tone="gray">계산 결과</Badge>
                   <ChevronDown size={17} />
                 </span>
               </summary>
@@ -278,18 +250,16 @@ export default function Dashboard({
                 ))}
               </ol>
               <div className="dash-note">
-                기납부세액 {money(r.withheldTax)}원은 결정세액 계산 후 정산에 사용됩니다.
-                {isDemo
-                  ? '현재 결과는 체험용이며 법정 계산·증빙 검증은 미연동입니다.'
-                  : '계산 API에서 제공한 결과입니다.'}
+                기납부세액 {money(r.withheldTax)}원은 결정세액 계산 후 정산에 사용됩니다. 계산
+                API에서 제공한 결과입니다.
               </div>
-              <DeductionDetails details={r.details} calculationConnected={!isDemo} />
+              <DeductionDetails details={r.details} />
             </details>
           </section>
           <section className="card deductions">
             <div className="card-heading">
               <h3>계산에 반영된 공제·감면</h3>
-              <Badge tone="amber">{isDemo ? '실제 반영액 미산출' : '계산 결과'}</Badge>
+              <Badge tone="amber">계산 결과</Badge>
             </div>
             <p className="dash-description">
               아래 상태는 입력·증빙 확인 상태입니다. 실제 공제액은 계산 결과와 구분해 확인하세요.
@@ -353,19 +323,12 @@ export default function Dashboard({
                               <tr key={row.category}>
                                 <th scope="row">{row.category}</th>
                                 <td>{money(row.spent)}원</td>
-                                {isDemo ? (
-                                  <>
-                                    <td>{pending}</td>
-                                    <td>{pending}</td>
-                                  </>
-                                ) : (
-                                  i === 0 && (
-                                    <td colSpan={2} rowSpan={m.types.length}>
-                                      카드 공제는 문턱 · 한도가 결제수단 · 공제율 순서로 적용돼 소비
-                                      유형별로 나누지 않아요. 실제 공제액은 아래 「공제·감면 상세
-                                      내역」에 서버 계산 그대로 있어요.
-                                    </td>
-                                  )
+                                {i === 0 && (
+                                  <td colSpan={2} rowSpan={m.types.length}>
+                                    카드 공제는 문턱 · 한도가 결제수단 · 공제율 순서로 적용돼 소비
+                                    유형별로 나누지 않아요. 실제 공제액은 아래 「공제·감면 상세
+                                    내역」에 서버 계산 그대로 있어요.
+                                  </td>
                                 )}
                               </tr>
                             ))}
@@ -383,10 +346,9 @@ export default function Dashboard({
                         <div>
                           <b>최저사용기준</b>
                           <p>
-                            총급여 {money(data.salary)}원 × 25% = {money(m.minimum)}원.{' '}
-                            {isDemo
-                              ? '참고 기준만 표시하며, 초과분 배분 계산은 미연동입니다.'
-                              : '이 금액을 넘은 사용분부터 공제되며, 공제율이 낮은 항목부터 차감해 서버가 계산합니다.'}
+                            총급여 {money(data.salary)}원 × 25% = {money(m.minimum)}원. 이 금액을
+                            넘은 사용분부터 공제되며, 공제율이 낮은 항목부터 차감해 서버가
+                            계산합니다.
                           </p>
                         </div>
                         <div>
@@ -394,9 +356,7 @@ export default function Dashboard({
                           <p>
                             일반 사용분은 신용카드 15%, 체크·직불·선불카드 및 현금영수증 30%가 안내
                             기준입니다. 업로드 결제수단을 표시하며 누락 값은 확인 필요로 구분합니다.{' '}
-                            {isDemo
-                              ? '실제 공제율·한도 계산이 미연동이므로 공제 적용액은 산출하지 않습니다.'
-                              : '공제율·한도 적용액은 서버 계산 결과(공제·감면 상세 내역)에 있습니다.'}
+                            공제율·한도 적용액은 서버 계산 결과(공제·감면 상세 내역)에 있습니다.
                           </p>
                         </div>
                         <div>
@@ -412,20 +372,17 @@ export default function Dashboard({
                         <div>
                           <b>추가공제·한도</b>
                           <p>
-                            {isDemo
-                              ? '최저사용기준 차감 순서, 급여별 기본한도·추가공제·중복 제외와 유형별 배분 로직은 모두 미연동입니다.'
-                              : '최저사용기준 차감 순서와 급여별 기본한도 · 추가한도(전통시장 · 대중교통 · 문화체육) · 자녀 수별 한도는 서버가 계산합니다.'}{' '}
-                            ‘공제 대상 아님’도 현재 분류 결과이며 증빙 검증 전입니다.
+                            최저사용기준 차감 순서와 급여별 기본한도 · 추가한도(전통시장 · 대중교통
+                            · 문화체육) · 자녀 수별 한도는 서버가 계산합니다. ‘공제 대상 아님’도
+                            현재 분류 결과이며 증빙 검증 전입니다.
                           </p>
                         </div>
                       </div>
                       <div className="dash-note">
                         <b>지출액 ≠ 소득공제액 ≠ 실제 세금 감소액</b>
                         <br />
-                        실제 지출액을 최종 카드 공제액으로 확정하지 않습니다.{' '}
-                        {isDemo
-                          ? '유형별 최종 반영액과 합계는 계산 서비스 연동 후 함께 표시합니다.'
-                          : '최종 카드 공제 합계는 위 표 아래와 「공제·감면 상세 내역」에 있습니다.'}
+                        실제 지출액을 최종 카드 공제액으로 확정하지 않습니다. 최종 카드 공제 합계는
+                        위 표 아래와 「공제·감면 상세 내역」에 있습니다.
                       </div>
                       <a
                         className="dash-source"
@@ -486,8 +443,8 @@ export default function Dashboard({
               <Badge tone="amber">미매칭·기타 {m.other}건</Badge>
             </div>
             <p className="dash-description">
-              상호명 대조는 예시 목록을 사용합니다. 분류 조회는 증빙 확인을 대신하지 않습니다.
-              세법상 적격 검증이 미연동이므로 {m.needsReview}건 모두 확인이 필요합니다.
+              상호명 대조는 공공데이터 상호명 목록을 사용합니다. 분류 조회는 증빙 확인을 대신하지
+              않습니다. 세법상 적격 여부는 {m.needsReview}건 모두 본인 확인이 필요합니다.
             </p>
             {m.needsReview > 0 && (
               <p className="dash-description">
@@ -546,8 +503,8 @@ export default function Dashboard({
                 : `집단 평균은 제공된 국세청 ${m.statYear}년 귀속 XLSX에서 정제한 값이며, 서버에 연결되지 않아 화면에 보관한 통계로 표시합니다.`}
             </p>
             <p className="dash-description">
-              나의 결과는 {m.taxYear}년 귀속 {isDemo ? '체험용 계산' : '계산 결과'}, 비교 통계는{' '}
-              {m.statYear}년 귀속입니다. 귀속연도가 달라 직접 비교할 수 없습니다.
+              나의 결과는 {m.taxYear}년 귀속 계산 결과, 비교 통계는 {m.statYear}년 귀속입니다.
+              귀속연도가 달라 직접 비교할 수 없습니다.
             </p>
             <Jump onClick={() => go('stats')}>그룹 통계 상세 보기</Jump>
           </section>

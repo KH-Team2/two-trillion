@@ -1,6 +1,4 @@
-import { benefitChecks } from '@/utils/benefit-model.js';
 import { benefitStatus, fetchBenefits, PREPARE_DOCS } from '@/api/benefit-service.js';
-import { canUseDemo } from '@/api/api-client.js';
 import { getTaxYear } from '@/utils/tax-year.js';
 import React, { useEffect, useState } from 'react';
 import { ArrowRight, FilePenLine, Info, CheckCircle2, Building2, Users } from 'lucide-react';
@@ -8,8 +6,9 @@ import { Btn, Tag } from '@/components/common/site-primitives.jsx';
 
 // 청년 혜택 자격 진단 화면 (S-05 · F-03-02)
 // 서버(GET /api/benefits/{taxYear})가 판정한 결과를 그대로 보여 줘요.
-// 서버에 연결할 수 없을 때 개발 서버에서만 입력값 기준 체험 판정(benefitChecks)을 보여 줘요.
-// 배포본에서는 체험 판정 없이 연결 실패 안내만 보여 줘요.
+// 서버에 연결할 수 없으면 연결 실패 안내만 보여 줘요.
+// [수정 11/23] 연결 실패 때 보여 주던 입력값 기준 체험 판정(benefitChecks · 'offline' 상태) 삭제
+//   이유: 체험판 기능 삭제 결정
 export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBenefits }) {
   const taxYear = getTaxYear(data);
   const [state, setState] = useState({ status: 'loading' });
@@ -19,9 +18,7 @@ export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBe
     setState({ status: 'loading' });
     loadBenefits(taxYear)
       .then((result) => alive && setState({ status: 'ok', results: result.results }))
-      .catch(
-        (error) => alive && setState({ status: canUseDemo(error) ? 'offline' : 'error', error }),
-      );
+      .catch((error) => alive && setState({ status: 'error', error }));
     return () => {
       alive = false;
     };
@@ -88,9 +85,7 @@ export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBe
             ? '서버가 저장된 자격 정보로 판정했어요. 실제 적용은 증빙 서류를 내고 회사(원천징수의무자)가 확인해요.'
             : state.status === 'loading'
               ? '혜택 진단 결과를 불러오는 중이에요.'
-              : state.status === 'error'
-                ? state.error.message
-                : "자격판정 서버에 연결할 수 없어 입력값 기준으로만 보여 줘요. '해당'은 자가 선택이며 실제 자격 승인을 의미하지 않습니다."}
+              : state.error.message}
         </div>
         {state.status === 'error' && state.error.code === 'NOT_FOUND' && (
           <Btn secondary onClick={normalInput}>
@@ -126,18 +121,6 @@ export default function BenefitsPage({ data, normalInput, loadBenefits = fetchBe
               </section>
             );
           })}
-        {state.status === 'offline' &&
-          benefitChecks(data).map((item) => (
-            <section className="card" key={item.name}>
-              <h3>{item.name}</h3>
-              <Tag tone={item.status === '비해당' ? 'gray' : 'amber'}>
-                {item.status} · 입력 기준
-              </Tag>
-              <p>{item.reason}</p>
-              <p className="muted">필요한 정보·조건: {item.requirements}</p>
-              <p className="muted">자격 진단 서버 미연결. 최종 혜택 판정이 아닙니다.</p>
-            </section>
-          ))}
         <section className="card">
           <Users className="blue" />
           <h3>부양가족 기본공제</h3>
