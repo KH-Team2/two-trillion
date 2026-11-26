@@ -16,6 +16,9 @@ public interface GuideMapper {
     List<String> findRecommendationContents(
             @Param("memberId") long memberId, @Param("predictionId") long predictionId);
 
+    // 동일 계산 결과에 대한 추천 저장을 순서대로 처리하기 위한 행 잠금
+    Long lockPrediction(@Param("memberId") long memberId, @Param("predictionId") long predictionId);
+
     // 추천 JSON 한 건 저장
     int insertRecommendation(
             @Param("memberId") long memberId,

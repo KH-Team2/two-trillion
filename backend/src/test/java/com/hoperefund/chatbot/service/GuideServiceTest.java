@@ -3,6 +3,7 @@ package com.hoperefund.chatbot.service;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -21,6 +22,9 @@ import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.TransactionStatus;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -41,7 +45,7 @@ class GuideServiceTest {
                                 });
 
         // 추천 조건 테스트에서는 FastAPI를 호출하지 않으므로 Mock 사용
-        return new GuideServiceImpl(mapper, mock(GuideClient.class));
+        return createService(mapper, mock(GuideClient.class));
     }
 
     // 테스트에 사용할 임시 입력값 생성
@@ -111,7 +115,7 @@ class GuideServiceTest {
     void reusesSavedRecommendation() throws Exception {
         GuideMapper mapper = mock(GuideMapper.class);
         GuideClient client = mock(GuideClient.class);
-        GuideService service = new GuideServiceImpl(mapper, client);
+        GuideService service = createService(mapper, client);
 
         // 연금저축만 추천되는 입력값
         when(mapper.findGuideInput(1L, 101L)).thenReturn(input(80_000_000L, "N", 100L, 0L, 100L));
@@ -151,8 +155,8 @@ class GuideServiceTest {
     void generatesOnlyMissingRecommendations() throws Exception {
         GuideMapper mapper = mock(GuideMapper.class);
         GuideClient client = mock(GuideClient.class);
-        GuideService service = new GuideServiceImpl(mapper, client);
-
+        GuideService service = createService(mapper, client);
+        when(mapper.lockPrediction(1L, 101L)).thenReturn(101L);
         // 주택청약과 연금저축 추천 대상
         when(mapper.findGuideInput(1L, 101L)).thenReturn(input(45_000_000L, "Y", 0L, 0L, 100L));
 
@@ -212,6 +216,7 @@ class GuideServiceTest {
         // 주택청약만 새로 생성하고 저장했는지 검증
         verify(client).generate(List.of("HOUSING_SAVINGS"));
         verify(mapper).insertRecommendation(eq(1L), eq(101L), anyString(), eq("gemma3:4b"));
+        verify(mapper).lockPrediction(1L, 101L);
     }
 
     // 9. 추천 대상이 없으면 DB 조회 및 AI 생성 생략
@@ -219,7 +224,7 @@ class GuideServiceTest {
     void skipsGenerationWhenNoRecommendations() {
         GuideMapper mapper = mock(GuideMapper.class);
         GuideClient client = mock(GuideClient.class);
-        GuideService service = new GuideServiceImpl(mapper, client);
+        GuideService service = createService(mapper, client);
 
         // 세 조건 모두 불충족
         when(mapper.findGuideInput(1L, 101L)).thenReturn(input(80_000_000L, "N", 100L, 100L, 100L));
@@ -239,7 +244,7 @@ class GuideServiceTest {
     void getsOnlySavedRecommendations() {
         GuideMapper mapper = mock(GuideMapper.class);
         GuideClient client = mock(GuideClient.class);
-        GuideService service = new GuideServiceImpl(mapper, client);
+        GuideService service = createService(mapper, client);
 
         // 주택청약과 IRP가 추천 대상
         when(mapper.findGuideInput(1L, 101L)).thenReturn(input(45_000_000L, "Y", 0L, 100L, 0L));
@@ -272,5 +277,16 @@ class GuideServiceTest {
         verifyNoInteractions(client);
         verify(mapper, never())
                 .insertRecommendation(anyLong(), anyLong(), anyString(), anyString());
+    }
+
+    // 실제 DB 없이 트랜잭션을 사용하는 서비스 테스트
+    private GuideService createService(GuideMapper mapper, GuideClient client) {
+
+        PlatformTransactionManager transactionManager = mock(PlatformTransactionManager.class);
+
+        when(transactionManager.getTransaction(any(TransactionDefinition.class)))
+                .thenReturn(mock(TransactionStatus.class));
+
+        return new GuideServiceImpl(mapper, client, transactionManager);
     }
 }

@@ -50,4 +50,13 @@
          WHERE p.PREDICTION_ID = #{predictionId}
            AND p.MEMBER_ID = #{memberId}
     </insert>
+    
+    <!-- 같은 계산 결과의 절세 가이드 저장을 직렬화 -->
+	<select id="lockPrediction" resultType="long">
+	    SELECT PREDICTION_ID
+	      FROM PREDICTION
+	     WHERE PREDICTION_ID = #{predictionId}
+	       AND MEMBER_ID = #{memberId}
+	     FOR UPDATE WAIT 10
+	</select>
 </mapper>

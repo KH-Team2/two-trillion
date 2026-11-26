@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.support.TransactionTemplate;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
@@ -19,11 +21,17 @@ public class GuideServiceImpl implements GuideService {
 
     private final GuideMapper guideMapper;
     private final GuideClient guideClient;
+    private final TransactionTemplate transactionTemplate;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public GuideServiceImpl(GuideMapper guideMapper, GuideClient guideClient) {
+    public GuideServiceImpl(
+            GuideMapper guideMapper,
+            GuideClient guideClient,
+            PlatformTransactionManager transactionManager) {
+
         this.guideMapper = guideMapper;
         this.guideClient = guideClient;
+        this.transactionTemplate = new TransactionTemplate(transactionManager);
     }
 
     // 본인 계산 결과의 입력값을 기준으로 추천 코드 선정
@@ -109,44 +117,108 @@ public class GuideServiceImpl implements GuideService {
         // 4. 누락된 추천만 FastAPI에서 생성
         if (!missingCodes.isEmpty()) {
 
+            // AI 생성은 DB 트랜잭션 밖에서 진행
             JsonNode response = guideClient.generate(missingCodes);
+
+            // AI 응답을 저장 전에 검증
+            Map<String, JsonNode> generated = new HashMap<>();
 
             for (JsonNode item : response.get("items")) {
 
                 String code = item.path("code").asText();
-
-                if (!missingCodes.contains(code)
-                        || saved.containsKey(code)
-                        || !item.path("content").isObject()) {
-                    throw new IllegalStateException("절세 가이드 응답이 올바르지 않습니다.");
-                }
-
                 String source = item.path("source").asText();
 
-                if (!"gemma".equals(source) && !"fallback".equals(source)) {
-                    throw new IllegalStateException("절세 가이드 생성 출처가 올바르지 않습니다.");
+                if (!missingCodes.contains(code)
+                        || !item.path("content").isObject()
+                        || (!"gemma".equals(source) && !"fallback".equals(source))
+                        || generated.putIfAbsent(code, item) != null) {
+                    throw new IllegalStateException("절세 가이드 응답이 올바르지 않습니다.");
                 }
-
-                // JSON 객체 전체를 CLOB에 문자열로 저장
-                String content = item.toString();
-
-                // 기본 설명이면 실제 LLM 생성으로 기록하지 않음
-                String llmModel = "gemma".equals(source) ? "gemma3:4b" : null;
-
-                int inserted =
-                        guideMapper.insertRecommendation(memberId, predictionId, content, llmModel);
-
-                if (inserted != 1) {
-                    throw new IllegalStateException("절세 가이드 저장에 실패했습니다.");
-                }
-
-                saved.put(code, item);
             }
 
-            // 요청한 코드가 모두 생성되었는지 확인
-            if (missingCodes.stream().anyMatch(code -> !saved.containsKey(code))) {
+            if (!generated.keySet().containsAll(missingCodes)) {
                 throw new IllegalStateException("일부 절세 가이드가 생성되지 않았습니다.");
             }
+
+            // 잠금, 재조회, 저장을 하나의 트랜잭션으로 처리
+            Map<String, JsonNode> finalSaved =
+                    transactionTemplate.execute(
+                            status -> {
+
+                                // 1. 계산 결과 행 잠금
+                                Long lockedId = guideMapper.lockPrediction(memberId, predictionId);
+
+                                if (lockedId == null) {
+                                    throw new IllegalStateException("계산 결과를 찾을 수 없습니다.");
+                                }
+
+                                // 2. 잠금을 얻은 후 기존 추천 다시 조회
+                                List<String> currentContents =
+                                        guideMapper.findRecommendationContents(
+                                                memberId, predictionId);
+
+                                Map<String, JsonNode> currentSaved = new HashMap<>();
+
+                                for (String content : currentContents) {
+                                    try {
+                                        JsonNode item = objectMapper.readTree(content);
+
+                                        if (item == null
+                                                || !item.isObject()
+                                                || !item.path("code").isTextual()
+                                                || !item.path("content").isObject()) {
+                                            throw new IllegalStateException(
+                                                    "저장된 추천 JSON 형식이 올바르지 않습니다.");
+                                        }
+
+                                        String code = item.get("code").asText();
+
+                                        if (currentSaved.putIfAbsent(code, item) != null) {
+                                            throw new IllegalStateException("중복 저장된 추천 항목이 있습니다.");
+                                        }
+
+                                    } catch (JacksonException e) {
+                                        throw new IllegalStateException(
+                                                "저장된 추천 JSON을 읽을 수 없습니다.", e);
+                                    }
+                                }
+
+                                // 3. 다른 요청이 먼저 저장한 추천은 건너뛰기
+                                for (String code : missingCodes) {
+
+                                    if (currentSaved.containsKey(code)) {
+                                        continue;
+                                    }
+
+                                    JsonNode item = generated.get(code);
+                                    String source = item.path("source").asText();
+
+                                    String llmModel = "gemma".equals(source) ? "gemma3:4b" : null;
+
+                                    int inserted =
+                                            guideMapper.insertRecommendation(
+                                                    memberId,
+                                                    predictionId,
+                                                    item.toString(),
+                                                    llmModel);
+
+                                    if (inserted != 1) {
+                                        throw new IllegalStateException("절세 가이드 저장에 실패했습니다.");
+                                    }
+
+                                    currentSaved.put(code, item);
+                                }
+
+                                return currentSaved;
+                            });
+
+            if (finalSaved == null) {
+                throw new IllegalStateException("절세 가이드 저장 결과가 없습니다.");
+            }
+
+            // 트랜잭션이 성공한 후에만 결과 반영
+            saved.clear();
+            saved.putAll(finalSaved);
         }
 
         // 5. 기존 추천 순서대로 결과 반환
