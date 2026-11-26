@@ -1,0 +1,204 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.hoperefund.admin.mapper.AdminTaxCriteriaMapper">
+
+    <!-- F-19: DEDUCTION_TYPE 목록 조회 (ERD 컬럼 기준) -->
+    <select id="selectDeductionTypes" resultType="com.hoperefund.admin.dto.TaxCriteriaResponseDTO$DeductionTypeItem">
+        SELECT
+            TYPE_ID AS typeId,
+            TAX_YEAR AS taxYear,
+            TYPE_CODE AS typeCode,
+            TYPE_NAME AS typeName,
+            DEDUCTION_KIND AS deductionKind,
+            RATE AS rate,
+            LIMIT_AMOUNT AS limitAmount,
+            SALARY_MIN AS salaryMin,
+            SALARY_MAX AS salaryMax,
+            CATEGORY_ID AS categoryId,
+            PAY_METHOD AS payMethod,
+            SOURCE_NOTE AS sourceNote,
+            UPDATED_AT AS updatedAt,
+            UPDATED_BY AS updatedBy
+        FROM DEDUCTION_TYPE
+        WHERE TAX_YEAR = #{taxYear}
+        ORDER BY TYPE_ID ASC
+    </select>
+
+    <!-- F-19: TAX_BRACKET 목록 조회 (ERD 컬럼 기준) -->
+    <select id="selectTaxBrackets" resultType="com.hoperefund.admin.dto.TaxCriteriaResponseDTO$TaxBracketItem">
+        SELECT
+            BRACKET_ID AS bracketId,
+            TAX_YEAR AS taxYear,
+            BRACKET_TYPE AS bracketType,
+            LOWER_AMOUNT AS lowerAmount,
+            UPPER_AMOUNT AS upperAmount,
+            RATE AS rate,
+            BASE_AMOUNT AS baseAmount,
+            SOURCE_NOTE AS sourceNote,
+            UPDATED_AT AS updatedAt,
+            UPDATED_BY AS updatedBy
+        FROM TAX_BRACKET
+        WHERE TAX_YEAR = #{taxYear}
+        ORDER BY BRACKET_TYPE ASC, LOWER_AMOUNT ASC
+    </select>
+
+    <!-- F-19: BENEFIT_CONDITION 목록 조회 (ERD 컬럼 기준) -->
+    <select id="selectBenefitConditions" resultType="com.hoperefund.admin.dto.TaxCriteriaResponseDTO$BenefitConditionItem">
+        SELECT
+            BENEFIT_ID AS benefitId,
+            TAX_YEAR AS taxYear,
+            BENEFIT_CODE AS benefitCode,
+            BENEFIT_NAME AS benefitName,
+            MIN_AGE AS minAge,
+            MAX_AGE AS maxAge,
+            MAX_MILITARY_MONTHS AS maxMilitaryMonths,
+            COMPANY_SIZE AS companySize,
+            SALARY_LIMIT AS salaryLimit,
+            HOMELESS_HOUSEHOLD_YN AS homelessHouseholdYn,
+            REDUCTION_RATE AS reductionRate,
+            LIMIT_AMOUNT AS limitAmount,
+            PERIOD_YEARS AS periodYears,
+            SOURCE_NOTE AS sourceNote,
+            UPDATED_AT AS updatedAt,
+            UPDATED_BY AS updatedBy
+        FROM BENEFIT_CONDITION
+        WHERE TAX_YEAR = #{taxYear}
+        ORDER BY BENEFIT_ID ASC
+    </select>
+
+    <!-- F-19: DEDUCTION_TYPE 단건 추가 -->
+    <insert id="insertDeductionType">
+        INSERT INTO DEDUCTION_TYPE (
+            TAX_YEAR, TYPE_CODE, TYPE_NAME, DEDUCTION_KIND,
+            RATE, LIMIT_AMOUNT, SALARY_MIN, SALARY_MAX,
+            CATEGORY_ID, PAY_METHOD, SOURCE_NOTE, UPDATED_AT, UPDATED_BY
+        ) VALUES (
+            #{dto.taxYear}, #{dto.code}, #{dto.name}, #{dto.deductionKind},
+            #{dto.rate}, #{dto.limitAmount}, #{dto.salaryMin}, #{dto.salaryMax},
+            #{dto.categoryId}, #{dto.payMethod}, #{dto.sourceNote}, SYSDATE, #{updatedBy}
+        )
+    </insert>
+
+    <!-- F-19: TAX_BRACKET 단건 추가 -->
+    <insert id="insertTaxBracket">
+        INSERT INTO TAX_BRACKET (
+            TAX_YEAR, BRACKET_TYPE, LOWER_AMOUNT, UPPER_AMOUNT,
+            RATE, BASE_AMOUNT, SOURCE_NOTE, UPDATED_AT, UPDATED_BY
+        ) VALUES (
+            #{dto.taxYear}, #{dto.code}, #{dto.lowerAmount}, #{dto.upperAmount},
+            #{dto.rate}, #{dto.baseAmount}, #{dto.sourceNote}, SYSDATE, #{updatedBy}
+        )
+    </insert>
+
+    <!-- F-19: BENEFIT_CONDITION 단건 추가 -->
+    <insert id="insertBenefitCondition">
+        INSERT INTO BENEFIT_CONDITION (
+            TAX_YEAR, BENEFIT_CODE, BENEFIT_NAME, MIN_AGE, MAX_AGE,
+            MAX_MILITARY_MONTHS, COMPANY_SIZE, SALARY_LIMIT,
+            HOMELESS_HOUSEHOLD_YN, REDUCTION_RATE, LIMIT_AMOUNT,
+            PERIOD_YEARS, SOURCE_NOTE, UPDATED_AT, UPDATED_BY
+        ) VALUES (
+            #{dto.taxYear}, #{dto.code}, #{dto.name}, #{dto.minAge}, #{dto.maxAge},
+            #{dto.maxMilitaryMonths}, #{dto.companySize}, #{dto.salaryLimit},
+            #{dto.homelessHouseholdYn}, #{dto.rate}, #{dto.limitAmount},
+            #{dto.periodYears}, #{dto.sourceNote}, SYSDATE, #{updatedBy}
+        )
+    </insert>
+
+    <!-- F-19: DEDUCTION_TYPE 수정 -->
+    <update id="updateDeductionType">
+        UPDATE DEDUCTION_TYPE
+        SET TYPE_NAME = #{dto.name},
+            DEDUCTION_KIND = #{dto.deductionKind},
+            RATE = #{dto.rate},
+            LIMIT_AMOUNT = #{dto.limitAmount},
+            SALARY_MIN = #{dto.salaryMin},
+            SALARY_MAX = #{dto.salaryMax},
+            CATEGORY_ID = #{dto.categoryId},
+            PAY_METHOD = #{dto.payMethod},
+            SOURCE_NOTE = #{dto.sourceNote},
+            UPDATED_AT = SYSDATE,
+            UPDATED_BY = #{updatedBy}
+        WHERE TYPE_ID = #{dto.id}
+    </update>
+
+    <!-- F-19: TAX_BRACKET 수정 -->
+    <update id="updateTaxBracket">
+        UPDATE TAX_BRACKET
+        SET BRACKET_TYPE = #{dto.code},
+            LOWER_AMOUNT = #{dto.lowerAmount},
+            UPPER_AMOUNT = #{dto.upperAmount},
+            RATE = #{dto.rate},
+            BASE_AMOUNT = #{dto.baseAmount},
+            SOURCE_NOTE = #{dto.sourceNote},
+            UPDATED_AT = SYSDATE,
+            UPDATED_BY = #{updatedBy}
+        WHERE BRACKET_ID = #{dto.id}
+    </update>
+
+    <!-- F-19: BENEFIT_CONDITION 수정 -->
+    <update id="updateBenefitCondition">
+        UPDATE BENEFIT_CONDITION
+        SET BENEFIT_NAME = #{dto.name},
+            MIN_AGE = #{dto.minAge},
+            MAX_AGE = #{dto.maxAge},
+            MAX_MILITARY_MONTHS = #{dto.maxMilitaryMonths},
+            COMPANY_SIZE = #{dto.companySize},
+            SALARY_LIMIT = #{dto.salaryLimit},
+            HOMELESS_HOUSEHOLD_YN = #{dto.homelessHouseholdYn},
+            REDUCTION_RATE = #{dto.rate},
+            LIMIT_AMOUNT = #{dto.limitAmount},
+            PERIOD_YEARS = #{dto.periodYears},
+            SOURCE_NOTE = #{dto.sourceNote},
+            UPDATED_AT = SYSDATE,
+            UPDATED_BY = #{updatedBy}
+        WHERE BENEFIT_ID = #{dto.id}
+    </update>
+
+    <!-- F-19: 귀속 연도 기준값 복제 (DEDUCTION_TYPE) -->
+    <insert id="copyDeductionTypesByYear">
+        INSERT INTO DEDUCTION_TYPE (
+            TAX_YEAR, TYPE_CODE, TYPE_NAME, DEDUCTION_KIND,
+            RATE, LIMIT_AMOUNT, SALARY_MIN, SALARY_MAX,
+            CATEGORY_ID, PAY_METHOD, SOURCE_NOTE, UPDATED_AT, UPDATED_BY
+        )
+        SELECT
+            #{targetYear}, TYPE_CODE, TYPE_NAME, DEDUCTION_KIND,
+            RATE, LIMIT_AMOUNT, SALARY_MIN, SALARY_MAX,
+            CATEGORY_ID, PAY_METHOD, SOURCE_NOTE, SYSDATE, #{updatedBy}
+        FROM DEDUCTION_TYPE
+        WHERE TAX_YEAR = #{sourceYear}
+    </insert>
+
+    <!-- F-19: 귀속 연도 기준값 복제 (TAX_BRACKET) -->
+    <insert id="copyTaxBracketsByYear">
+        INSERT INTO TAX_BRACKET (
+            TAX_YEAR, BRACKET_TYPE, LOWER_AMOUNT, UPPER_AMOUNT,
+            RATE, BASE_AMOUNT, SOURCE_NOTE, UPDATED_AT, UPDATED_BY
+        )
+        SELECT
+            #{targetYear}, BRACKET_TYPE, LOWER_AMOUNT, UPPER_AMOUNT,
+            RATE, BASE_AMOUNT, SOURCE_NOTE, SYSDATE, #{updatedBy}
+        FROM TAX_BRACKET
+        WHERE TAX_YEAR = #{sourceYear}
+    </insert>
+
+    <!-- F-19: 귀속 연도 기준값 복제 (BENEFIT_CONDITION) -->
+    <insert id="copyBenefitConditionsByYear">
+        INSERT INTO BENEFIT_CONDITION (
+            TAX_YEAR, BENEFIT_CODE, BENEFIT_NAME, MIN_AGE, MAX_AGE,
+            MAX_MILITARY_MONTHS, COMPANY_SIZE, SALARY_LIMIT,
+            HOMELESS_HOUSEHOLD_YN, REDUCTION_RATE, LIMIT_AMOUNT,
+            PERIOD_YEARS, SOURCE_NOTE, UPDATED_AT, UPDATED_BY
+        )
+        SELECT
+            #{targetYear}, BENEFIT_CODE, BENEFIT_NAME, MIN_AGE, MAX_AGE,
+            MAX_MILITARY_MONTHS, COMPANY_SIZE, SALARY_LIMIT,
+            HOMELESS_HOUSEHOLD_YN, REDUCTION_RATE, LIMIT_AMOUNT,
+            PERIOD_YEARS, SOURCE_NOTE, SYSDATE, #{updatedBy}
+        FROM BENEFIT_CONDITION
+        WHERE TAX_YEAR = #{sourceYear}
+    </insert>
+
+</mapper>

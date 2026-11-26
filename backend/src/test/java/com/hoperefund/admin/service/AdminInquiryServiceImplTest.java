@@ -8,9 +8,9 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import com.hoperefund.admin.dto.AdminInquiryResponseDto;
-import com.hoperefund.admin.dto.InquiryAnswerRequestDto;
-import com.hoperefund.admin.dto.InquiryCreateRequestDto;
+import com.hoperefund.admin.dto.AdminInquiryResponseDTO;
+import com.hoperefund.admin.dto.InquiryAnswerRequestDTO;
+import com.hoperefund.admin.dto.InquiryCreateRequestDTO;
 import com.hoperefund.admin.mapper.AdminInquiryMapper;
 import com.hoperefund.common.exception.BadRequestException;
 import com.hoperefund.common.exception.BusinessException;
@@ -49,7 +49,7 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("작성: 로그인한 회원번호로 저장한다")
     void createSavesWithLoginMemberId() {
-        InquiryCreateRequestDto dto = new InquiryCreateRequestDto();
+        InquiryCreateRequestDTO dto = new InquiryCreateRequestDTO();
         dto.setInquiryType("QUESTION");
         dto.setTitle("환급액 질문");
         dto.setContent("내용");
@@ -62,11 +62,11 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("상세: 본인 문의면 그대로 돌려준다")
     void detailReturnsOwnInquiry() {
-        AdminInquiryResponseDto mine = new AdminInquiryResponseDto();
+        AdminInquiryResponseDTO mine = new AdminInquiryResponseDTO();
         mine.setInquiryId(10L);
         when(adminInquiryMapper.selectInquiryById(10L, 7L)).thenReturn(mine);
 
-        AdminInquiryResponseDto result = adminInquiryService.getInquiryDetail(7L, 10L);
+        AdminInquiryResponseDTO result = adminInquiryService.getInquiryDetail(7L, 10L);
 
         assertThat(result.getInquiryId()).isEqualTo(10L);
     }
@@ -85,7 +85,7 @@ class AdminInquiryServiceImplTest {
     @DisplayName("관리자 목록: 상태 조건을 매퍼에 그대로 넘긴다")
     void adminListPassesStatus() {
         when(adminInquiryMapper.selectAdminInquiryList("WAITING"))
-                .thenReturn(List.of(new AdminInquiryResponseDto()));
+                .thenReturn(List.of(new AdminInquiryResponseDTO()));
 
         assertThat(adminInquiryService.getAdminInquiryList("WAITING")).hasSize(1);
     }
@@ -95,7 +95,7 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("확인 중: 답변 없이도 상태를 바꾸고 로그인한 관리자 번호를 넘긴다")
     void checkingUpdatesWithoutAnswer() {
-        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("CHECKING", null);
+        InquiryAnswerRequestDTO dto = new InquiryAnswerRequestDTO("CHECKING", null);
         when(adminInquiryMapper.selectInquiryStatus(10L)).thenReturn("WAITING");
         when(adminInquiryMapper.updateInquiryAnswer(10L, dto, 1L)).thenReturn(1);
 
@@ -107,7 +107,7 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("답변 완료: 답변이 비어 있으면 400이고 DB를 건드리지 않는다")
     void answeredWithoutAnswerThrowsBadRequest() {
-        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("ANSWERED", "  ");
+        InquiryAnswerRequestDTO dto = new InquiryAnswerRequestDTO("ANSWERED", "  ");
 
         assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(10L, dto, 1L))
                 .isInstanceOf(BadRequestException.class);
@@ -117,7 +117,7 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("답변: 없는 문의면 404")
     void answerThrowsNotFoundWhenMissing() {
-        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("ANSWERED", "답변");
+        InquiryAnswerRequestDTO dto = new InquiryAnswerRequestDTO("ANSWERED", "답변");
         when(adminInquiryMapper.selectInquiryStatus(99L)).thenReturn(null);
 
         assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(99L, dto, 1L))
@@ -127,7 +127,7 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("답변: 이미 답변 완료된 문의면 409")
     void answerThrowsConflictWhenAlreadyAnswered() {
-        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("CHECKING", null);
+        InquiryAnswerRequestDTO dto = new InquiryAnswerRequestDTO("CHECKING", null);
         when(adminInquiryMapper.selectInquiryStatus(10L)).thenReturn("ANSWERED");
 
         assertThatThrownBy(() -> adminInquiryService.updateInquiryAnswer(10L, dto, 1L))
@@ -140,7 +140,7 @@ class AdminInquiryServiceImplTest {
     @Test
     @DisplayName("답변: 확인 뒤 다른 관리자가 먼저 답변해 바뀐 행이 0이면 409")
     void answerThrowsConflictWhenNoRowUpdated() {
-        InquiryAnswerRequestDto dto = new InquiryAnswerRequestDto("ANSWERED", "답변");
+        InquiryAnswerRequestDTO dto = new InquiryAnswerRequestDTO("ANSWERED", "답변");
         when(adminInquiryMapper.selectInquiryStatus(10L)).thenReturn("CHECKING");
         when(adminInquiryMapper.updateInquiryAnswer(10L, dto, 1L)).thenReturn(0);
 

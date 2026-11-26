@@ -10,7 +10,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-public class MaskedMemberResponseDto {
+public class MaskedMemberResponseDTO {
     private Long memberId; // 회원 번호 (MEMBER.MEMBER_ID)
     private String name; // 회원 이름 - 목록 조회 시 마스킹 처리됨 (MEMBER.NAME)
     private String email; // 이메일 - 목록 조회 시 마스킹 처리됨 (MEMBER.EMAIL)

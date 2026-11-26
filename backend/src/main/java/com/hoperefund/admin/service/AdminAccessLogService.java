@@ -1,6 +1,6 @@
 package com.hoperefund.admin.service;
 
-import com.hoperefund.admin.dto.AccessLogResponseDto;
+import com.hoperefund.admin.dto.AccessLogResponseDTO;
 import com.hoperefund.admin.mapper.AdminAccessLogMapper;
 import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.common.dto.PageMeta;
@@ -22,10 +22,10 @@ public class AdminAccessLogService {
      * 1-based page 번호를 DB 오프셋으로 변환해 목록과 전체 건수를 조회하고
      * 공통 응답 봉투(ApiResponse)와 페이지 메타정보(PageMeta)로 반환
      */
-    public ApiResponse<List<AccessLogResponseDto>> getAccessLogs(
+    public ApiResponse<List<AccessLogResponseDTO>> getAccessLogs(
             LocalDate startDate, LocalDate endDate, String ipAddress, int page, int size) {
         int offset = (page - 1) * size;
-        List<AccessLogResponseDto> list =
+        List<AccessLogResponseDTO> list =
                 adminAccessLogMapper.selectAccessLogs(startDate, endDate, ipAddress, offset, size);
         long total = adminAccessLogMapper.countAccessLogs(startDate, endDate, ipAddress);
         return ApiResponse.ok(list, PageMeta.of(page, size, (int) total));

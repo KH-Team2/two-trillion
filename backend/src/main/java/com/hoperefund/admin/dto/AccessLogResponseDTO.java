@@ -10,7 +10,7 @@ import lombok.Setter;
  */
 @Getter
 @Setter
-public class AccessLogResponseDto {
+public class AccessLogResponseDTO {
     private Long accessId; // 접근 번호 (ACCESS_ID)
     private Long memberId; // 회원 번호 (MEMBER_ID)
     private String screen; // 접근 화면 (SCREEN)

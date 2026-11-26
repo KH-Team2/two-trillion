@@ -1,6 +1,6 @@
 package com.hoperefund.admin.mapper;
 
-import com.hoperefund.admin.dto.AccessLogResponseDto;
+import com.hoperefund.admin.dto.AccessLogResponseDTO;
 import java.time.LocalDate;
 import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
@@ -15,7 +15,7 @@ public interface AdminAccessLogMapper {
     /**
      * 검색 조건(시작일, 종료일, IP) 및 페이징(offset, size)으로 접근 기록 목록 조회
      */
-    List<AccessLogResponseDto> selectAccessLogs(
+    List<AccessLogResponseDTO> selectAccessLogs(
             @Param("startDate") LocalDate startDate,
             @Param("endDate") LocalDate endDate,
             @Param("ipAddress") String ipAddress,

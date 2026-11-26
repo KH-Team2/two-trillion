@@ -10,7 +10,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class AdminInquiryResponseDto {
+public class AdminInquiryResponseDTO {
     /* F-17, F-18: 고객센터 문의 내역 및 답변 DTO */
     private Long inquiryId; // 문의 고유 번호
 

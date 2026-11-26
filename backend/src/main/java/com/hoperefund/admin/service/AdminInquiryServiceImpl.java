@@ -1,18 +1,15 @@
 package com.hoperefund.admin.service;
 
-import com.hoperefund.admin.dto.AdminInquiryResponseDto;
-import com.hoperefund.admin.dto.InquiryAnswerRequestDto;
-import com.hoperefund.admin.dto.InquiryCreateRequestDto;
+import com.hoperefund.admin.dto.AdminInquiryResponseDTO;
+import com.hoperefund.admin.dto.InquiryAnswerRequestDTO;
+import com.hoperefund.admin.dto.InquiryCreateRequestDTO;
 import com.hoperefund.admin.mapper.AdminInquiryMapper;
 import com.hoperefund.common.exception.BadRequestException;
 import com.hoperefund.common.exception.BusinessException;
 import com.hoperefund.common.exception.NotFoundException;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
-<<<<<<< HEAD
-=======
 import org.springframework.http.HttpStatus;
->>>>>>> d09099a0bd602740a36f8a2b8543397ba34019b3
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -37,12 +34,12 @@ public class AdminInquiryServiceImpl implements AdminInquiryService {
     //   유형 · 제목 · 내용 검사는 DTO의 @Valid가 이미 끝냄 → 여기서는 저장만
     @Override
     @Transactional // 저장은 읽기 전용(readOnly)이 아니라서 따로 붙임
-    public void createInquiry(Long memberId, InquiryCreateRequestDto dto) {
+    public void createInquiry(Long memberId, InquiryCreateRequestDTO dto) {
         adminInquiryMapper.insertInquiry(memberId, dto);
     }
 
     @Override
-    public List<AdminInquiryResponseDto> getInquiryList(Long memberId) {
+    public List<AdminInquiryResponseDTO> getInquiryList(Long memberId) {
         return adminInquiryMapper.selectInquiryList(memberId);
     }
 
@@ -50,8 +47,8 @@ public class AdminInquiryServiceImpl implements AdminInquiryService {
     //   이유(PR #44 리뷰): 본인 문의만 보이게 · 남의 문의는 「없는 문의」와 같은 404로 숨김
     //   (403으로 보내면 「그 번호의 문의가 있긴 하다」는 걸 알려 주게 됨 · 팀 규칙 F-09-02)
     @Override
-    public AdminInquiryResponseDto getInquiryDetail(Long memberId, Long inquiryId) {
-        AdminInquiryResponseDto detail = adminInquiryMapper.selectInquiryById(inquiryId, memberId);
+    public AdminInquiryResponseDTO getInquiryDetail(Long memberId, Long inquiryId) {
+        AdminInquiryResponseDTO detail = adminInquiryMapper.selectInquiryById(inquiryId, memberId);
         if (detail == null) {
             // [수정 11/20] IllegalArgumentException("존재하지 않는 문의 내역입니다.") → NotFoundException (500 →
             // 404)
@@ -62,13 +59,13 @@ public class AdminInquiryServiceImpl implements AdminInquiryService {
 
     // [추가 11/20] F-18: 관리자용 전체 문의 목록
     @Override
-    public List<AdminInquiryResponseDto> getAdminInquiryList(String status) {
+    public List<AdminInquiryResponseDTO> getAdminInquiryList(String status) {
         return adminInquiryMapper.selectAdminInquiryList(status);
     }
 
     @Override
     @Transactional
-    public void updateInquiryAnswer(Long inquiryId, InquiryAnswerRequestDto dto, Long adminId) {
+    public void updateInquiryAnswer(Long inquiryId, InquiryAnswerRequestDTO dto, Long adminId) {
         // [삭제 11/20] 상태 빈칸 검사(if dto.getStatus() == null ...) · 이유: DTO의 @NotBlank · @Pattern이 같은
         // 검사를 먼저 함
 

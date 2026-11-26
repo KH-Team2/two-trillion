@@ -1,7 +1,7 @@
 package com.hoperefund.admin.controller;
 
-import com.hoperefund.admin.dto.MaskedMemberResponseDto;
-import com.hoperefund.admin.dto.MemberRoleUpdateDto;
+import com.hoperefund.admin.dto.MaskedMemberResponseDTO;
+import com.hoperefund.admin.dto.MemberRoleUpdateDTO;
 import com.hoperefund.admin.service.AdminMemberService;
 import com.hoperefund.common.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -25,7 +25,7 @@ public class AdminMemberController {
      * URI: GET /api/admin/members
      */
     @GetMapping
-    public ApiResponse<List<MaskedMemberResponseDto>> getMemberList(
+    public ApiResponse<List<MaskedMemberResponseDTO>> getMemberList(
             @RequestParam(value = "keyword", required = false) String keyword,
             @RequestParam(value = "role", required = false) String role,
             @RequestParam(value = "page", defaultValue = "1") int page,
@@ -43,7 +43,7 @@ public class AdminMemberController {
     @PutMapping("/{id}/role")
     public ApiResponse<Void> updateMemberRole(
             @PathVariable("id") Long targetMemberId,
-            @Valid @RequestBody MemberRoleUpdateDto dto,
+            @Valid @RequestBody MemberRoleUpdateDTO dto,
             @AuthenticationPrincipal Long currentAdminId) {
         adminMemberService.updateMemberRole(targetMemberId, dto.getRole(), currentAdminId);
         return ApiResponse.ok(null);

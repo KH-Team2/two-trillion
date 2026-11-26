@@ -1,8 +1,8 @@
 package com.hoperefund.admin.controller;
 
-import com.hoperefund.admin.dto.AdminInquiryResponseDto;
-import com.hoperefund.admin.dto.InquiryAnswerRequestDto;
-import com.hoperefund.admin.dto.InquiryCreateRequestDto;
+import com.hoperefund.admin.dto.AdminInquiryResponseDTO;
+import com.hoperefund.admin.dto.InquiryAnswerRequestDTO;
+import com.hoperefund.admin.dto.InquiryCreateRequestDTO;
 import com.hoperefund.admin.service.AdminInquiryService;
 import com.hoperefund.common.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -44,7 +44,7 @@ public class AdminInquiryController {
             @AuthenticationPrincipal Long memberId, // 로그인 토큰에서 꺼낸 회원번호
             // @Valid: InquiryCreateRequestDto의 검사(@NotBlank · @Pattern · @Size)를 실행 · 어기면 여기 들어오기
             // 전에 400
-            @Valid @RequestBody InquiryCreateRequestDto dto) {
+            @Valid @RequestBody InquiryCreateRequestDTO dto) {
         adminInquiryService.createInquiry(memberId, dto);
         return ApiResponse.ok(null);
     }
@@ -57,9 +57,9 @@ public class AdminInquiryController {
      * 이유(PR #44 리뷰): ?memberId= 숫자만 바꾸면 다른 회원 문의를 볼 수 있었음 → 로그인 토큰에서 회원번호를 꺼냄 (로그인 #37 이후 다른 API와 같은 방식)
      */
     @GetMapping("/inquiries")
-    public ApiResponse<List<AdminInquiryResponseDto>> getInquiryList(
+    public ApiResponse<List<AdminInquiryResponseDTO>> getInquiryList(
             @AuthenticationPrincipal Long memberId) {
-        List<AdminInquiryResponseDto> list = adminInquiryService.getInquiryList(memberId);
+        List<AdminInquiryResponseDTO> list = adminInquiryService.getInquiryList(memberId);
         return ApiResponse.ok(list);
     }
 
@@ -71,9 +71,9 @@ public class AdminInquiryController {
      * → Service가 본인 문의인지 확인하고, 아니면 404로 숨김
      */
     @GetMapping("/inquiries/{id}")
-    public ApiResponse<AdminInquiryResponseDto> getInquiryDetail(
+    public ApiResponse<AdminInquiryResponseDTO> getInquiryDetail(
             @AuthenticationPrincipal Long memberId, @PathVariable("id") Long inquiryId) {
-        AdminInquiryResponseDto detail = adminInquiryService.getInquiryDetail(memberId, inquiryId);
+        AdminInquiryResponseDTO detail = adminInquiryService.getInquiryDetail(memberId, inquiryId);
         return ApiResponse.ok(detail);
     }
 
@@ -83,7 +83,7 @@ public class AdminInquiryController {
      * 이유: 관리자가 답변할 문의를 고를 목록이 없었음 (기능명세서 F-07-02 ① 답변 대기 최신순 목록)
      */
     @GetMapping("/admin/inquiries")
-    public ApiResponse<List<AdminInquiryResponseDto>> getAdminInquiryList(
+    public ApiResponse<List<AdminInquiryResponseDTO>> getAdminInquiryList(
             @RequestParam(value = "status", required = false) String status) {
         return ApiResponse.ok(adminInquiryService.getAdminInquiryList(status));
     }
@@ -101,7 +101,7 @@ public class AdminInquiryController {
     public ApiResponse<Void> updateInquiryAnswer(
             @AuthenticationPrincipal Long adminId, // /api/admin/** 라서 이 번호는 항상 관리자 (SecurityConfig)
             @PathVariable("id") Long inquiryId,
-            @Valid @RequestBody InquiryAnswerRequestDto dto) {
+            @Valid @RequestBody InquiryAnswerRequestDTO dto) {
         adminInquiryService.updateInquiryAnswer(inquiryId, dto, adminId);
         return ApiResponse.ok(null);
     }

@@ -1,6 +1,6 @@
 package com.hoperefund.admin.service;
 
-import com.hoperefund.admin.dto.MaskedMemberResponseDto;
+import com.hoperefund.admin.dto.MaskedMemberResponseDTO;
 import com.hoperefund.admin.mapper.AdminMemberMapper;
 import com.hoperefund.common.dto.ApiResponse;
 import com.hoperefund.common.dto.PageMeta;
@@ -22,11 +22,11 @@ public class AdminMemberService {
      * 1-based page를 오프셋으로 변환해 마스킹 회원 목록과 전체 건수를 조회하고
      * 공통 응답 봉투(ApiResponse) 및 페이지 정보(PageMeta)로 반환[cite: 3]
      */
-    public ApiResponse<List<MaskedMemberResponseDto>> getMaskedMemberList(
+    public ApiResponse<List<MaskedMemberResponseDTO>> getMaskedMemberList(
             String keyword, String role, int page, int size) {
         // 1-based 페이지 번호 기준 오프셋 계산[cite: 3]
         int offset = (page - 1) * size;
-        List<MaskedMemberResponseDto> members =
+        List<MaskedMemberResponseDTO> members =
                 adminMemberMapper.selectMaskedMemberList(keyword, role, offset, size);
         // 전체 건수를 조회해 PageMeta에 반영 (매퍼 쿼리 존재 여부 확인 필요)[cite: 3]
         long total = adminMemberMapper.countMaskedMembers(keyword, role);
@@ -41,7 +41,7 @@ public class AdminMemberService {
      */
     @Transactional
     public void updateMemberRole(Long targetMemberId, String newRole, Long currentAdminId) {
-        MaskedMemberResponseDto targetUser = adminMemberMapper.selectMemberById(targetMemberId);
+        MaskedMemberResponseDTO targetUser = adminMemberMapper.selectMemberById(targetMemberId);
 
         // 대상 회원이 없는 경우 예외 발생[cite: 3]
         if (targetUser == null) {

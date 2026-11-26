@@ -11,7 +11,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class InquiryAnswerRequestDto {
+public class InquiryAnswerRequestDTO {
     /* F-18: 관리자 [확인 중] 버튼 · 답변 등록 요청 DTO (PUT /api/admin/inquiries/{id}/answer) */
 
     // [수정 11/20] 상태값을 한글(접수/확인 중/답변 완료) → DB 코드(WAITING/CHECKING/ANSWERED)로 · @NotBlank · @Pattern

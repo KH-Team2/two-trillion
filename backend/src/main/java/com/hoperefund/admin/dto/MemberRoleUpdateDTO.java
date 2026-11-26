@@ -18,7 +18,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class MemberRoleUpdateDto {
+public class MemberRoleUpdateDTO {
 
     // @Pattern: 허용된 권한 코드(USER, ADMIN) 형식인지 검사 (DB MEMBER.ROLE 값 기준)
     @Pattern(regexp = "USER|ADMIN", message = "권한은 USER 또는 ADMIN만 입력할 수 있어요")

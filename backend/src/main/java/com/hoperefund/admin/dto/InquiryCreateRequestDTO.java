@@ -21,7 +21,7 @@ import lombok.Setter;
 @Getter
 @Setter
 @NoArgsConstructor
-public class InquiryCreateRequestDto {
+public class InquiryCreateRequestDTO {
 
     // @NotBlank: null · 빈 글자("") · 띄어쓰기만(" ") 모두 막음
     // @Pattern: 글자 모양 검사. "ERROR|QUESTION|ETC" = 셋 중 하나만 통과 (| 는 "또는")

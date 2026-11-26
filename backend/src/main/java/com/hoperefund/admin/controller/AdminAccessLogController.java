@@ -1,6 +1,6 @@
 package com.hoperefund.admin.controller;
 
-import com.hoperefund.admin.dto.AccessLogResponseDto;
+import com.hoperefund.admin.dto.AccessLogResponseDTO;
 import com.hoperefund.admin.service.AdminAccessLogService;
 import com.hoperefund.common.dto.ApiResponse;
 import java.time.LocalDate;
@@ -29,7 +29,7 @@ public class AdminAccessLogController {
      * - size: 페이지 크기 (1 ~ 100 범위로 제한)
      */
     @GetMapping
-    public ApiResponse<List<AccessLogResponseDto>> getAccessLogs(
+    public ApiResponse<List<AccessLogResponseDTO>> getAccessLogs(
             @RequestParam(value = "startDate", required = false)
                     @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
                     LocalDate startDate,
