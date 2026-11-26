@@ -2,12 +2,13 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
-### [2026-11-25] 구조도에 알림 · 상담 채팅 추가 · ERD 버전 표기 v4.4 (TT-185)
+### [2026-11-25] 구조도에 알림 · 상담 채팅 추가 · ERD 버전 표기 v4.5 (TT-185)
 - **작업 내용**:
   - `README.md`(루트) 구조도: 백엔드 `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가 · 화면 `api/`에 계산 · 혜택 진단 · 시뮬레이션 · 통계 · 알림 · 상담 호출 파일 9개 · `pages/support/ConsultChat.jsx` · 화면 테스트 5개 추가
   - `backend/README.md` 구조도: `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가
   - `backend/AGENTS.md` 폴더 구조: `notification/` · `consult/` 두 줄 추가
   - ERD 버전 표기 v4.2 → v4.4: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+  - [추가 11/26] ERD 버전 표기 v4.4 → v4.5 (PR #66 · 챗봇 대화 테이블 2개 삭제 · 공용 DB는 11/26 v4.5 적용): 같은 3개 파일 · 루트 `README.md` 구조도 `01_schema.sql` 테이블 21개 → 22개
   - 기능명세서 v1.14 → v1.15 (새 구글 시트 주소): `backend/README.md` · `calc/README.md` 표기 · `backend/README.md` · `backend/AGENTS.md` · `calc/AGENTS.md` 링크
   - `frontend/docs/API_INTEGRATION.md`: 실시간 알림 · 관리자 상담 채팅 연결 흐름 추가 · 「아직 연결 안 된 부분」에서 해결된 카드 사용액 2건 정리
 - **변경 사유**: PR #46 · #51 · #58로 들어간 알림 · 상담 채팅과 ERD v4.3 · v4.4가 구조도 · 버전 표기에 빠져 있었음
