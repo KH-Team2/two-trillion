@@ -143,6 +143,15 @@
  │   │   │   ├── calculation-contract.js      # 계산 응답 계약 관련 로직
  │   │   │   ├── erd-contract.js              # ERD 관련 데이터 계약
  │   │   │   ├── expense-service.js           # 지출·업로드 관련 서비스
+ │   │   │   ├── income-service.js            # 소득 · 공제 정보 저장 · 조회 API 호출
+ │   │   │   ├── calculation-service.js       # 예상 세액 계산 · 저장된 계산 결과 조회 API 호출
+ │   │   │   ├── benefit-service.js           # 청년 혜택 자격 진단 API 호출 · 준비 서류 안내
+ │   │   │   ├── prediction-service.js        # 조건 변경 시뮬레이션 · 카드 합계 조회 API 호출
+ │   │   │   ├── statistics-service.js        # 그룹 비교 통계 API 호출
+ │   │   │   ├── notification-service.js      # 알림 목록 · 모두 읽음 API 호출
+ │   │   │   ├── notification-stream.js       # 실시간 알림(SSE) 연결 · 끊기면 다시 연결
+ │   │   │   ├── consult-service.js           # 상담 방 만들기 · 지난 메시지 · 관리자 방 목록 API 호출
+ │   │   │   ├── consult-socket.js            # 상담 채팅 WebSocket(STOMP) 연결 · 구독 · 보내기
  │   │   │   └── services.js                  # 입력 기본값 · 입력 검사 · 화면 표기
  │   │   ├── components/
  │   │   │   ├── common/                      # 공통 표현 컴포넌트
@@ -181,6 +190,7 @@
  │   │   │   │   ├── GroupStats.jsx           # 그룹 통계 시각화
  │   │   │   │   └── StatisticsPage.jsx       # 그룹 통계 페이지
  │   │   │   ├── support/
+ │   │   │   │   ├── ConsultChat.jsx          # 관리자 상담 채팅 (회원 화면 · 관리자 방 목록)
  │   │   │   │   └── SupportPage.jsx          # 고객센터
  │   │   │   └── tax/
  │   │   │       ├── BenefitsPage.jsx         # 청년 혜택 화면
@@ -210,6 +220,11 @@
  │   │       └── tax-year.js                  # 귀속 연도 유틸
  │   └── tests/
  │       ├── feedback-contract.mjs            # 응답 계약 관련 테스트
+ │       ├── calculation-service.mjs          # 계산 API 호출 테스트
+ │       ├── benefit-service.mjs              # 혜택 진단 API 호출 테스트
+ │       ├── prediction-service.mjs           # 시뮬레이션 API 호출 테스트
+ │       ├── notification-stream.mjs          # 실시간 알림(SSE) 연결 테스트
+ │       ├── consult-chat.mjs                 # 상담 채팅 API · 소켓 테스트
  │       ├── prototype-flows.mjs              # 업로드 집계 · 입력 검사 · 그룹 통계 테스트
  │       └── render-pages.mjs                 # 화면 렌더링 테스트
  │
@@ -269,6 +284,21 @@
  │       │   │   │   ├── service/
  │       │   │   │   ├── mapper/
  │       │   │   │   └── dto/
+ │       │   │   │
+ │       │   │   ├── notification/              # 실시간 알림 (SSE) · 알림 저장 · 목록 · 읽음 · 12월 마감 안내
+ │       │   │   │   ├── config/                # NotificationSchedulingConfig (@EnableScheduling)
+ │       │   │   │   ├── controller/            # NotificationController (GET /api/notifications/stream · GET /api/notifications · PUT /api/notifications/read)
+ │       │   │   │   ├── service/               # NotificationService · DeadlineNotificationScheduler
+ │       │   │   │   ├── mapper/                # NotificationMapper (NOTIFICATION)
+ │       │   │   │   └── dto/
+ │       │   │   │
+ │       │   │   ├── consult/                   # 관리자 상담 채팅 (WebSocket · STOMP)
+ │       │   │   │   ├── config/                # WebSocketConfig (/ws · /pub · /sub) · StompAuthChannelInterceptor (토큰 · 방 권한 확인)
+ │       │   │   │   ├── controller/            # ConsultController (방 만들기 · 지난 메시지 · 관리자 방 목록) · ConsultMessageController (메시지 받기)
+ │       │   │   │   ├── service/               # ConsultService · ConsultNotifier (상담 알림)
+ │       │   │   │   ├── mapper/                # ConsultMapper (CONSULT_ROOM · CONSULT_MESSAGE)
+ │       │   │   │   └── dto/
+ │       │   │   │
  │       │   │   └── chatbot/                   # FAQ 조회 및 질문 분류 중계 (FastAPI 내부 토큰 인증)
  │       │   │       ├── controller/            # GET /api/faqs · /api/faq-categories · /api/faqs/{faqId}
  │       │   │       ├── service/               # 챗봇 서비스 연동
@@ -280,6 +310,8 @@
  │       │           ├── income/IncomeMapper.xml
  │       │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
  │       │           ├── prediction/PredictionMapper.xml
+ │       │           ├── notification/NotificationMapper.xml
+ │       │           ├── consult/ConsultMapper.xml
  │       │           └── statistics/GroupStatMapper.xml
  │       │
  │       └── test/java/com/hoperefund/
@@ -287,6 +319,8 @@
  │           ├── income/
  │           ├── expense/
  │           ├── prediction/
+ │           ├── notification/
+ │           ├── consult/
  │           └── statistics/
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
@@ -367,7 +401,7 @@
  │   ├── README.md
  │   ├── 계정_1_생성.sql                       # 주인 계정 · 계산 서버 계정 만들기 (DB 관리자)
  │   ├── 00_초기화.sql
- │   ├── 01_schema.sql                        # 테이블 21개 · 제약조건 · 시퀀스 · 인덱스
+ │   ├── 01_schema.sql                        # 테이블 22개 · 제약조건 · 시퀀스 · 인덱스
  │   ├── 02_기준데이터.sql                     # 공제 · 세율 · 혜택 조건 등 기준값
  │   ├── 04_분류함수.sql                       # 가맹점명 정제 함수 FN_NORMALIZE_NAME
  │   └── 계정_2_계산서버_권한.sql               # 계산 서버 계정 읽기 권한 (DB 관리자)

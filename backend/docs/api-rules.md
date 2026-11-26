@@ -70,7 +70,8 @@
 | 400 | `CALC_REJECTED` | 계산 서버가 입력을 거부 |
 | 401 | `UNAUTHORIZED` | 로그인 안 함 (토큰 없음 · 위조 · 만료 · 로그아웃됨) |
 | 401 | `LOGIN_FAILED` · `WITHDRAWN_MEMBER` · `LOGIN_LOCKED` | 로그인 실패 (`POST /api/auth/login`만 · 화면은 이 401에서 로그인 화면으로 보내지 않는다) |
-| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출) · ACCESS_LOG `DENIED` 기록은 아직 안 함 |
+| 403 | `FORBIDDEN` | 권한 없음 (예: 일반 회원이 관리자 API 호출) · ACCESS_LOG `DENIED` 기록은 아직 안 함 (IP 차단 429만 `DENIED` 기록) |
+| 429 | `LOGIN_IP_BLOCKED` | 한 IP가 1분에 로그인 50번 이상 실패 → 12시간 로그인 막음 (`POST /api/auth/login`만 · D-16 · 따로 차단 목록 없이 ACCESS_LOG로 판단 · D-15 · 막힌 동안의 시도는 `DENIED`로 기록해 차단 시간이 늘지 않음) |
 | 404 | `NOT_FOUND` | 데이터 · 주소 없음 · **남의 데이터도 404** (없는 것과 같은 응답 · F-09-02) |
 | 405 | `METHOD_NOT_ALLOWED` | 주소는 있는데 방식이 틀림 (예: 계산 주소에 GET) |
 | 409 | `CONFLICT` | 동시 저장 충돌 |
@@ -120,6 +121,7 @@
 | PUT | `/api/members/me` | 회원정보 · 자격 정보 저장 · 본문 `{gender, militaryMonths, hireDate, companySize, homelessHeadYn}` (모든 칸) → 저장된 회원정보 · 군 복무 음수 400 「0 이상으로 입력해 주세요」 · `ROLE` · `STATUS` 안 바뀜 (F-01-04 · 제안 주소) |
 | PUT | `/api/members/me/password` | 비밀번호 변경 · 본문 `{currentPassword, newPassword, newPasswordConfirm}` → `null` · 현재 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` (F-01-04 · 제안 주소) |
 | POST | `/api/members/me/withdrawal` | 회원 탈퇴 · 본문 `{password}` (D-05 재확인) → `null` · `STATUS=WITHDRAWN` · `WITHDRAWN_AT=SYSDATE` · `ROLE=USER` · 아이디 · 이메일은 30일 유지 · 지금 토큰 무효 · 비밀번호 틀림 400 `CURRENT_PASSWORD_MISMATCH` · 이미 탈퇴 404 (F-01-05 · 제안 주소) |
+| GET | `/api/admin/access-logs?startDate=&endDate=&ipAddress=&page=&size=` | 관리자 전용 접근 기록 목록 · 최신순 · `meta`에 쪽 정보 · 같은 IP 실패 수 포함 · 날짜 형식 · page(1~) · size(1~100) 틀리면 400 · 조회한 것도 기록 (F-08-02 ③) |
 | GET | `/api/faqs` | FAQ 목록 조회 |
 | GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
 | GET | `/api/faqs/{faqId}` | FAQ 상세 조회 |

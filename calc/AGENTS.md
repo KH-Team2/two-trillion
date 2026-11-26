@@ -82,7 +82,7 @@ tests/
 
 ## 기능명세서
 
-- 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit
+- 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit
 - 기준값 테이블·칸 이름은 ERD를 따른다. ERD와 코드가 다르면 임의로 판단하지 말고 차이를 알린다.
 - 링크가 로그인 문제로 열리지 않으면 내용을 추측하지 말고, 사용자에게 필요한 부분(복사본 · 캡처)을 요청한다.
 

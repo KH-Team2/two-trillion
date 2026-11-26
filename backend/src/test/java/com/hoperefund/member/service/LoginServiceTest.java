@@ -1,9 +1,12 @@
 package com.hoperefund.member.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.BDDMockito.given;
@@ -24,6 +27,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.dao.QueryTimeoutException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -241,5 +245,58 @@ class LoginServiceTest {
         service(true).logout(tokenService.verify(token).orElseThrow());
 
         assertThat(tokenService.verify(token)).isEmpty();
+    }
+
+    // [추가 11/24 고은] D-16 IP 기준 로그인 제한 테스트 3건
+
+    // 막힌 IP → 429 LOGIN_IP_BLOCKED · 회원 조회도 안 함 · 회원번호 없이 DENIED 기록 (FAIL 아님 → 차단 시간이 늘지 않음) · 기준
+    // 숫자(50번 · 1분 · 12시간) 확인
+    @Test
+    void blockedIpIsRejectedBeforeMemberLookup() {
+
+        given(accessLogMapper.countIpBlockTriggers(IP, 50, 1, 12)).willReturn(1);
+
+        assertThatThrownBy(
+                        () -> service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP))
+                .isInstanceOfSatisfying(
+                        BusinessException.class,
+                        e -> {
+                            assertThat(e.getStatus()).isEqualTo(HttpStatus.TOO_MANY_REQUESTS);
+                            assertThat(e.getCode()).isEqualTo("LOGIN_IP_BLOCKED");
+                        });
+
+        verify(memberMapper, never()).selectLoginMember(anyString());
+        verify(memberMapper, never())
+                .increaseLoginFail(anyLong(), any(Integer.class), any(Integer.class));
+        verify(accessLogMapper)
+                .insertAccessLog(isNull(), eq("/api/auth/login"), eq(IP), eq("DENIED"));
+    }
+
+    // IP 를 모르면(null) 세지 않고 평소처럼 로그인
+    @Test
+    void unknownIpIsNotChecked() {
+
+        given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
+
+        LoginResponseDTO response =
+                service(true).login(new LoginRequestDTO("hope_user", PASSWORD), null);
+
+        assertThat(response.getLoginId()).isEqualTo("hope_user");
+        verify(accessLogMapper, never()).countIpBlockTriggers(any(), anyInt(), anyInt(), anyInt());
+    }
+
+    // IP 확인 중 DB 오류 → 막지 않고 평소처럼 로그인
+    @Test
+    void ipCheckFailureDoesNotBlockLogin() {
+
+        given(accessLogMapper.countIpBlockTriggers(any(), anyInt(), anyInt(), anyInt()))
+                .willThrow(new QueryTimeoutException("시간 초과"));
+        given(memberMapper.selectLoginMember("hope_user")).willReturn(member("ACTIVE", "N", 0));
+
+        LoginResponseDTO response =
+                service(true).login(new LoginRequestDTO("hope_user", PASSWORD), IP);
+
+        assertThat(response.getLoginId()).isEqualTo("hope_user");
+        verify(accessLogMapper).insertAccessLog(3L, "/api/auth/login", IP, "SUCCESS");
     }
 }
