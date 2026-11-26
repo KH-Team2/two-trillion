@@ -90,18 +90,6 @@ backend/
     │   │   │   ├── client/                       # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
     │   │   │   ├── mapper/
     │   │   │   └── dto/
-    │   │   ├── notification/                     # 실시간 알림 (SSE) · 알림 저장 · 목록 · 읽음 · 12월 마감 안내 (NOTIFICATION)
-    │   │   │   ├── config/                       # NotificationSchedulingConfig (@EnableScheduling)
-    │   │   │   ├── controller/                   # NotificationController (GET /api/notifications/stream · GET /api/notifications · PUT /api/notifications/read)
-    │   │   │   ├── service/                      # NotificationService · DeadlineNotificationScheduler (12월 D-30 · 7 · 1)
-    │   │   │   ├── mapper/                       # NotificationMapper
-    │   │   │   └── dto/                          # NotificationDTO · NotificationListDTO
-    │   │   ├── consult/                          # 관리자 상담 채팅 (WebSocket · STOMP · CONSULT_ROOM · CONSULT_MESSAGE)
-    │   │   │   ├── config/                       # WebSocketConfig (/ws · /pub · /sub) · StompAuthChannelInterceptor (CONNECT 토큰 · SUBSCRIBE · SEND 방 권한)
-    │   │   │   ├── controller/                   # ConsultController (POST /api/consult/rooms · GET /api/consult/rooms/{roomId}/messages · GET /api/admin/consult/rooms) · ConsultMessageController (/pub/consult/{roomId})
-    │   │   │   ├── service/                      # ConsultService · ConsultNotifier (상담 알림) · ConsultUser
-    │   │   │   ├── mapper/                       # ConsultMapper
-    │   │   │   └── dto/
     │   │   └── statistics/                       # 그룹 비교 통계 (GET /api/group-stats/{taxYear} · GROUP_STAT 읽기만)
     │   │       ├── controller/                   # GroupStatController
     │   │       ├── service/                      # GroupStatService
@@ -114,8 +102,6 @@ backend/
     │           ├── income/IncomeMapper.xml
     │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
     │           ├── prediction/PredictionMapper.xml
-    │           ├── notification/NotificationMapper.xml
-    │           ├── consult/ConsultMapper.xml
     │           └── statistics/GroupStatMapper.xml
     │
     └── test/java/com/hoperefund/
@@ -123,8 +109,6 @@ backend/
         ├── income/
         ├── expense/
         ├── prediction/
-        ├── notification/
-        ├── consult/
         └── statistics/
 ```
 
@@ -305,7 +289,7 @@ mvnw -B verify
 - Health API
 - 공통 오류 응답 DTO
 - 공통 예외 처리 (입력 오류 · 기준값 없음 · 계산 서버 연결 불가 · 동시 저장 충돌 · 404 · 405 · 500)
-- 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 · 관리자 회원 관리 · 권한 변경 · 관리자 접근 기록 조회 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
+- 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 · 관리자 회원 관리 · 권한 변경 · 관리자 세법 기준값 관리 · 관리자 접근 기록 조회 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - 세금 용어 FAQ 챗봇 연동
 - JUnit 자동 테스트 및 코드 품질 검사 환경
@@ -328,9 +312,9 @@ mvnw -B verify
 | `docs/decisions/` | 주요 결정 사항 |
 | `docs/tasks.md` | 작업 현황 및 예정 작업 |
 
-기능 요구사항은 [희망환급 기능명세서 v1.15](https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit)를 참고합니다.
+기능 요구사항은 [희망환급 기능명세서 v1.14](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
 
-ERD는 팀에서 공유한 v4.5를 기준으로 합니다.
+ERD는 팀에서 공유한 v4.2를 기준으로 합니다.
 https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
 일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.
