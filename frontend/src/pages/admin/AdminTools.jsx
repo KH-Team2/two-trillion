@@ -26,6 +26,15 @@ import {
   fetchMembers,
   updateMemberRole,
 } from '@/api/admin-member-service.js';
+// [추가 11/26 고은] F-08-02 ② 예측 결과 조회 서버 API
+import {
+  KIND_LABEL as PREDICTION_KIND_LABEL,
+  PREDICTION_PAGE_SIZE,
+  fetchPredictions,
+  kindOf,
+  refundText,
+  wonText,
+} from '@/api/admin-prediction-service.js';
 // [추가 11/26 고은] F-19 세법 기준값 관리 서버 API
 import {
   BRACKET_LABEL,
@@ -481,6 +490,163 @@ export function MemberManagement({ onChange }) {
                 </td>
               </tr>
             ))}
+          </tbody>
+        </table>
+      </div>
+      {!loading && !rows.length && !message && <p className="empty">검색 결과가 없습니다.</p>}
+      <div className="form-grid">
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((n) => n - 1)}
+        >
+          이전 쪽
+        </button>
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={loading || page >= totalPages}
+          onClick={() => setPage((n) => n + 1)}
+        >
+          다음 쪽
+        </button>
+      </div>
+      <p role="status">{message}</p>
+    </>
+  );
+}
+
+// [추가 11/26 고은] F-08-02 ② 예측 결과 조회 (서버 API: GET /api/admin/predictions)
+//   전체 회원의 예상 세액 계산 결과를 이메일 일부 · 귀속 연도 · 종류(현재 결과/시나리오)로 찾고 쪽으로 나눠 봐요
+//   이유: develop 체험판 삭제(#64) 뒤 「준비 중」이던 「예측 결과」 탭을 서버에 연결 · 회원 관리 탭과 같은 모양
+//   보기만 하는 화면이라 수정 · 삭제 버튼은 없어요
+export function PredictionResults() {
+  // 화면에 적는 중인 검색 조건(form) vs 실제로 검색한 조건(filters)
+  //   이유: 글자를 칠 때마다 서버에 요청하지 않고, 「검색」을 눌렀을 때만 요청하려고
+  const empty = { keyword: '', taxYear: '', kind: '' };
+  const [form, setForm] = useState(empty),
+    [filters, setFilters] = useState(empty),
+    [page, setPage] = useState(1),
+    [rows, setRows] = useState([]),
+    [meta, setMeta] = useState(null),
+    [message, setMessage] = useState(''),
+    [loading, setLoading] = useState(false);
+
+  // filters나 page가 바뀌면 서버에서 다시 읽어요
+  useEffect(() => {
+    let ignore = false; // 늦게 도착한 예전 응답은 버려요 (검색을 빠르게 여러 번 눌렀을 때)
+    setLoading(true);
+    fetchPredictions({ ...filters, page, size: PREDICTION_PAGE_SIZE })
+      .then((res) => {
+        if (!ignore) {
+          setRows(res.rows);
+          setMeta(res.meta);
+        }
+      })
+      .catch((e) => {
+        if (!ignore) {
+          setRows([]);
+          setMeta(null);
+          setMessage(e.message); // 연도 형식 · 403(관리자 아님) · 서버 꺼짐 등 → 문구 그대로
+        }
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [filters, page]);
+
+  const totalPages = Math.max(meta?.totalPages || 0, 1);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  return (
+    <>
+      <h3>예측 결과</h3>
+      <p>전체 회원의 계산 결과예요. 이메일은 일부만 보이고, 볼 때마다 기록이 남아요.</p>
+      <form
+        className="form-grid"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMessage('');
+          setFilters({ ...form });
+          setPage(1);
+        }}
+      >
+        <label className="field">
+          이메일 (일부만 써도 돼요)
+          <input value={form.keyword} onChange={set('keyword')} maxLength={100} />
+        </label>
+        <label className="field">
+          귀속 연도
+          <input
+            type="number"
+            inputMode="numeric"
+            placeholder="전체"
+            min={2000}
+            max={2100}
+            value={form.taxYear}
+            onChange={set('taxYear')}
+          />
+        </label>
+        <label className="field">
+          종류
+          <select value={form.kind} onChange={set('kind')}>
+            <option value="">전체</option>
+            <option value="CURRENT">{PREDICTION_KIND_LABEL.CURRENT}</option>
+            <option value="SCENARIO">{PREDICTION_KIND_LABEL.SCENARIO}</option>
+          </select>
+        </label>
+        <button className="btn" disabled={loading}>
+          검색
+        </button>
+      </form>
+      <p>
+        전체 {meta?.total ?? 0}건 · {page} / {totalPages}쪽
+      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              {[
+                '예측 번호',
+                '계산 일시',
+                '회원',
+                '귀속 연도',
+                '종류',
+                '총급여',
+                '결정세액',
+                '예상 환급액',
+              ].map((v) => (
+                <th key={v}>{v}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              const kind = kindOf(r);
+              // 시나리오면 이름과 기준 결과 번호도 붙여요 (기준 결과가 지워졌으면 번호 없음)
+              const base = r.basePredictionId ? ` (기준 ${r.basePredictionId}번)` : '';
+              const scenarioText = kind === 'SCENARIO' ? ` ${r.scenarioName}${base}` : '';
+              return (
+                <tr key={r.predictionId}>
+                  <td>{r.predictionId}</td>
+                  <td>{r.predictedAt || '-'}</td>
+                  <td>{`${r.memberId}번 · ${r.email}`}</td>
+                  <td>{r.taxYear}</td>
+                  <td>
+                    <span className={'tag ' + (kind === 'CURRENT' ? 'blue' : 'gray')}>
+                      {PREDICTION_KIND_LABEL[kind]}
+                    </span>
+                    {scenarioText}
+                  </td>
+                  <td>{wonText(r.totalSalary)}</td>
+                  <td>{wonText(r.decidedTax)}</td>
+                  <td>{refundText(r.expectedRefund)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
