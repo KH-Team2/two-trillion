@@ -187,7 +187,8 @@ export default function TaxInfoForm({
             return;
           }
           setErr('');
-          if (!d.consent) setErr('시연용 예시 결과 확인에 동의해주세요.');
+          // [수정 11/23] 「시연용 예시 결과」 문구 → 예상 결과 안내 · 이유: 체험판 기능 삭제 결정 (계산은 서버가 해요)
+          if (!d.consent) setErr('예상 결과 안내를 확인하고 체크해 주세요.');
           else {
             try {
               onSubmit(d, tx, uploadMeta);
@@ -202,7 +203,7 @@ export default function TaxInfoForm({
         <p className="muted">
           {mode === 'simulation'
             ? '저장된 정보가 자동으로 입력되어 있어요. 원하는 항목만 바꿔보세요.'
-            : '입력한 정보는 이 브라우저에서 시연용으로 보관됩니다.'}
+            : '입력한 정보는 계산할 때 희망환급 서버에 저장됩니다.'}
         </p>
         <div className="form-grid">
           {step === 0 && (
@@ -451,8 +452,8 @@ export default function TaxInfoForm({
                 <Users />
                 <b>기본공제 요건을 확인해주세요</b>
                 <p>
-                  실제 공제 가능 여부는 가족별 연령·소득·중복 공제를 확인해야 합니다. 자녀별 법정
-                  공제 계산은 미연동입니다.
+                  실제 공제 가능 여부는 가족별 연령·소득·중복 공제를 확인해야 합니다. 인적공제는
+                  입력한 인원으로 서버가 계산합니다.
                 </p>
               </div>
             </>
@@ -482,7 +483,7 @@ export default function TaxInfoForm({
                 'rent',
                 '월세 월 납부액 (원)',
                 'number',
-                '한 달에 납부하는 월세입니다. 데모 계산은 월 납부액 × 12개월로 환산합니다. 실제 납부 기간·계약·증빙 검증은 미연동입니다.',
+                '한 달에 납부하는 월세입니다. 계산할 때 월 납부액 × 12개월로 환산합니다. 실제 납부 기간·계약·증빙은 본인 확인이 필요합니다.',
               )}
               {d.legacyRentNeedsReview && (
                 <p className="notice amber full">
@@ -552,9 +553,7 @@ export default function TaxInfoForm({
                     />
                   </Field>
                 )}
-                <p>
-                  보험료·청약·연금은 체험용 결과에 반영됩니다. 실제 법정 계산·한도는 미연동입니다.
-                </p>
+                <p>보험료·청약·연금은 서버 계산에서 공제율·한도를 적용해 반영됩니다.</p>
                 <h3>계산 전 마지막 확인</h3>
                 <div>
                   총급여 <b>{d.salary.toLocaleString()}원</b>
@@ -578,7 +577,7 @@ export default function TaxInfoForm({
                     checked={d.consent}
                     onChange={(e) => setD({ ...d, consent: e.target.checked })}
                   />
-                  실제 세법 계산이 아닌 시연용 예시 결과임을 확인했습니다.
+                  입력값 기준 예상 결과이며 실제 신고 결과와 다를 수 있음을 확인했습니다.
                 </label>
               </div>
             </>
