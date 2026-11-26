@@ -90,6 +90,18 @@ backend/
     │   │   │   ├── client/                       # CalcClient (계산 서버 호출) · HttpCalcClient · MockCalcClient
     │   │   │   ├── mapper/
     │   │   │   └── dto/
+    │   │   ├── notification/                     # 실시간 알림 (SSE) · 알림 저장 · 목록 · 읽음 · 12월 마감 안내 (NOTIFICATION)
+    │   │   │   ├── config/                       # NotificationSchedulingConfig (@EnableScheduling)
+    │   │   │   ├── controller/                   # NotificationController (GET /api/notifications/stream · GET /api/notifications · PUT /api/notifications/read)
+    │   │   │   ├── service/                      # NotificationService · DeadlineNotificationScheduler (12월 D-30 · 7 · 1)
+    │   │   │   ├── mapper/                       # NotificationMapper
+    │   │   │   └── dto/                          # NotificationDTO · NotificationListDTO
+    │   │   ├── consult/                          # 관리자 상담 채팅 (WebSocket · STOMP · CONSULT_ROOM · CONSULT_MESSAGE)
+    │   │   │   ├── config/                       # WebSocketConfig (/ws · /pub · /sub) · StompAuthChannelInterceptor (CONNECT 토큰 · SUBSCRIBE · SEND 방 권한)
+    │   │   │   ├── controller/                   # ConsultController (POST /api/consult/rooms · GET /api/consult/rooms/{roomId}/messages · GET /api/admin/consult/rooms) · ConsultMessageController (/pub/consult/{roomId})
+    │   │   │   ├── service/                      # ConsultService · ConsultNotifier (상담 알림) · ConsultUser
+    │   │   │   ├── mapper/                       # ConsultMapper
+    │   │   │   └── dto/
     │   │   └── statistics/                       # 그룹 비교 통계 (GET /api/group-stats/{taxYear} · GROUP_STAT 읽기만)
     │   │       ├── controller/                   # GroupStatController
     │   │       ├── service/                      # GroupStatService
@@ -102,6 +114,8 @@ backend/
     │           ├── income/IncomeMapper.xml
     │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
     │           ├── prediction/PredictionMapper.xml
+    │           ├── notification/NotificationMapper.xml
+    │           ├── consult/ConsultMapper.xml
     │           └── statistics/GroupStatMapper.xml
     │
     └── test/java/com/hoperefund/
@@ -109,6 +123,8 @@ backend/
         ├── income/
         ├── expense/
         ├── prediction/
+        ├── notification/
+        ├── consult/
         └── statistics/
 ```
 
@@ -312,9 +328,9 @@ mvnw -B verify
 | `docs/decisions/` | 주요 결정 사항 |
 | `docs/tasks.md` | 작업 현황 및 예정 작업 |
 
-기능 요구사항은 [희망환급 기능명세서 v1.14](https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit)를 참고합니다.
+기능 요구사항은 [희망환급 기능명세서 v1.15](https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit)를 참고합니다.
 
-ERD는 팀에서 공유한 v4.2를 기준으로 합니다.
+ERD는 팀에서 공유한 v4.5를 기준으로 합니다.
 https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 
 일부 개발 문서는 초기 프로젝트 공유 이후 추가될 예정입니다.
