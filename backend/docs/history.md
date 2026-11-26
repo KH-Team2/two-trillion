@@ -34,6 +34,7 @@
   - `mvnw verify` 344건 통과 · `npm test` 123건 통과 · Prettier 통과
   - Talend: 기준값 조회 200 · 없는 연도 400 · 값 수정 200 · 수정 후 CRITERIA_HISTORY에 바뀐 칸 · 관리자 번호 기록 · 같은 값 재수정 시 이력 안 늘어남 · 구간 끝 ≤ 시작 400 · 근거 비움 400 · 없는 번호 404 · 이력 조회 200 · 연도 복사 200 · 같은 연도 다시 복사 409 · 일반 회원 403 · ACCESS_LOG 수정/복사 기록
   - 화면: 연도 선택 · 공제 항목/구간/혜택 표 · 수정 · 구간 추가 · 연도 추가 · 이력 · 되돌리기 · 모달 · 필수 칸 표시
+  
 ### [2026-11-26] ERD v4.6 · 안 쓰는 칸 7개 삭제 (MEMBER.NAME · GROUP_STAT 6칸) (TT-187)
 - **작업 내용**:
   - `database/01_schema.sql`: `MEMBER.NAME` · `GROUP_STAT`의 `TOTAL_SALARY_MIL` · `AVG_WITHHELD_TAX` · `AVG_PAYABLE_TAX` · `AVG_CARD_DEDUCTION` · `AVG_RENT_CREDIT` · `AVG_SME_REDUCTION` 칸 · COMMENT 삭제 · `CK_GROUP_STAT_AMOUNT`는 남는 4칸(인원 · 평균 급여 · 결정세액 · 환급세액)으로 (칸 226 → 219 · CHECK 53 그대로)
