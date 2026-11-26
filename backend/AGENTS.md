@@ -38,6 +38,8 @@ src/main/java/com/hoperefund/
 ├── expense/      # CARD_UPLOAD · EXPENSE · SPEND_CATEGORY (계산 서버가 정리·분류한 결과 저장)
 ├── prediction/   # PREDICTION · PREDICTION_INPUT · PREDICTION_DETAIL (계산 서버 호출 → 결과 · 입력값 · 항목별 내역을 한 트랜잭션으로 저장)
 ├── statistics/   # GROUP_STAT · STAT_FILE
+├── notification/ # NOTIFICATION (실시간 알림 SSE · 알림 저장 · 목록 · 읽음)
+├── consult/      # CONSULT_ROOM · CONSULT_MESSAGE (관리자 상담 채팅 · WebSocket · STOMP)
 ├── chatbot/      # FAQ 목록·카테고리·상세·질문 분류 (Controller / Service / FaqClient; )
 ├── inquiry/      # INQUIRY
 ├── admin/        # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION 수정
@@ -55,7 +57,7 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 - 관리자 API는 `ROLE = 'ADMIN'`을 확인한다. 회원정보 수정에서 `ROLE` · `STATUS`는 바꾸지 않는다.
 - 기준값(`DEDUCTION_TYPE`)은 번호(`TYPE_ID`)가 아니라 `TAX_YEAR` + `TYPE_CODE`(+ 총급여 구간)로 찾는다. 공용 DB와 새 계정의 번호가 다르다.
 - 기본값이 있는 칸은 INSERT에서 빼고 넣는다 (NULL을 넣으면 오류).
-- DB 이름 규칙: 테이블·칸은 대문자 SNAKE_CASE(예: `CARD_UPLOAD`, `MEMBER_ID`) · PK는 `테이블명_ID` 또는 `테이블명_NO` · Oracle 예약어 금지. 테이블·칸은 ERD v4.2(ERDCloud)가 기준이다: https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
+- DB 이름 규칙: 테이블·칸은 대문자 SNAKE_CASE(예: `CARD_UPLOAD`, `MEMBER_ID`) · PK는 `테이블명_ID` 또는 `테이블명_NO` · Oracle 예약어 금지. 테이블·칸은 ERD v4.6(ERDCloud)가 기준이다: https://www.erdcloud.com/d/mL4eEnZLQ3QjgbWF4
 - 금액은 원 단위 정수(`long`)로 다룬다.
 - DTO 이름: 화면에서 받는 값은 `…RequestDTO`, 화면에 돌려주는 값은 `…ResponseDTO` (예: `IncomeRequestDTO` · `IncomeResponseDTO`). 받는 DTO에는 화면이 넣어야 하는 칸만 둔다 (번호·작성일 같은 칸을 요청으로 바꿀 수 없게).
 - 새 기능에는 `src/test/java`에 같은 패키지로 `*Test.java`를 함께 작성한다.
@@ -97,7 +99,7 @@ src/main/resources/mapper/   # MyBatis SQL (기능별 폴더)
 
 ## 기능명세서
 
-- 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1qW5xjOhPqrWkCn9KLUUbylKfsFJCacfOAgBiXm27v9w/edit
+- 기능 사양은 기능명세서(구글 시트)를 기준으로 한다: https://docs.google.com/spreadsheets/d/1KZmA1Suko6ksrQLTGpztskn_-W6XqYmv7feFY8KYlo8/edit
 - 기능명세서 · ERD · 노션 링크는 로그인이 필요해 열리지 않을 수 있다. 열 수 없으면 내용을 추측하지 말고, 사용자에게 필요한 부분(복사본 · 캡처)을 요청한다.
 - ERD와 코드가 다르면 임의로 판단하지 말고 차이를 알린다. DB 변경이 필요하면 노션 「요청·전달」에 DB 변경 요청을 남긴다.
 

@@ -2,6 +2,35 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-26] ERD v4.6 · 안 쓰는 칸 7개 삭제 (MEMBER.NAME · GROUP_STAT 6칸) (TT-187)
+- **작업 내용**:
+  - `database/01_schema.sql`: `MEMBER.NAME` · `GROUP_STAT`의 `TOTAL_SALARY_MIL` · `AVG_WITHHELD_TAX` · `AVG_PAYABLE_TAX` · `AVG_CARD_DEDUCTION` · `AVG_RENT_CREDIT` · `AVG_SME_REDUCTION` 칸 · COMMENT 삭제 · `CK_GROUP_STAT_AMOUNT`는 남는 4칸(인원 · 평균 급여 · 결정세액 · 환급세액)으로 (칸 226 → 219 · CHECK 53 그대로)
+  - `database/02_기준데이터.sql`: `GROUP_STAT` 28행 INSERT에서 6칸 이름 · 값 삭제 (남는 칸 값은 그대로)
+  - `database/README.md`: v4.6 안내 · zip 이름 · ERD 버전 표기
+  - ERD 버전 표기 v4.5 → v4.6: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+- **변경 사유**: 코드에서 안 쓰는 칸 정리 (11/26 팀 채널 공유) · 실명은 v3.5부터 안 받고, 그룹 비교(`GroupStatMapper`)는 4칸만 읽음 · `STAT_FILE` · `GROUP_STAT.FILE_ID` · `MERCHANT_LIST.EXCLUDE_ITEM` · `BASE_DATE`는 출처 · 근거 기록이라 남김
+- **검증 결과**: 팀 깃 전체 브랜치 + PR #67에서 백엔드 · 계산 서버 · 챗봇 · 화면 코드가 지운 칸을 안 쓰는 것 확인 (가입 INSERT에 `NAME` 없음 · 화면 통계 정적 파일은 DB를 읽지 않음) · `02` GROUP_STAT 28행의 남는 칸 값이 v4.5와 같음을 대조 · 이미 만든 계정(공용 DB)은 DB 담당이 `74_v4.5에서_v4.6로.sql`로 적용
+
+### [2026-11-26] ERD v4.5 · 챗봇 대화 테이블 CHAT_SESSION · CHAT_MESSAGE 삭제 (TT-186)
+- **작업 내용**:
+  - `database/01_schema.sql`: `CHAT_SESSION` · `CHAT_MESSAGE` 테이블 · 인덱스 3개 · 시퀀스 2개 · COMMENT 삭제 (테이블 24 → 22 · 칸 237 → 226 · CHECK 54 → 53 · 인덱스 30 → 27 · 시퀀스 22 → 20)
+  - `database/00_초기화.sql`: 두 테이블 · 시퀀스 삭제 줄은 그대로 두고 주석만 추가 (v4.4 이하로 만든 계정을 비울 때 필요)
+  - `database/README.md`: v4.5 안내 추가 · 테이블 수 · zip 이름 · ERD 버전 표기
+- **변경 사유**: 팀 노션 DB 변경 요청(김동석 · 11/26) · 절세 가이드는 `RECOMMENDATION`만 쓰고 두 테이블을 쓰는 코드가 없음 (팀 깃 전체 브랜치에서 확인)
+- **검증 결과**: 백엔드 · 계산 서버 · 화면 코드 변경 없음 · 다른 테이블이 두 테이블을 가리키는 FK 없음 · 이미 만든 계정(공용 DB)은 DB 담당이 `75_v4.4에서_v4.5로.sql`로 적용
+
+### [2026-11-25] 구조도에 알림 · 상담 채팅 추가 · ERD 버전 표기 v4.5 (TT-185)
+- **작업 내용**:
+  - `README.md`(루트) 구조도: 백엔드 `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가 · 화면 `api/`에 계산 · 혜택 진단 · 시뮬레이션 · 통계 · 알림 · 상담 호출 파일 9개 · `pages/support/ConsultChat.jsx` · 화면 테스트 5개 추가
+  - `backend/README.md` 구조도: `notification/` · `consult/` 패키지 · 매퍼 XML · 테스트 폴더 추가
+  - `backend/AGENTS.md` 폴더 구조: `notification/` · `consult/` 두 줄 추가
+  - ERD 버전 표기 v4.2 → v4.4: `backend/README.md` · `backend/AGENTS.md` · `calc/README.md`
+  - [추가 11/26] ERD 버전 표기 v4.4 → v4.5 (PR #66 · 챗봇 대화 테이블 2개 삭제 · 공용 DB는 11/26 v4.5 적용): 같은 3개 파일 · 루트 `README.md` 구조도 `01_schema.sql` 테이블 21개 → 22개
+  - 기능명세서 v1.14 → v1.15 (새 구글 시트 주소): `backend/README.md` · `calc/README.md` 표기 · `backend/README.md` · `backend/AGENTS.md` · `calc/AGENTS.md` 링크
+  - `frontend/docs/API_INTEGRATION.md`: 실시간 알림 · 관리자 상담 채팅 연결 흐름 추가 · 「아직 연결 안 된 부분」에서 해결된 카드 사용액 2건 정리
+- **변경 사유**: PR #46 · #51 · #58로 들어간 알림 · 상담 채팅과 ERD v4.3 · v4.4가 구조도 · 버전 표기에 빠져 있었음
+- **검증 결과**: 문서만 바꿈 (코드 변경 없음) · 폴더 · 파일 이름은 develop(e19fb07)의 실제 경로와 대조
+
 ### [2026-11-25] API 규칙 문서 7번 표에 알림 · 상담 API 추가 (TT-184)
 - **작업 내용**: `backend/docs/api-rules.md` 7번 표에 알림 3개(`/api/notifications/stream` · `/api/notifications` · `/api/notifications/read`) · 상담 3개(`/api/consult/rooms` · `/api/consult/rooms/{roomId}/messages` · `/api/admin/consult/rooms`) 행 추가 · 표 아래에 WebSocket(`/ws` · `/sub` · `/pub` · `/user/queue/errors`) 주소 규칙 한 줄
 - **변경 사유**: 계산 · 회원 API는 표에 있는데 PR #51 · #58로 들어간 알림 · 상담 API가 빠져 있었음
@@ -56,6 +85,38 @@
   - `mvnw spotless:check` 통과 · `mvnw -B verify` 통과 (feature/member 266건 · feature/backend-common 277건) (`CHATBOT_API_TOKEN` · `CALC_API_TOKEN`에 임시 값을 넣고 실행 · 값이 없으면 `contextLoads` 1건 실패 — 수정 전에도 같음)
   - 화면 `npm test` 통과
   - 미검증: 실제 Oracle DB에서 `countRecentResets` 쿼리 실행 (Mock 테스트만)
+
+### [2026-11-24] IP 기준 로그인 제한 (D-15 · D-16 · F-09-01)
+- **작업 내용**
+  - D-15: IP 차단 목록(관리자가 IP 차단) 기능은 만들지 않음 → `BLOCKED_IP` 테이블 추가 없음
+  - D-16: 한 IP가 1분에 50번 이상 로그인 실패 → 12시간 동안 그 IP 로그인 429 `LOGIN_IP_BLOCKED`
+  - `AccessLogMapper.countIpBlockTriggers`: ACCESS_LOG 실패 기록을 `COUNT(*) OVER (RANGE 1분)`으로 세서 최근 12시간 안에 50번이 된 적 있는지 확인 (인덱스 `IX_ACCESS_LOG_IP`)
+  - `LoginService`: 회원 조회 전에 IP 확인 · 막힌 동안의 시도는 `DENIED` 기록(FAIL로 남기면 다시 세어져 차단이 늘어나서 · 회원 잠금처럼 처음 막힌 때부터 정확히 12시간) · IP 없음 · 확인 중 DB 오류면 막지 않음
+  - 테스트: `LoginServiceTest` 3건 추가
+- **변경 사유**: 기능명세서 결정 필요 항목 D-15(IP 차단 기능 없음) · D-16(1분 50번 → 12시간) 확정
+- **검증 결과**: `mvnw verify` 325건 통과 · SCREEN 조건 추가 후 Oracle에서 `countIpBlockTriggers` 실행 확인 · SQL로 로그인 실패 기록 50건을 넣은 뒤 Talend 로그인 시도 → 429 `LOGIN_IP_BLOCKED` · `DENIED` 기록 · 차단 판단 숫자 그대로(차단 시간 안 늘어남) · 회원 실패 횟수 그대로 · 실패 시각을 13시간 전으로 바꾸면 정상 로그인 확인
+
+### [2026-11-23] 관리자 회원 관리 · 권한 부여/해제 (F-20 · F-01-06 · F-08-02 ① · TT-156 · TT-157)
+- **작업 내용** (`feature/admin-2`의 홍은님 코드를 바탕으로 고침)
+  - `GET /api/admin/members`: 이메일 일부를 가린 목록 + 계정 상태 · 권한 · 가입일 · 검색(이메일 일부 · 권한 · 상태) · page 1부터 · size 1~100 · 응답 `ApiResponse.ok(목록, PageMeta)` · 조회한 것도 `ACCESS_LOG`에 기록
+  - `PUT /api/admin/members/{id}/role` 본문 `{"role":"ADMIN"|"USER"}`: 관리자 번호를 `@AuthenticationPrincipal`(토큰)에서 · 성공하면 `ACCESS_LOG`에 `/api/admin/members/{id}/role` 기록
+  - 거절(409): 자기 자신 해제 `SELF_DEMOTE`(D-06) · 성별 없는 관리자 → 일반 회원 `GENDER_REQUIRED`(10/28) · 이미 그 권한 `SAME_ROLE` · 탈퇴 회원 `WITHDRAWN_MEMBER` · 없는 회원 404 · role 값이 틀리면 400
+  - 이름(NAME) 마스킹 · 검색 삭제 (v3.5부터 이름 안 받음) · 이메일 마스킹은 @ 앞이 2글자 이하여도 가려지게
+  - 화면: `admin-member-service.js` 신규 · `AdminTools.jsx`에 서버 연결 `MemberManagement` 추가 · `AdminPage.jsx`가 그쪽을 쓰도록 (11/25: develop 체험판 삭제(#64) 뒤 「준비 중」이던 회원 관리 탭을 서버 API로 연결)
+  - 테스트: `AdminMemberServiceTest` 9건 · `tests/admin-member-service.mjs`
+- **변경 사유**: 원래 코드는 `@RequestAttribute("currentAdminId")`를 넣어 주는 곳이 없어 권한 변경이 항상 400 · 실패 응답이 팀 공통 모양이 아님 · 명세의 「계정 상태 · 권한 표시」 「변경 작업 기록」이 빠져 있었음
+- **리뷰에서 정할 것**: 탈퇴 회원 권한 변경 막기(명세에 없음) · 같은 권한 요청을 409로 할지 · 목록에 아이디(LOGIN_ID)를 보일지
+- **검증 결과**: `mvnw verify` 334건 통과 · `npm test` · Prettier 통과 · Talend로 목록 200 · 이메일 마스킹 · role/size 값 오류 400 · 일반 회원 403 · 권한 부여 200 · 같은 권한 409(SAME_ROLE) · 자기 자신 해제 409(SELF_DEMOTE) · 없는 회원 404 · ACCESS_LOG 조회/변경 기록 확인 · 화면 검색 · 권한 부여/해제 · 쪽 이동 확인 · 탈퇴 회원은 상태 「탈퇴」 표시 · 권한 버튼 꺼짐 확인 (develop 탈퇴 기능 #60 병합 후)
+
+### [2026-11-23] 관리자 접근 기록 조회 리뷰 반영 · 화면 연결 (F-21 · F-08-02 ③ · TT-156 · TT-157)
+- **작업 내용**
+  - `GET /api/admin/access-logs`: 날짜를 `LocalDate`로 받기(형식 틀리면 400) · page 1부터(`@Min(1)`) · size `@Min(1) @Max(100)` · 응답 `ApiResponse.ok(목록, PageMeta)`
+  - `AdminAccessLogMapper.xml`: `LEFT JOIN MEMBER`(회원 없는 실패 기록도 보이게) · `COUNT(...) OVER (PARTITION BY IP)`로 같은 IP 실패 수 · 목록 · 개수가 검색 조건 `<sql>` 공유
+  - `AdminAccessLogService.recordView`: 관리자가 목록을 본 것도 `ACCESS_LOG`에 기록 (번호 겹치면 한 번 더 · 실패해도 화면은 그대로 · `LoginService`와 같은 규칙)
+  - 화면: `access-log-service.js` 신규 · `AdminTools.jsx` 접근 기록 탭을 체험 데이터 → 서버 API · `api-client.js`에 `withMeta` 옵션(기본 꺼짐)
+  - 테스트: `AdminAccessLogServiceTest` 6건 · `tests/access-log-service.mjs`
+- **변경 사유**: PR #45 리뷰 4개(size 최대값 · 날짜 형식 · 전체 개수 · 회원 없는 기록) · 명세 F-08-02 비고 「관리자가 목록을 조회한 것도 ACCESS_LOG에 기록」
+- **검증 결과**: `mvnw verify` 213건 통과 · `npm test` · Prettier 통과 · Talend로 접근 기록 조회 200 확인 · 없는 아이디 실패 기록(memberId null) 표시 · 같은 IP 실패 수 · 연속 실패 4회 표시 · 접근 기록 탭을 열 때마다 /api/admin/access-logs 기록 추가 확인 · (11/25) develop 체험판 삭제(#64) 병합 후 접근 기록 탭 다시 연결
 
 ### [2026-11-23] README · .env.example 환경변수 정리 (필수 토큰 · 이메일 인증 설정)
 - **작업 내용**:
