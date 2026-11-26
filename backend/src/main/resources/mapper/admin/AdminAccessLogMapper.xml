@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
+<<<<<<< HEAD
 <mapper namespace="com.hoperefund.admin.mapper.AdminAccessLogMapper">
 
     <!-- 공통 검색 조건: 시작일, 종료일(당일 포함을 위해 + 1일 미만), IP 부분 일치 -->
@@ -14,10 +15,38 @@
             </if>
             <if test="ipAddress != null and ipAddress != ''">
                 AND IP_ADDRESS LIKE '%' || #{ipAddress} || '%'
+=======
+<!--
+    접근 기록(ACCESS_LOG) 관리자 조회 SQL · 값은 #{}로만 넣는다
+    [수정 11/20] 첫 줄에 <?xml ...?> 선언 추가 · 이유: 다른 매퍼 XML과 모양 맞춤
+-->
+<mapper namespace="com.hoperefund.admin.mapper.AdminAccessLogMapper">
+
+    <!--
+        [추가 11/20] 검색 조건 (목록 · 개수 두 쿼리가 같이 씀)
+        - <sql id="..."> 로 조각을 만들어 두고 <include refid="..."/> 로 끼워 넣는다 (같은 조건을 두 번 쓰지 않으려고)
+        - 이유: 목록과 전체 개수의 조건이 다르면 페이지 수가 틀어짐
+        [수정 11/20] TO_DATE(#{startDate}, 'YYYY-MM-DD') → #{startDate}
+          이유(PR #45 리뷰): 날짜를 LocalDate로 받게 바꿔서 SQL에서 글자 → 날짜로 바꿀 필요가 없음 (잘못된 날짜는 컨트롤러에서 400)
+        [수정 11/20] TO_DATE(#{endDate}, ...) + 1 → #{endDateExclusive} · 이유: +1일은 Service에서 계산해서 넘김
+        - &lt; 는 XML에서 < 를 쓰는 방법 (그냥 < 를 쓰면 태그 시작으로 읽혀 오류)
+    -->
+    <sql id="searchCondition">
+        <where>
+            <if test="startDate != null">
+                AND A.ACCESSED_AT >= #{startDate}
+            </if>
+            <if test="endDateExclusive != null">
+                AND A.ACCESSED_AT &lt; #{endDateExclusive}
+            </if>
+            <if test="ipAddress != null and ipAddress != ''">
+                AND A.IP_ADDRESS LIKE '%' || #{ipAddress} || '%'
+>>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
             </if>
         </where>
     </sql>
 
+<<<<<<< HEAD
     <!-- F-21: 접근 기록 목록 페이징 조회 -->
     <select id="selectAccessLogs" resultType="com.hoperefund.admin.dto.AccessLogResponseDto">
         SELECT
@@ -41,3 +70,51 @@
     </select>
 
 </mapper>
+=======
+    <!--
+        F-21: 접근 기록 및 로그인 실패 모니터링 조회 (최신순 · 페이지)
+        [수정 11/20] PR #45 리뷰 반영
+          ① ACCESS_ID → LOG_ID AS accessId · ORDER BY도 LOG_ID (ACCESS_LOG에 ACCESS_ID 칸이 없어 ORA-00904)
+          ② FAIL_COUNT → M.LOGIN_FAIL_COUNT (ACCESS_LOG에 FAIL_COUNT 칸이 없음 · 실패 횟수는 MEMBER에 있음)
+          ③ LEFT JOIN MEMBER: 없는 아이디로 실패한 기록은 MEMBER_ID가 비어 있어서
+             INNER JOIN(그냥 JOIN)이면 그 기록이 목록에서 사라짐 → LEFT JOIN은 MEMBER가 없어도 기록은 남기고 회원 칸만 null
+          ④ SCREEN 칸 추가 조회 (어느 화면/API 접근인지)
+        [추가 11/20] M.LOCKED_UNTIL(잠금 시각) · ipFailCount(같은 IP의 실패 기록 수)
+        - 테이블 별칭: ACCESS_LOG A · MEMBER M (두 테이블에 같은 이름 MEMBER_ID가 있어서 어느 쪽인지 앞에 붙임)
+        - TO_CHAR(날짜, 'YYYY-MM-DD HH24:MI:SS'): 날짜를 글자로 바꿈 (DTO가 String이라 모양을 정해서 보냄 · 시는 24시간제)
+        - COUNT(CASE WHEN A.RESULT = 'FAIL' THEN 1 END) OVER (PARTITION BY A.IP_ADDRESS)
+            : 행을 줄이지 않고, 같은 IP끼리 묶은 그룹 안의 FAIL 수를 각 행 옆에 붙여 줌 (분석 함수 · GROUP BY와 달리 행 수 그대로)
+            : CASE WHEN ... THEN 1 END 는 FAIL이면 1, 아니면 NULL → COUNT는 NULL을 세지 않으니 FAIL만 셈
+            : WHERE(기간 · IP 검색) 뒤, 페이지 자르기(OFFSET) 전에 계산 → 「검색한 기간 안의 그 IP 실패 수」
+    -->
+    <select id="selectAccessLogs" resultType="com.hoperefund.admin.dto.AccessLogResponseDto">
+        SELECT
+            A.LOG_ID AS accessId,
+            A.MEMBER_ID AS memberId,
+            A.SCREEN AS screen,
+            TO_CHAR(A.ACCESSED_AT, 'YYYY-MM-DD HH24:MI:SS') AS accessedAt,
+            A.IP_ADDRESS AS ipAddress,
+            A.RESULT AS result,
+            M.LOGIN_FAIL_COUNT AS failCount,
+            TO_CHAR(M.LOCKED_UNTIL, 'YYYY-MM-DD HH24:MI:SS') AS lockedUntil,
+            COUNT(CASE WHEN A.RESULT = 'FAIL' THEN 1 END) OVER (PARTITION BY A.IP_ADDRESS) AS ipFailCount
+        FROM ACCESS_LOG A
+        LEFT JOIN MEMBER M ON M.MEMBER_ID = A.MEMBER_ID
+        <include refid="searchCondition"/>
+        ORDER BY A.LOG_ID DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+    </select>
+
+    <!--
+        [추가 11/20] 검색 조건에 맞는 전체 기록 수
+        이유(PR #45 리뷰 ③): 전체 개수(total)가 있어야 화면이 총 페이지 수를 그림 (PageMeta.of(page, size, total))
+        MEMBER는 조건에 쓰지 않아 JOIN 없이 ACCESS_LOG만 센다 (LEFT JOIN이라 행 수가 같음)
+    -->
+    <select id="countAccessLogs" resultType="int">
+        SELECT COUNT(*)
+        FROM ACCESS_LOG A
+        <include refid="searchCondition"/>
+    </select>
+
+</mapper>
+>>>>>>> aad4652af0ed7a61c0d2e67402c6a605f34e7053
