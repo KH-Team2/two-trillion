@@ -18,6 +18,14 @@ import {
 // [추가 11/25 고은] F-21 접근 기록 서버 API
 //   이유: develop의 체험판 삭제(#64)와 병합하면서 접근 기록 탭(AccessLog)이 같이 지워져서 되살림
 import { ACCESS_RESULT_LABEL, PAGE_SIZE, fetchAccessLogs } from '@/api/access-log-service.js';
+// [추가 11/23 고은] F-20 회원 관리 서버 API
+import {
+  MEMBER_PAGE_SIZE,
+  ROLE_LABEL,
+  STATUS_LABEL,
+  fetchMembers,
+  updateMemberRole,
+} from '@/api/admin-member-service.js';
 // [수정 11/20] F-18 문의 관리: 브라우저 체험 데이터(inquiryService) → 서버 API
 //   GET /api/admin/inquiries?status= (전체 목록) · PUT /api/admin/inquiries/{id}/answer ([확인 중] · 답변 등록)
 //   이름도 서버 응답에 맞춤: id → inquiryId · category → inquiryType · text → content
@@ -305,6 +313,174 @@ export function AccessLog() {
         </button>
       </div>
       <p role="status">{err}</p>
+    </>
+  );
+}
+
+// [추가 11/23 고은] F-20 회원 관리 · 관리자 권한 부여/해제 (서버 API: GET /api/admin/members · PUT …/{id}/role)
+//   이유: 원래 회원 관리 탭(AccountForms.jsx의 MemberManagement)은 이 브라우저에 저장된 체험 회원만 바꾸는 시연이었어요
+//   → 다른 팀원 파일(AccountForms.jsx)은 건드리지 않고, 관리자 화면 모음인 이 파일에 서버 연결 버전을 새로 만들었어요
+//   onChange: 권한을 바꾼 뒤 부르는 함수 (AdminPage가 로그인 정보를 다시 읽게 넘겨줘요)
+export function MemberManagement({ onChange }) {
+  // 화면에 적는 중인 검색 조건(form) vs 실제로 검색한 조건(filters) · 접근 기록 탭과 같은 방식
+  const empty = { keyword: '', role: '', status: '' };
+  const [form, setForm] = useState(empty),
+    [filters, setFilters] = useState(empty),
+    [page, setPage] = useState(1),
+    [rows, setRows] = useState([]),
+    [meta, setMeta] = useState(null),
+    [message, setMessage] = useState(''),
+    [loading, setLoading] = useState(false),
+    // reload: 권한을 바꾼 뒤 숫자를 올려서 목록을 다시 불러오게 하는 신호
+    [reload, setReload] = useState(0);
+
+  useEffect(() => {
+    let ignore = false; // 늦게 도착한 예전 응답은 버려요
+    setLoading(true);
+    fetchMembers({ ...filters, page, size: MEMBER_PAGE_SIZE })
+      .then((res) => {
+        if (!ignore) {
+          setRows(res.rows);
+          setMeta(res.meta);
+        }
+      })
+      .catch((e) => {
+        if (!ignore) {
+          setRows([]);
+          setMeta(null);
+          setMessage(e.message); // 403(관리자 아님) · 서버 꺼짐 등 → 서버 문구 그대로
+        }
+      })
+      .finally(() => {
+        if (!ignore) setLoading(false);
+      });
+    return () => {
+      ignore = true;
+    };
+  }, [filters, page, reload]);
+
+  async function changeRole(member) {
+    const nextRole = member.role === 'ADMIN' ? 'USER' : 'ADMIN';
+    const action = nextRole === 'ADMIN' ? '부여' : '해제';
+    if (
+      !window.confirm(`${member.memberId}번 회원(${member.email})의 관리자 권한을 ${action}할까요?`)
+    )
+      return;
+    setLoading(true);
+    try {
+      await updateMemberRole(member.memberId, nextRole);
+      setMessage(`${member.memberId}번 회원의 관리자 권한을 ${action}했어요.`);
+      setReload((n) => n + 1);
+      onChange?.();
+    } catch (e) {
+      // 409: 자기 자신 해제 · 성별 없는 관리자 · 이미 그 권한 · 탈퇴 회원 → 서버 문구 그대로
+      setMessage(e.message);
+      setLoading(false);
+    }
+  }
+
+  const totalPages = Math.max(meta?.totalPages || 0, 1);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  return (
+    <>
+      <h3>회원 관리</h3>
+      <p>
+        이메일 일부를 가린 회원 목록이에요. 권한을 바꾸면 기록이 남아요. 자기 자신의 관리자 권한은
+        해제할 수 없어요.
+      </p>
+      <form
+        className="form-grid"
+        onSubmit={(e) => {
+          e.preventDefault();
+          setMessage('');
+          setFilters({ ...form });
+          setPage(1);
+        }}
+      >
+        <label className="field">
+          이메일 (일부만 써도 돼요)
+          <input value={form.keyword} onChange={set('keyword')} maxLength={100} />
+        </label>
+        <label className="field">
+          권한
+          <select value={form.role} onChange={set('role')}>
+            <option value="">전체</option>
+            <option value="USER">{ROLE_LABEL.USER}</option>
+            <option value="ADMIN">{ROLE_LABEL.ADMIN}</option>
+          </select>
+        </label>
+        <label className="field">
+          계정 상태
+          <select value={form.status} onChange={set('status')}>
+            <option value="">전체</option>
+            <option value="ACTIVE">{STATUS_LABEL.ACTIVE}</option>
+            <option value="WITHDRAWN">{STATUS_LABEL.WITHDRAWN}</option>
+          </select>
+        </label>
+        <button className="btn" disabled={loading}>
+          검색
+        </button>
+      </form>
+      <p>
+        전체 {meta?.total ?? 0}명 · {page} / {totalPages}쪽
+      </p>
+      <div className="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              {['회원 번호', '이메일', '가입일', '계정 상태', '현재 권한', '권한 관리'].map((v) => (
+                <th key={v}>{v}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((m) => (
+              <tr key={m.memberId}>
+                <td>{m.memberId}</td>
+                <td>{m.email}</td>
+                <td>{m.createdAt || '-'}</td>
+                <td>{STATUS_LABEL[m.status] || m.status}</td>
+                <td>
+                  <span className={'tag ' + (m.role === 'ADMIN' ? 'blue' : 'gray')}>
+                    {ROLE_LABEL[m.role] || m.role}
+                  </span>
+                </td>
+                <td>
+                  {/* 탈퇴 회원은 서버도 막지만(409), 화면에서도 버튼을 꺼 둬요 */}
+                  <button
+                    type="button"
+                    className="text-btn"
+                    disabled={loading || m.status === 'WITHDRAWN'}
+                    onClick={() => changeRole(m)}
+                  >
+                    {m.role === 'ADMIN' ? '관리자 권한 해제' : '관리자 권한 부여'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!loading && !rows.length && !message && <p className="empty">검색 결과가 없습니다.</p>}
+      <div className="form-grid">
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={loading || page <= 1}
+          onClick={() => setPage((n) => n - 1)}
+        >
+          이전 쪽
+        </button>
+        <button
+          type="button"
+          className="btn secondary"
+          disabled={loading || page >= totalPages}
+          onClick={() => setPage((n) => n + 1)}
+        >
+          다음 쪽
+        </button>
+      </div>
+      <p role="status">{message}</p>
     </>
   );
 }
