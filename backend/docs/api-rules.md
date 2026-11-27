@@ -128,6 +128,8 @@
 | GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |
 | GET | `/api/faqs/{faqId}` | FAQ 상세 조회 |
 | POST | `/api/faq-matches` | 자유 질문을 등록된 FAQ에 매칭 |
+| POST | `/api/predictions/{predictionId}/recommendations` | 로그인 회원의 해당 계산 결과에서 추천 코드 선정 → 기존 저장 추천 재사용 → 미저장 설명만 생성·저장. 요청 본문 없음 · 응답 `data: {predictionId, items}` · 남의 계산 결과는 404 |
+| GET | `/api/predictions/{predictionId}/recommendations` | 해당 계산 결과에 이미 저장된 맞춤 절세 가이드 조회만 수행. 생성 없음 · 응답 `data: {predictionId, items}` · 남의 계산 결과는 404 |
 
 상담 채팅 실시간 주고받기는 REST가 아니라 WebSocket(STOMP)이에요 (F-07-03).
 연결 `/ws` (CONNECT 헤더 `Authorization: Bearer {accessToken}`) · 받기 `SUBSCRIBE /sub/consult/{roomId}` (방 주인 회원 · 관리자만) · 보내기 `SEND /pub/consult/{roomId}` 본문 `{content}` (1~1000자) · 오류는 보낸 사람에게만 `/user/queue/errors`

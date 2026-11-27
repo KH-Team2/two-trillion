@@ -2,6 +2,25 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-27] 맞춤 절세 가이드 구현
+- **작업 내용**:
+  - Spring Boot에서 계산 결과를 기반으로 주택청약종합저축·연금저축·IRP 추천 조건 판정 구현
+  - Spring Boot `GuideController`에 절세 가이드 생성·조회 API 추가
+  - Spring Boot `GuideServiceImpl`에 추천 생성·저장·기존 결과 재사용 로직 구현
+  - Spring Boot `GuideClient`를 통해 Python FastAPI `/guide/generate` 호출
+  - FastAPI `tax_guides.json`에 추천 상품별 정보와 기본 설명 구성
+  - FastAPI에서 Gemma 3를 이용해 상품 설명·세금 혜택·확인 사항 생성
+  - Gemma 응답의 JSON 형식·공제 유형·숫자 생성 여부 검증 및 실패 시 기본 설명 적용
+  - Oracle `RECOMMENDATION` 테이블에 생성된 추천 결과 저장
+  - 동일 계산 결과에 대한 동시 요청 시 행 잠금·재조회로 중복 저장 방지
+  - React `TaxGuidePanel.jsx`와 `guide-service.js`를 통해 절세 가이드 화면 및 API 연동
+- **변경 사유**:
+  - 사용자의 연말정산 계산 결과에 맞는 절세 상품을 안내하고 관련 혜택을 쉽게 이해할 수 있도록 구현
+  - AI 설명 생성 결과를 저장·재사용하여 불필요한 중복 생성과 저장을 방지
+- **검증 결과**:
+  - Spring Boot `GuideServiceTest` 단위 테스트 10개 통과
+  - Spring Boot 전체 테스트 326개 통과 및 Spotless 검사 통과
+
 ### [2026-11-26] ERD v4.6 · 안 쓰는 칸 7개 삭제 (MEMBER.NAME · GROUP_STAT 6칸) (TT-187)
 - **작업 내용**:
   - `database/01_schema.sql`: `MEMBER.NAME` · `GROUP_STAT`의 `TOTAL_SALARY_MIL` · `AVG_WITHHELD_TAX` · `AVG_PAYABLE_TAX` · `AVG_CARD_DEDUCTION` · `AVG_RENT_CREDIT` · `AVG_SME_REDUCTION` 칸 · COMMENT 삭제 · `CK_GROUP_STAT_AMOUNT`는 남는 4칸(인원 · 평균 급여 · 결정세액 · 환급세액)으로 (칸 226 → 219 · CHECK 53 그대로)
