@@ -1,0 +1,120 @@
+/* [추가 11/26 고은] F-19 세법 기준값 관리 화면 전용 모양 · 색은 globals.css 변수(--blue · --line) 그대로
+   CSS Module: 이 파일의 이름(.modal 등)은 이 화면에서만 쓰여서 다른 화면과 겹치지 않아요 (ConsultChat.module.css와 같은 방식) */
+
+/* 표의 「관리」 칸: 버튼 3개를 한 줄로 · 화면 너비가 바뀌어도 줄바꿈 안 함 */
+.actionsCell {
+  white-space: nowrap;
+  width: 1%; /* 칸을 내용만큼만 · 남는 너비는 다른 칸이 가져감 */
+}
+.actions {
+  display: flex;
+  gap: 6px;
+}
+/* 작은 버튼: globals.css의 .btn.secondary 모양을 그대로 쓰고 크기만 줄임 */
+.small {
+  min-height: 30px;
+  padding: 6px 11px;
+  font-size: 12px;
+}
+
+/* 모달: 화면 전체를 덮는 반투명 배경 + 가운데 상자 */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgb(15 23 42 / 45%);
+}
+.modal {
+  width: min(680px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow-y: auto; /* 칸이 많으면 상자 안에서만 스크롤 */
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 20px 50px rgb(15 23 42 / 25%);
+  padding: 26px 28px 22px;
+}
+.modalHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.modalHead h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+}
+.modalHead p {
+  margin: 0;
+  font-size: 12px;
+  color: #7a8aa1;
+}
+.close {
+  font-size: 20px;
+  line-height: 1;
+  color: #93a2b8;
+  padding: 2px 6px;
+}
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px 18px;
+}
+.wide {
+  grid-column: 1 / -1; /* 한 줄 전체 차지 (근거 칸) */
+}
+.grid label {
+  display: block;
+  font-size: 12px;
+  color: #5c6c83;
+}
+.grid input,
+.grid select {
+  display: block;
+  width: 100%;
+  margin-top: 7px;
+}
+.required {
+  color: #d93636;
+  margin-left: 3px;
+}
+/* 비운 필수 칸: 빨간 테두리 */
+.invalid,
+.grid input.invalid,
+.grid select.invalid {
+  border-color: #d93636 !important;
+  box-shadow: 0 0 0 3px rgb(217 54 54 / 12%);
+}
+.error {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: #c62828;
+}
+.changed {
+  background: #fff8e1; /* 되돌리기로 바뀐 칸 표시 */
+}
+.foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 22px;
+}
+.fixed {
+  font-size: 12px;
+  color: #7a8aa1;
+  margin: 0 0 16px;
+}
+.historyTable td,
+.historyTable th {
+  white-space: nowrap;
+}
+
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: 1fr;
+  }
+}
