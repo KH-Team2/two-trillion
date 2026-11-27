@@ -40,7 +40,7 @@ src/main/java/com/hoperefund/
 ├── statistics/   # GROUP_STAT · STAT_FILE
 ├── notification/ # NOTIFICATION (실시간 알림 SSE · 알림 저장 · 목록 · 읽음)
 ├── consult/      # CONSULT_ROOM · CONSULT_MESSAGE (관리자 상담 채팅 · WebSocket · STOMP)
-├── chatbot/      # FAQ 목록·카테고리·상세·질문 분류 (Controller / Service / FaqClient; )
+├── chatbot/      # FAQ 조회·분류 + 맞춤 절세 가이드 추천·저장 (controller / service / client / mapper)
 ├── inquiry/      # INQUIRY
 ├── admin/        # DEDUCTION_TYPE · TAX_BRACKET · BENEFIT_CONDITION 수정
 └── common/       # ACCESS_LOG · 보안 · 예외 처리

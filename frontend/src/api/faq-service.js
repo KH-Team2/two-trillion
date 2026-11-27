@@ -51,9 +51,7 @@ export function getFaqCategories(items) {
 
 // 선택한 카테고리의 용어 목록 생성
 export function listFaqQuestions(items, category) {
-  return items
-    .filter((item) => item.category === category)
-    .map(({ id, term }) => ({ id, term }));
+  return items.filter((item) => item.category === category).map(({ id, term }) => ({ id, term }));
 }
 
 // FAQ ID로 상세 답변 조회

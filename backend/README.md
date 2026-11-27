@@ -4,7 +4,7 @@
 
 본 프로젝트는 **Spring Boot 기반 백엔드 API 서버**로, React 프론트엔드의 요청 처리, Oracle Database 조회·저장, Python 계산 서버 및 AI 챗봇 서버 연동을 담당합니다.
 
-> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중 / 챗봇 용어 사전 완료 · LLM 절세 추천 개발 중
+> **현재 상태:** 소득 · 세액 계산 · 혜택 진단 · 대시보드 · 시뮬레이션 · 결과 이력 · 그룹 통계 API 구현 완료 / 로그인 · 회원 · 지출 · 관리자 API 개발 중 / 챗봇 용어 사전 완료 · LLM 절세 추천 완료
 
 ## 1. 개발 환경
 
@@ -68,10 +68,12 @@ backend/
     │   │   │   └── exception/
     │   │   │       ├── GlobalExceptionHandler.java   # 모든 오류를 공통 봉투의 error로
     │   │   │       └── *Exception.java           # BadRequest · NotFound · Conflict · NoCriteria · CalcRejected · CalcUnavailable
-    │   │   ├── chatbot/                          # FAQ 외부 API · FastAPI 연동 (controller / service / client)
+    │   │   ├── chatbot/                          # FAQ API + 맞춤 절세 가이드 추천·저장
     │   │   │   ├── controller/
     │   │   │   ├── service/
-    │   │   │   └── client/
+    │   │   │   ├── mapper/
+    │   │   │   ├── client/
+    │   │   │   └── dto/
     │   │   ├── income/                           # 소득 정보 입력·조회 (GET·PUT /api/incomes/{taxYear})
     │   │   │   ├── controller/
     │   │   │   ├── service/
@@ -116,6 +118,7 @@ backend/
     │           ├── prediction/PredictionMapper.xml
     │           ├── notification/NotificationMapper.xml
     │           ├── consult/ConsultMapper.xml
+    │           ├── chatbot/GuideMapper.xml
     │           └── statistics/GroupStatMapper.xml
     │
     └── test/java/com/hoperefund/
@@ -308,6 +311,7 @@ mvnw -B verify
 - 기능 API: 소득 입력·조회 · 카드내역 업로드 · 거래내역 조회·삭제 · 예상 세액 계산 + 결과 저장 · 저장된 계산 결과 조회 · 청년 혜택 진단 · 조건 변경 시뮬레이션 · 결과 이력 조회 · 그룹 비교 통계 · 관리자 회원 관리 · 권한 변경 · 관리자 세법 기준값 관리 · 관리자 예측 결과 조회 · 관리자 접근 기록 조회 (주소 · 설명은 [`docs/api-rules.md`](docs/api-rules.md) 7번 표)
 - Python 계산 서버 HTTP 통신 (`CalcClient` · `X-Calc-Token` · 연결·응답 제한 시간 · mock 전환)
 - 세금 용어 FAQ 챗봇 연동
+- 맞춤 절세 가이드 추천 대상 판정·생성·저장·조회 API
 - JUnit 자동 테스트 및 코드 품질 검사 환경
 
 ### 추후 구현 예정
