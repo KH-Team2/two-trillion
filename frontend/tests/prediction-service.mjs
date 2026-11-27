@@ -20,6 +20,7 @@ try {
     cardTotalsByMethod,
     fetchCardTotals,
     homelessHeadYn,
+    homelessHeadToInput,
     simulationRequest,
     simulate,
     fetchPredictions,
@@ -92,6 +93,15 @@ try {
     () => homelessHeadYn({ housing: '무주택', headOfHousehold: '확인 필요' }),
     (e) => e.code === 'VALIDATION',
   );
+
+  // 서버 회원정보 Y/N → 화면 두 칸 (시뮬레이션 출발값 · TT-188)
+  assert.deepEqual(homelessHeadToInput('Y'), { housing: '무주택', headOfHousehold: '예' });
+  assert.deepEqual(homelessHeadToInput('N'), { headOfHousehold: '아니요' });
+  assert.deepEqual(homelessHeadToInput(undefined), {});
+  // 화면 값이 「확인 필요」여도 서버 값으로 채우면 다시 같은 Y/N이 돼요
+  const blank = { housing: '확인 필요', headOfHousehold: '확인 필요' };
+  assert.equal(homelessHeadYn({ ...blank, ...homelessHeadToInput('Y') }), 'Y');
+  assert.equal(homelessHeadYn({ ...blank, ...homelessHeadToInput('N') }), 'N');
 
   // 카드 사용액: 서버 합계 + 가상 추가액을 분류 × 결제수단별로 합침 (TT-118)
   const totals = [
