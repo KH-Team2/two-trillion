@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 관리자 예측 결과 조회 (F-08-02 ②) · [신규 11/26 고은] -->
+<mapper namespace="com.hoperefund.admin.mapper.AdminPredictionMapper">
+
+    <!--
+        목록 · 개수 쿼리가 같이 쓰는 FROM + 검색 조건 (회원 관리 · 접근 기록과 같은 방식)
+        이유: 두 쿼리에 조건을 따로 쓰면 한쪽만 고쳐서 「목록 15건 · 전체 20건」처럼 어긋날 수 있어요
+        - JOIN MEMBER: 이메일로 찾고 · 이메일(일부 가림)을 보여 주려고 (PREDICTION.MEMBER_ID는 NOT NULL + FK라 빠지는 행 없음)
+        - LEFT JOIN PREDICTION_INPUT: 계산에 쓴 총급여 (예측 1건당 입력값 1행 · 1:1이라 건수가 늘지 않아요)
+          LEFT인 이유: 입력값 행이 없는 결과도 목록에서 빠지지 않게 (그때 총급여는 null)
+        - keyword: 이메일 일부 (이메일은 DB에 소문자로만 저장 CK_MEMBER_EMAIL_LOWER → 찾는 글자도 LOWER)
+        - taxYear: 귀속 연도 (비어 있으면 전체)
+        - kind: CURRENT = 처음 계산(SCENARIO_NAME 기본값 '현재') · SCENARIO = 조건 변경 시뮬레이션 (비어 있으면 전체)
+          ※ BASE_PREDICTION_ID로 나누지 않는 이유: 기준 결과가 지워지면 시나리오의 BASE_PREDICTION_ID도 NULL이 돼요(FK ON DELETE SET NULL)
+    -->
+    <sql id="fromAndSearch">
+        FROM PREDICTION P
+        JOIN MEMBER M ON M.MEMBER_ID = P.MEMBER_ID
+        LEFT JOIN PREDICTION_INPUT I ON I.PREDICTION_ID = P.PREDICTION_ID
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND M.EMAIL LIKE '%' || LOWER(#{keyword}) || '%'
+            </if>
+            <if test="taxYear != null">
+                AND P.TAX_YEAR = #{taxYear}
+            </if>
+            <if test="kind == 'CURRENT'">
+                AND P.SCENARIO_NAME = '현재'
+            </if>
+            <if test="kind == 'SCENARIO'">
+                AND P.SCENARIO_NAME &lt;&gt; '현재'
+            </if>
+        </where>
+    </sql>
+
+    <!--
+        예측 결과 한 쪽 · 최신순
+        - 이메일 가리기는 회원 관리(AdminMemberMapper.xml)와 같은 식
+          @ 앞이 1~2글자 → 앞부분 전부 *** · 그 외 → 앞 2글자만 남기고 *** (예: test1234@naver.com → te***@naver.com)
+        - ORDER BY에 번호를 하나 더: 같은 초에 계산한 결과끼리 순서가 쪽마다 바뀌지 않게
+    -->
+    <select id="selectPredictions" resultType="com.hoperefund.admin.dto.AdminPredictionResponseDto">
+        SELECT
+            P.PREDICTION_ID AS predictionId,
+            P.MEMBER_ID AS memberId,
+            CASE
+                WHEN INSTR(M.EMAIL, '@') &lt;= 3 THEN '***' || SUBSTR(M.EMAIL, INSTR(M.EMAIL, '@'))
+                ELSE REGEXP_REPLACE(M.EMAIL, '^([^@]{2})[^@]*(@.*)$', '\1***\2')
+            END AS email,
+            P.TAX_YEAR AS taxYear,
+            P.SCENARIO_NAME AS scenarioName,
+            P.BASE_PREDICTION_ID AS basePredictionId,
+            I.TOTAL_SALARY AS totalSalary,
+            P.TAXABLE_INCOME AS taxableIncome,
+            P.CALCULATED_TAX AS calculatedTax,
+            P.DECIDED_TAX AS decidedTax,
+            P.EXPECTED_REFUND AS expectedRefund,
+            TO_CHAR(P.PREDICTED_AT, 'YYYY-MM-DD HH24:MI') AS predictedAt
+        <include refid="fromAndSearch"/>
+        ORDER BY P.PREDICTED_AT DESC, P.PREDICTION_ID DESC
+        OFFSET #{offset} ROWS FETCH NEXT #{size} ROWS ONLY
+    </select>
+
+    <!-- 검색 조건에 맞는 전체 건수 -->
+    <select id="countPredictions" resultType="int">
+        SELECT COUNT(*)
+        <include refid="fromAndSearch"/>
+    </select>
+
+</mapper>

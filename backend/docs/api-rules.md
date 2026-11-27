@@ -128,6 +128,7 @@
 | GET | `/api/admin/tax-criteria/history?targetType=&id=` | 한 행의 변경 이력 (`CRITERIA_HISTORY` · 최신순 최대 100줄) |
 | GET | `/api/admin/members?keyword=&role=&status=&page=&size=` | 관리자 전용 회원 목록 · 이메일 일부 가림 · 계정 상태 · 권한 · 가입일 · `meta`에 쪽 정보 · 조회한 것도 기록 (F-08-02 ①) |
 | PUT | `/api/admin/members/{memberId}/role` | 관리자 권한 부여 · 해제 · 본문 `{"role":"ADMIN"\|"USER"}` · 200 `data: null` · 자기 자신 해제 · 성별 없는 관리자 해제 · 같은 권한 · 탈퇴 회원이면 409 · 없으면 404 · 기록 남김 (F-01-06) |
+| GET | `/api/admin/predictions?keyword=&taxYear=&kind=&page=&size=` | 관리자 전용 전체 회원 예측 결과 목록 · 최신순 · 이메일 일부 가림 · 검색: 이메일 일부 · 귀속 연도(2000~2100) · 종류 `kind`(`CURRENT` 처음 계산 = 시나리오 이름 「현재」 / `SCENARIO` 조건 변경) · 총급여 · 결정세액 · 예상 환급액(음수 = 추가 납부) · `meta`에 쪽 정보 · 값 틀리면 400 · 조회한 것도 기록 (F-08-02 ②) |
 | GET | `/api/admin/access-logs?startDate=&endDate=&ipAddress=&page=&size=` | 관리자 전용 접근 기록 목록 · 최신순 · `meta`에 쪽 정보 · 같은 IP 실패 수 포함 · 날짜 형식 · page(1~) · size(1~100) 틀리면 400 · 조회한 것도 기록 (F-08-02 ③) |
 | GET | `/api/faqs` | FAQ 목록 조회 |
 | GET | `/api/faq-categories` | FAQ 카테고리 목록 조회 |

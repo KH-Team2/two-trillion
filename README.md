@@ -171,7 +171,7 @@
  │   │   │       # button.jsx, input.jsx, dialog.jsx, chart.jsx, table.jsx 등
  │   │   ├── pages/                           # 실제 화면 구성
  │   │   │   ├── admin/
- │   │   │   │   └── AdminPage.jsx            # 관리자 화면 (준비 중)
+ │   │   │   │   └── AdminPage.jsx            # 관리자 화면 (문의 · 회원 · 기준값 · 예측 결과 · 접근 기록)
  │   │   │   ├── auth/
  │   │   │   │   ├── AccountForms.jsx         # 회원 관련 입력 폼
  │   │   │   │   └── AuthPage.jsx             # 로그인·가입 등 인증 화면
