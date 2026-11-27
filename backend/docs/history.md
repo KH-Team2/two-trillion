@@ -2,6 +2,23 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-26] 관리자 세법 기준값 관리 (F-19 · F-08-01 · TT-156 · TT-157)
+- **작업 내용** (`feature/admin`의 홍은님 F-19 코드를 바탕으로 고침)
+  - `GET /api/admin/tax-criteria?taxYear=`: 연도별 공제 항목 · 세율/공제 구간 · 혜택 조건 + 연도 목록(`years`) · 마지막 수정(날짜 · 관리자 번호) · 카드 분류 이름
+  - `PUT /api/admin/tax-criteria`: 값 칸만 수정 (연도 · 코드 · 종류 · 분류 · 결제수단 · 구간 종류는 그대로 · 계산 서버가 TAX_YEAR + TYPE_CODE로 찾아서) · `UPDATED_BY = 관리자 번호` · `UPDATED_AT = SYSDATE` 같이 갱신 → 이력은 v4.4 트리거가 `CRITERIA_HISTORY`에 자동 기록 (PR #57 안내 · 이력 INSERT 코드 없음)
+  - `POST /api/admin/tax-criteria`(같은 코드로 구간 추가) · `POST /api/admin/tax-criteria/years`(연도 통째로 복사) · `GET /api/admin/tax-criteria/history`(한 행 이력)
+  - 원래 코드 오류 수정: INSERT에 번호 빠짐(ORA-01400) → `SEQ_*.NEXTVAL` · 없는 칸 `HOMELESS_HOUSEHOLD_YN` → `HOMELESS_HEAD_REQ_YN` · 응답 Item에 setter 없어 MyBatis가 못 담음 → `@Setter` · `IllegalArgumentException`(500) → 공통 예외
+  - DB 규칙(구간 끝 > 시작 · 최소 나이 ≤ 최대 나이 · 카드 행 분류 필수)을 먼저 검사해 400 · 값 제한 위반(ORA-02290) 400 「입력값을 확인해 주세요」 · 중복(ORA-00001) 409 · 근거 필수
+  - 수정 · 추가 · 연도 복사를 `ACCESS_LOG`에 기록 (명세 ④)
+  - 화면: `tax-criteria-service.js` 신규 · `AdminTools.jsx` `CriteriaManagement`(연도 선택 · 세 표 · 수정 · 구간 추가 · 연도 추가 · 이력) · `AdminPage.jsx` 「공제 기준값」 탭 연결
+  - 테스트: `AdminTaxCriteriaServiceTest` 10건 · `tests/tax-criteria-service.mjs`
+- **변경 사유**: 명세 F-08-01 · DB 담당 안내(PR #57: UPDATE에 `UPDATED_BY` · `UPDATED_AT`을 같이 넣으면 트리거가 이력을 남김)
+- **리뷰에서 정할 것**: 근거(`sourceNote`)를 꼭 받을지 · 혜택 조건도 행 추가를 열어 둘지(화면에서는 막아 둠) · 이력에 관리자 아이디를 보일지
+- **검증 결과**
+  - `mvnw verify` 344건 통과 · `npm test` 123건 통과 · Prettier 통과
+  - Talend: 기준값 조회 200 · 없는 연도 400 · 값 수정 200 · 수정 후 CRITERIA_HISTORY에 바뀐 칸 · 관리자 번호 기록 · 같은 값 재수정 시 이력 안 늘어남 · 구간 끝 ≤ 시작 400 · 근거 비움 400 · 없는 번호 404 · 이력 조회 200 · 연도 복사 200 · 같은 연도 다시 복사 409 · 일반 회원 403 · ACCESS_LOG 수정/복사 기록
+  - 화면: 연도 선택 · 공제 항목/구간/혜택 표 · 수정 · 구간 추가 · 연도 추가 · 이력 · 되돌리기 · 모달 · 필수 칸 표시
+  
 ### [2026-11-26] ERD v4.6 · 안 쓰는 칸 7개 삭제 (MEMBER.NAME · GROUP_STAT 6칸) (TT-187)
 - **작업 내용**:
   - `database/01_schema.sql`: `MEMBER.NAME` · `GROUP_STAT`의 `TOTAL_SALARY_MIL` · `AVG_WITHHELD_TAX` · `AVG_PAYABLE_TAX` · `AVG_CARD_DEDUCTION` · `AVG_RENT_CREDIT` · `AVG_SME_REDUCTION` 칸 · COMMENT 삭제 · `CK_GROUP_STAT_AMOUNT`는 남는 4칸(인원 · 평균 급여 · 결정세액 · 환급세액)으로 (칸 226 → 219 · CHECK 53 그대로)
