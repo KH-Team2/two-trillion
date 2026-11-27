@@ -29,6 +29,18 @@ export function homelessHeadYn(d) {
 }
 
 /**
+ * 서버 회원정보의 무주택 세대주 여부(Y/N) → 화면 두 칸 값 (homelessHeadYn의 반대 방향) [추가 11/27 · TT-188]
+ * - Y → 「무주택」 + 「예」
+ * - N → 「아니요」 (주택 보유 상태는 서버에 따로 저장하지 않아 화면 값 그대로)
+ * - 그 밖(값 없음) → 바꾸지 않음
+ */
+export function homelessHeadToInput(yn) {
+  if (yn === 'Y') return { housing: '무주택', headOfHousehold: '예' };
+  if (yn === 'N') return { headOfHousehold: '아니요' };
+  return {};
+}
+
+/**
  * 서버에 저장된 카드 사용액 합계 (GET /api/expense-totals?year=) → [{categoryId, payMethod, amount}]
  * - 기준 계산(back findCardSpends)과 같은 EXPENSE · 같은 연도 · 분류 × 결제수단 합계
  * - 시뮬레이션은 이 합계에서 출발해요 (브라우저 거래 목록은 다른 PC · 새 브라우저에서 비어 있음 · TT-118)

@@ -9,7 +9,13 @@ import { fetchGroupStats } from '@/api/statistics-service.js';
 import { AUTH_EXPIRED_EVENT } from '@/api/api-client.js';
 import { notificationFromEvent, openNotificationStream } from '@/api/notification-stream.js';
 import { fetchNotifications, markNotificationsRead, toAlert } from '@/api/notification-service.js';
-import { cardTotalsByMethod, fetchCardTotals, simulate } from '@/api/prediction-service.js';
+import {
+  cardTotalsByMethod,
+  fetchCardTotals,
+  homelessHeadToInput,
+  simulate,
+} from '@/api/prediction-service.js';
+import { memberApi } from '@/api/member-api.js';
 import { fetchIncome, incomeToInput } from '@/api/income-service.js';
 import { accountService, newPrototypeId } from '@/api/account-service.js';
 import { CheckCircle2, X } from 'lucide-react';
@@ -279,6 +285,16 @@ export default function App() {
       start = { ...data, ...incomeToInput(await fetchIncome(data.taxYear)) };
     } catch {
       // 서버 소득이 없으면 브라우저 입력값으로 시작
+    }
+    // [추가 11/27 · TT-188] 무주택 세대주 여부도 서버 회원정보(마이페이지 저장값)에서 출발
+    // 이유: 실제 계산은 MEMBER 값을 쓰는데 시뮬레이션은 화면 값만 써서, 마이페이지에 「예」로 저장해도
+    //   시뮬레이션에서는 주택청약 · 월세 공제가 빠진 채 계산됐음
+    // 회원정보를 불러오지 못하면 브라우저 입력값 그대로 시작해요.
+    try {
+      const profile = await memberApi.getMyProfile();
+      start = { ...start, ...homelessHeadToInput(profile?.homelessHeadYn) };
+    } catch {
+      // 회원정보를 못 불러오면 브라우저 입력값으로 시작
     }
     // 카드 사용액도 기준 계산과 같은 서버 합계에서 출발 (브라우저 거래 목록은 다른 PC · 새 브라우저에서 비어 있음)
     // 서버 기준 결과가 있을 때만
