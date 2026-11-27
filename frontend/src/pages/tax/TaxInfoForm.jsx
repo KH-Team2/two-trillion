@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { normalizeTaxData, validateTaxData } from '@/api/services.js';
 import { uploadTotals, uploadBlocker } from '@/api/expense-service.js';
+import { SCENARIO_NAME_MAX } from '@/api/prediction-service.js';
 import { ExpenseUpload } from '@/components/expense/ExpenseUpload.jsx';
 const steps = ['기본 정보', '소득 정보', '지출 정보', '부양가족', '주거 정보', '공제·감면'];
 function Field({ label, children, hint }) {
@@ -546,11 +547,17 @@ export default function TaxInfoForm({
               <div className="review full">
                 {mode === 'simulation' && (
                   <Field label="시나리오 이름">
+                    {/* [추가 11/27 · TT-192] 16자까지만 입력 (PREDICTION.SCENARIO_NAME) · 넘으면 계산 때 알림만 잠깐 떠서 놓치기 쉬웠음 */}
                     <input
+                      maxLength={SCENARIO_NAME_MAX}
                       value={d.scenarioName || ''}
                       onChange={(e) => setD({ ...d, scenarioName: e.target.value })}
                       placeholder="예: 연금 추가 납입"
                     />
+                    <small>
+                      {SCENARIO_NAME_MAX}자까지 입력할 수 있어요. ({(d.scenarioName || '').length}/
+                      {SCENARIO_NAME_MAX})
+                    </small>
                   </Field>
                 )}
                 <p>보험료·청약·연금은 서버 계산에서 공제율·한도를 적용해 반영됩니다.</p>
