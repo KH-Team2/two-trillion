@@ -18,7 +18,6 @@ import SupportPage from '@/pages/support/SupportPage.jsx';
 import ProfilePage from '@/pages/profile/ProfilePage.jsx';
 import StatisticsPage from '@/pages/statistics/StatisticsPage.jsx';
 import BenefitsPage from '@/pages/tax/BenefitsPage.jsx';
-import ChatbotPage from '@/pages/chatbot/ChatbotPage.jsx';
 import SimulationPage from '@/pages/simulation/SimulationPage.jsx';
 import DashboardPage from '@/pages/dashboard/DashboardPage.jsx';
 import TaxInputPage from '@/pages/tax/TaxInputPage.jsx';
@@ -534,7 +533,6 @@ export default function App() {
                         조건을 바꿔 계산하면 기존 결과와 비교해 볼 수 있어요.
                       </NeedResult>
                     ))}
-                  {page === 'guide' && <ChatbotPage />}
                   {page === 'benefits' && <BenefitsPage data={data} normalInput={normalInput} />}
                   {page === 'stats' && serverResult && (
                     <StatisticsPage

@@ -60,7 +60,7 @@
 
 ## 그 밖의 연결 위치
 
-- 고객센터 문의(`SupportPage.jsx`) · 관리자 문의 관리(`AdminTools.jsx` `InquiryManagement`): 서버 API(`inquiry-service.js` · PR #53) · 관리자의 회원 · 기준값 · 예측 결과 · 접근 기록 탭은 「준비 중」 (예전 브라우저 시연 코드 `prototype-records.js`는 git 기록에 있음)
+- 고객센터 문의(`SupportPage.jsx`) · 관리자 문의 관리(`AdminTools.jsx` `InquiryManagement`): 서버 API(`inquiry-service.js` · PR #53) · 관리자의 회원(`admin-member-service.js`) · 기준값(`tax-criteria-service.js`) · 예측 결과(`admin-prediction-service.js`) · 접근 기록(`access-log-service.js`) 탭도 서버 API (예전 브라우저 시연 코드 `prototype-records.js`는 git 기록에 있음)
 - AI 상담(`ChatbotPage.jsx` · 대시보드 상담 카드): 「준비 중」 · 상담방/메시지 저장, Gemma3·RAG 호출 연결 필요 (예전 고정 응답 `ChatPanel.jsx`는 git 기록에 있음)
 - `App.jsx`, `userService`: 입력·계산 이력·시나리오 조회/저장을 서버로 교체. 원본과 가상 입력은 분리 유지.
 

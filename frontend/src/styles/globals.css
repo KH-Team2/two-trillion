@@ -1387,14 +1387,6 @@ footer > span:last-child {
   margin-left: auto;
   color: #659c83;
 }
-.chat {
-  padding: 0;
-  overflow: hidden;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  min-height: 790px;
-}
 .chat-title {
   display: flex;
   gap: 10px;
@@ -1410,123 +1402,10 @@ footer > span:last-child {
   width: 34px;
   height: 34px;
 }
-.chat-title small {
-  font-size: 8px;
-  color: #a0acbe;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
 .chat-title .tag {
   font-size: 7px;
   padding: 3px 5px;
   margin-left: auto;
-}
-.status-dot {
-  width: 4px;
-  height: 4px;
-  background: #78bea8;
-  border-radius: 50%;
-  display: inline-block;
-}
-.chat-messages {
-  padding: 18px;
-  flex: 1;
-  max-height: 500px;
-  overflow-y: auto;
-  scrollbar-width: thin;
-}
-.chat-date {
-  text-align: center;
-  color: #a6b1c2;
-  font-size: 8px;
-  margin-bottom: 25px;
-}
-.message p {
-  font-size: 11px;
-  color: #5c6f8d;
-  line-height: 2;
-  margin: 8px 0 9px;
-  white-space: pre-line;
-}
-.message.user {
-  padding: 10px 13px;
-  border-radius: 9px;
-  background: #edf3ff;
-  margin: 16px 0;
-}
-.message.user p {
-  margin: 0;
-  color: #526a96;
-  font-size: 10px;
-}
-.ai-label {
-  color: #4079e8;
-  font-size: 9px;
-  font-weight: 650;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-.message.ai {
-  margin-bottom: 24px;
-}
-.message.ai > small {
-  font-size: 7px;
-  color: #aab5c6;
-}
-.chat-bottom {
-  padding: 0 15px 17px;
-}
-.chat-bottom > small:first-child {
-  font-size: 8px;
-  color: #a2aec2;
-  display: block;
-  margin-bottom: 8px;
-}
-.prompt {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border: 1px solid #e4ebfa;
-  padding: 9px;
-  border-radius: 6px;
-  margin: 7px 0;
-  color: #7b9edb;
-  font-size: 8px;
-  width: 100%;
-  text-align: left;
-  gap: 5px;
-}
-.prompt > svg {
-  flex-shrink: 0;
-}
-.chat-bottom form {
-  display: flex;
-  align-items: center;
-  border: 1px solid #dfe7f5;
-  border-radius: 8px;
-  margin-top: 16px;
-  padding: 5px;
-}
-.chat-bottom form input {
-  border: 0;
-  box-shadow: none;
-  font-size: 8px;
-  padding: 7px 6px;
-  flex: 1;
-}
-.chat-bottom form button {
-  background: var(--blue);
-  color: #fff;
-  padding: 8px;
-  border-radius: 6px;
-}
-.chat-bottom .footnote {
-  display: block;
-  font-size: 7px;
-  color: #b2bbca;
-  margin-top: 8px;
 }
 .page-footer {
   display: flex;
@@ -1895,37 +1774,6 @@ table select {
   grid-template-columns: 1fr 1fr;
   gap: 20px;
   margin-top: 20px;
-}
-.guide-layout {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 22px;
-}
-.expanded {
-  min-height: 650px;
-}
-.expanded .message p {
-  font-size: 13px;
-}
-.expanded .chat-title {
-  padding: 22px;
-}
-.expanded .chat-messages {
-  max-height: 420px;
-  padding: 25px;
-}
-.expanded .prompt,
-.expanded .chat-bottom form input {
-  font-size: 11px;
-}
-.expanded .chat-bottom {
-  padding: 0 22px 22px;
-}
-.guide-layout .card .iconbox {
-  margin-bottom: 20px;
-}
-.guide-layout h2 {
-  font-size: 25px;
 }
 .benefit-hero {
   display: flex;
@@ -2303,9 +2151,6 @@ table select {
   .dashboard-grid {
     grid-template-columns: minmax(0, 1fr) 360px;
   }
-  .chat {
-    min-height: 805px;
-  }
   .heading h1 {
     font-size: 28px;
   }
@@ -2314,9 +2159,6 @@ table select {
   }
   .legend > div {
     font-size: 11px;
-  }
-  .message p {
-    font-size: 12px;
   }
   .refund-card > h2 {
     font-size: 46px;
@@ -2432,22 +2274,6 @@ table select {
   .dashboard-grid {
     grid-template-columns: 1fr;
   }
-  .chat {
-    min-height: 550px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: auto 1fr;
-  }
-  .chat-title {
-    grid-column: 1/-1;
-  }
-  .chat-messages {
-    max-height: 380px;
-  }
-  .chat-bottom {
-    padding: 25px 20px;
-    align-self: end;
-  }
   .heading h1 {
     font-size: 23px;
   }
@@ -2502,12 +2328,6 @@ table select {
   }
   .form-grid {
     gap: 20px;
-  }
-  .guide-layout {
-    grid-template-columns: 1fr;
-  }
-  .expanded {
-    display: flex;
   }
   .stepper button {
     font-size: 0;
@@ -2856,30 +2676,8 @@ table select {
   .card-note {
     font-size: 7px;
   }
-  .chat {
-    display: flex;
-    min-height: 590px;
-    padding: 0;
-  }
   .chat-title {
     padding: 20px;
-  }
-  .chat-messages {
-    max-height: 350px;
-  }
-  .chat-bottom {
-    padding: 10px 18px 18px;
-    align-self: stretch;
-  }
-  .message p {
-    font-size: 12px;
-  }
-  .prompt {
-    font-size: 10px;
-    padding: 11px;
-  }
-  .chat-bottom form input {
-    font-size: 10px;
   }
   .youth-banner {
     padding: 14px 12px;
@@ -3573,10 +3371,7 @@ table select {
   position: sticky;
   top: 90px;
 }
-.dashboard-v3 .dash-ai .chat {
-  min-height: 700px;
-  max-height: calc(100vh - 110px);
-}
+
 @media (min-width: 1024px) and (max-width: 1200px) {
   .dashboard-v3 .dash-metrics {
     gap: 12px;
@@ -3595,10 +3390,6 @@ table select {
 @media (max-width: 1023px) {
   .dashboard-v3 .dash-ai {
     position: static;
-  }
-  .dashboard-v3 .dash-ai .chat {
-    max-height: none;
-    min-height: 550px;
   }
 }
 @media (max-width: 600px) {
@@ -3899,95 +3690,6 @@ button:disabled {
     padding: 12px;
   }
 }
-
-/* Conversation history stays in the full guide, leaving dashboard chat compact. */
-.chat-conversation-tools {
-  padding: 12px 22px;
-  border-bottom: 1px solid var(--line);
-  background: #fff;
-  flex-shrink: 0;
-}
-.chat-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.chat-tool-button {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 9px;
-  border-radius: 7px;
-  color: #697c98;
-  font-size: 12px;
-  line-height: 1.5;
-}
-.chat-tool-button:hover,
-.chat-tool-button.is-open {
-  background: #f0f5ff;
-  color: var(--blue);
-}
-.chat-tool-button.is-open > svg:last-child {
-  transform: rotate(180deg);
-}
-.chat-tool-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-.chat-history {
-  margin-top: 10px;
-  padding: 12px;
-  background: #f7f9fd;
-  border: 1px solid #e7edf6;
-  border-radius: 10px;
-  max-height: 230px;
-  overflow-y: auto;
-}
-.chat-history > p {
-  font-size: 11px;
-  color: #8390a5;
-  margin: 0 0 8px;
-  line-height: 1.6;
-}
-.chat-history-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  width: 100%;
-  padding: 11px 12px;
-  border-radius: 7px;
-  text-align: left;
-}
-.chat-history-item:hover,
-.chat-history-item.is-selected {
-  background: #eaf1ff;
-  color: #2868d5;
-}
-.chat-history-item > span {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-}
-.chat-history-item b {
-  font-size: 12px;
-  line-height: 1.6;
-}
-.chat-history-item small {
-  font-size: 10px;
-  color: #8694a9;
-}
-@media (max-width: 650px) {
-  .chat-conversation-tools {
-    padding: 10px 18px;
-  }
-  .chat-history {
-    max-height: 200px;
-  }
-}
-
 /* 음수 한도 조정액은 중앙 0선의 왼쪽에 표시합니다. */
 .negative-amount {
   color: #bf3e48;
@@ -4064,4 +3766,158 @@ button:disabled {
 /* [추가 11/23] 「준비 중」 안내 카드 (ComingSoon.jsx) */
 .coming-soon h2 {
   margin: 10px 0 6px;
+}
+
+/* 맞춤 절세 가이드 */
+
+/* 추천이 없으면 오른쪽 패널과 빈 공간 제거 */
+.dashboard-grid:has(> .dash-ai:empty) {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.dash-ai:empty {
+  display: none;
+}
+
+/* 기존 card, chat-title, iconbox, tag 재사용 */
+.tax-guide {
+  padding: 0;
+  margin: 0;
+  overflow: hidden;
+}
+
+.tax-guide-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tax-guide-title p {
+  margin: 0;
+  color: #8290a6;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.tax-guide .chat-title .tag {
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.tax-guide-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px;
+}
+
+.tax-guide-item {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tax-guide-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  border: 0;
+  padding: 13px 11px;
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.tax-guide-toggle:hover,
+.tax-guide-toggle[aria-expanded='true'] {
+  background: #f4f8ff;
+}
+
+.tax-guide-name {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+}
+
+.tax-guide-name strong {
+  font-size: 12px;
+  color: #17345d;
+}
+
+.tax-guide-name .tag {
+  font-size: 9px;
+}
+
+.tax-guide-toggle > svg {
+  flex-shrink: 0;
+  color: #8290a6;
+  transition: transform 0.2s;
+}
+
+.tax-guide-toggle > svg.is-open {
+  transform: rotate(180deg);
+}
+
+.tax-guide-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 16px 14px;
+  border-top: 1px solid var(--line);
+}
+
+.tax-guide-body h4 {
+  margin: 0 0 8px;
+  color: #273f61;
+  font-size: 12px;
+}
+
+.tax-guide-body p {
+  margin: 0;
+  color: #63728a;
+  font-size: 11px;
+  line-height: 1.85;
+  overflow-wrap: anywhere;
+}
+
+.tax-guide-notice {
+  display: flex;
+  gap: 7px;
+  margin: 0;
+  padding: 14px;
+  border-top: 1px solid var(--line);
+  color: #8290a6;
+  font-size: 10px;
+  line-height: 1.7;
+}
+
+.tax-guide-notice svg {
+  flex-shrink: 0;
+}
+
+.tax-guide-status {
+  padding: 20px 16px;
+  color: #63728a;
+  font-size: 11px;
+}
+
+.tax-guide-status button {
+  margin-top: 10px;
+  color: var(--blue);
+  cursor: pointer;
+}
+/* 시뮬레이션 결과의 오른쪽 맞춤 절세 가이드 */
+.simulation-guide-grid > .dash-ai {
+  min-width: 0;
+  position: sticky;
+  top: 90px;
+}
+
+@media (max-width: 1000px) {
+  .simulation-guide-grid > .dash-ai {
+    position: static;
+  }
 }

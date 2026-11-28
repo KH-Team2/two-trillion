@@ -33,7 +33,6 @@ import Dashboard from '@/pages/dashboard/Dashboard.jsx';
 import Input from '@/pages/tax/TaxInfoForm.jsx';
 import Benefits from '@/pages/tax/BenefitsPage.jsx';
 import Statistics from '@/pages/statistics/GroupStats.jsx';
-import Chatbot from '@/pages/chatbot/ChatbotPage.jsx';
 import Simulation from '@/pages/simulation/SimulationPage.jsx';
 import Profile from '@/pages/profile/ProfilePage.jsx';
 import Support from '@/pages/support/SupportPage.jsx';
@@ -199,7 +198,6 @@ const cases = [
       chart={() => null}
     />,
   ],
-  ['chatbot', <Chatbot />],
   [
     'simulation-result',
     <Simulation
@@ -255,7 +253,7 @@ const cases = [
 ];
 // [추가 11/23] 서버 API가 아직 없는 화면은 체험 기능 대신 「준비 중」 안내를 보여야 함
 // [수정 11/25] reset 제외 · 이유: 아이디 찾기 · 비밀번호 재설정(F-01-03)이 서버에 연결됨 (위에서 따로 검사)
-const comingSoon = ['chatbot'];
+const comingSoon = [];
 // 관리자 첫 탭은 서버에 연결된 문의 관리(PR #53) → 준비 중이 아니어야 함
 const notComingSoon = ['admin'];
 for (const [name, node] of cases) {
