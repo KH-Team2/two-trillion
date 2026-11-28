@@ -4,6 +4,8 @@ import static jakarta.servlet.http.HttpServletResponse.SC_FORBIDDEN;
 import static jakarta.servlet.http.HttpServletResponse.SC_UNAUTHORIZED;
 
 import com.hoperefund.common.dto.ApiResponse;
+import com.hoperefund.common.filter.AccessLogFilter;
+import com.hoperefund.common.service.AccessLogService;
 import com.hoperefund.common.service.TokenService;
 import com.hoperefund.common.service.TokenService.TokenInfo;
 import jakarta.servlet.DispatcherType;
@@ -44,6 +46,7 @@ import tools.jackson.databind.json.JsonMapper;
  *         ├ 로그인 필요한데 정보 없음(토큰 없음 · 위조 · 만료 · 로그아웃됨) → 401 UNAUTHORIZED
  *         ├ 로그인했지만 권한 없음(USER가 /api/admin/**)               → 403 FORBIDDEN
  *         └ 통과 → Controller ({@code @AuthenticationPrincipal Long memberId}로 회원번호 받음)
+ *      → 응답이 끝나면 AccessLogFilter 가 주요 동작 · 403 을 ACCESS_LOG 에 기록 (F-09-01)
  * </pre>
  *
  * 세션 · 쿠키를 쓰지 않고 토큰을 헤더로만 받으므로 CSRF 보호는 끈다 (브라우저가 헤더를 자동으로 붙이지 않음).
@@ -56,9 +59,11 @@ public class SecurityConfig {
     private final JsonMapper jsonMapper; // 401 · 403 응답 본문(JSON)을 만든다
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http, TokenService tokenService)
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http, TokenService tokenService, AccessLogService accessLogService)
             throws Exception {
         JwtAuthenticationFilter jwtFilter = new JwtAuthenticationFilter(tokenService);
+        AccessLogFilter accessLogFilter = new AccessLogFilter(accessLogService);
 
         http
                 // ① 쓰지 않는 기본 기능 끄기 (로그아웃은 POST /api/auth/logout · MemberController)
@@ -78,7 +83,11 @@ public class SecurityConfig {
                 .exceptionHandling(this::errorHandlers)
 
                 // ⑤ 토큰 필터를 Security 필터 체인에 끼워 넣는다
-                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
+
+                // ⑥ 접근 기록 필터는 토큰 필터 바로 뒤 (F-09-01)
+                //    → 회원번호를 읽을 수 있고, 뒤에서 나는 403 응답 상태도 볼 수 있는 자리
+                .addFilterAfter(accessLogFilter, JwtAuthenticationFilter.class);
 
         return http.build();
     }

@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-28] develop 반영 · 관리자 접근 기록 중복 정리 (F-09-01)
+- **작업 내용**:
+  - develop 병합: `LoginService` 결과 상수를 `AccessLogService.SUCCESS · FAIL · DENIED`로 통일 · IP 차단 확인(`isIpBlocked`)은 `AccessLogService.countIpBlockTriggers`로 연결 · `api-rules.md` 403 · 429 줄 정리
+  - `README.md` · `.env.example` · `application.yml`: 이전 병합에서 남은 옛날 내용을 develop 최신 내용으로 맞춤 (README 는 접근 기록 필터 · 서비스 폴더 설명만 추가)
+  - `AccessLogFilter`: 관리자 서비스가 성공 기록을 직접 남기는 요청(GET access-logs · members · predictions / PUT members/{id}/role · tax-criteria / POST tax-criteria · tax-criteria/years)은 성공이면 필터가 남기지 않음 (`isRecordedByAdminService`) · 실패는 필터가 FAIL 로 남김
+  - 그 밖의 관리자 주소(기준값 조회 · 변경 이력 · 문의 목록 · 문의 답변 등)는 계속 필터가 기록
+  - `AccessLogFilterTest`: 관리자 서비스 기록 요청 성공 → 안 남김 · 실패 → FAIL · 서비스가 안 남기는 주소 → 기록 테스트
+- **변경 사유**: develop 의 관리자 서비스(11/23)와 필터가 같은 관리자 요청을 둘 다 기록해 ACCESS_LOG 가 2줄씩 쌓임 → 팀원 코드는 그대로 두고 필터에서 겹치는 부분만 뺌
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` (CHATBOT_API_TOKEN 테스트용 값) 373개 통과 · BUILD SUCCESS
+
 ### [2026-11-27] 맞춤 절세 가이드 구현
 - **작업 내용**:
   - Spring Boot에서 계산 결과를 기반으로 주택청약종합저축·연금저축·IRP 추천 조건 판정 구현
@@ -224,6 +234,25 @@
 - **검증 결과**
   - FAQ 카테고리 선택 → 용어 선택 → 상세 답변 조회 정상 동작 확인
   - 자유 질문 → FAQ 분류 → 고정 FAQ 답변 반환 정상 동작 확인
+
+### [2026-11-22] 접근 기록 저장 (F-09-01)
+- **작업 내용**:
+  - `common/filter/AccessLogFilter` (새 파일): 응답이 끝나면(finally) 상태 코드를 보고 ACCESS_LOG 에 기록 · `SecurityConfig` ⑥ `addFilterAfter(…, JwtAuthenticationFilter.class)` (회원번호를 읽고 뒤에서 나는 403 도 보이는 자리) · Bean 으로 등록하지 않음
+    - 대상 (D-14): 업로드 `POST /api/card-uploads` · 계산 `POST /api/calculations/**` · `POST /api/simulations/**` · 관리자 `/api/admin/**` (조회 포함 · 모든 방식)
+    - 결과: 2xx → `SUCCESS` · 403 → `DENIED`(주소와 관계없이) · 그 밖의 4xx · 5xx · 처리되지 않은 예외 → `FAIL` (예외는 그대로 넘김)
+    - 남기지 않음: 401(로그인 안 함 · 토큰 만료 · 11/22 결정: 만료 때 화면이 여러 주소를 한꺼번에 불러 의미 없는 기록이 쌓임) · 로그인(`LoginService`가 따로 남김) · 그 밖의 주소 · OPTIONS
+    - `MEMBER_ID` = 토큰의 회원번호 (로그인 전이면 NULL) · `SCREEN` = 요청 주소 (100자 넘으면 자름) · `IP_ADDRESS` = `getRemoteAddr()` (`X-Forwarded-For` 안 씀)
+  - `common/service/AccessLogService` (새 파일): `record(memberId, screen, ip, result)` · 결과 값 상수 `SUCCESS` · `FAIL` · `DENIED` · 저장 실패는 `log.error`만 (본래 동작을 막지 않음)
+  - `AccessLogMapper.xml`: `LOG_ID` 를 `MAX + 1` → `SEQ_ACCESS_LOG.NEXTVAL` · `LoginService`: Mapper 직접 호출 · 번호 겹침 재시도 → `AccessLogService.record` 한 줄
+  - 하지 않은 것: 남의 데이터 요청(404) `DENIED` 기록 · 97번 SQL(오래된 기록 정리) · IP 기준 제한(D-16 보류)
+- **변경 사유**: 기능명세서 F-09-01 · 참고 저장소 sjlimiei26/5_Framework `log-demo/AccessLogFilter`(`OncePerRequestFilter` + finally 에서 상태 코드로 기록) · final_project_sample(SecurityConfig 단계 번호 주석 · 필터 끼워 넣기) · secure-coding-lab-student(화면에는 짧게 · 원인은 서버 로그에만)
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 272건 중 270건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · 변경 전에도 같은 2건 실패 확인)
+  - 새 테스트: `AccessLogFilterTest` 7건 · `AccessLogServiceTest` 3건 · `SecurityConfigTest` 1건(실제 필터 순서에서 403 → DENIED · 관리자 404 → FAIL · 401 → 기록 없음) · `LoginServiceTest` 재시도 테스트 → 저장 실패해도 로그인 성공으로 바꿈
+  - 로컬 Oracle 로 확인 (2026-11-22 · `DELETE FROM ACCESS_LOG` 로 기존 15건 정리 후 · 회원 1002(USER) · PowerShell 로 API 호출): `LOG_ID` 1부터 차례로 11건 (시퀀스 번호 겹침 없음)
+    - 로그인 성공 `SUCCESS` · 비밀번호 틀림 `FAIL`(회원번호 있음) · 없는 아이디 `FAIL`(`MEMBER_ID` NULL)
+    - `/api/card-uploads` `FAIL` (기존 expense `X-Member-Id` 문제로 400) · `/api/calculations/2026` `FAIL` · `/api/admin/members` `DENIED`
+    - 기록 안 됨 확인: 소득 조회 `GET /api/incomes/2026` · 토큰 없이 계산(401) · `IP_ADDRESS` 는 `0:0:0:0:0:0:0:1` (같은 PC · IPv6)
+  - 미검증: 업로드 · 계산 `SUCCESS` (업로드는 expense 헤더 문제 · 계산은 2026 소득 저장 후) · 관리자 계정으로 관리자 동작 · 화면(브라우저)에서 호출
 
 ### [2026-11-21] 회원 탈퇴 (F-01-05)
 - **작업 내용**:

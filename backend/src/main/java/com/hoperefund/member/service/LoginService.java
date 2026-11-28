@@ -1,7 +1,7 @@
 package com.hoperefund.member.service;
 
 import com.hoperefund.common.exception.BusinessException;
-import com.hoperefund.common.mapper.AccessLogMapper;
+import com.hoperefund.common.service.AccessLogService;
 import com.hoperefund.common.service.TokenService;
 import com.hoperefund.common.service.TokenService.IssuedToken;
 import com.hoperefund.common.service.TokenService.TokenInfo;
@@ -15,7 +15,6 @@ import java.util.Locale;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataAccessException;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -48,14 +47,10 @@ public class LoginService {
     static final String LOGIN_SCREEN = "/api/auth/login"; // ACCESS_LOG.SCREEN 에 남길 값
 
     private static final String STATUS_WITHDRAWN = "WITHDRAWN";
-    private static final String RESULT_SUCCESS = "SUCCESS";
-    private static final String RESULT_FAIL = "FAIL";
-    // [추가 11/24 고은] D-16 막힌 IP 의 로그인 시도 기록용 (FAIL 로 남기면 차단 판단에 다시 세어져 차단이 늘어나서)
-    private static final String RESULT_DENIED = "DENIED";
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
     private final MemberMapper memberMapper;
-    private final AccessLogMapper accessLogMapper;
+    private final AccessLogService accessLogService;
     private final PasswordEncoder passwordEncoder;
     private final TokenService tokenService;
     private final boolean lockEnabled;
@@ -66,12 +61,12 @@ public class LoginService {
     // 설정 값(@Value)을 받고 가짜 암호문도 만들어야 해서 생성자를 직접 쓴다
     public LoginService(
             MemberMapper memberMapper,
-            AccessLogMapper accessLogMapper,
+            AccessLogService accessLogService,
             PasswordEncoder passwordEncoder,
             TokenService tokenService,
             @Value("${member.login-lock.enabled:true}") boolean lockEnabled) {
         this.memberMapper = memberMapper;
-        this.accessLogMapper = accessLogMapper;
+        this.accessLogService = accessLogService;
         this.passwordEncoder = passwordEncoder;
         this.tokenService = tokenService;
         this.lockEnabled = lockEnabled;
@@ -86,7 +81,8 @@ public class LoginService {
         //     → 차단 판단은 FAIL 만 세므로, 막힌 동안 계속 시도해도 차단 시간이 늘어나지 않음
         //       (회원 5회 잠금이 잠금 중 시도로 잠금 시간을 늘리지 않는 것과 같은 규칙 · 처음 막힌 때부터 정확히 12시간)
         if (isIpBlocked(ipAddress)) {
-            writeAccessLog(null, ipAddress, RESULT_DENIED);
+            // [추가 11/24 고은] D-16 막힌 IP 의 로그인 시도 기록용 (FAIL 로 남기면 차단 판단에 다시 세어져 차단이 늘어나서)
+            writeAccessLog(null, ipAddress, AccessLogService.DENIED);
             throw new BusinessException(
                     HttpStatus.TOO_MANY_REQUESTS,
                     "LOGIN_IP_BLOCKED",
@@ -100,14 +96,14 @@ public class LoginService {
         // ① 없는 아이디
         if (member == null) {
             passwordMatches(request.getPassword(), dummyPasswordHash);
-            writeAccessLog(null, ipAddress, RESULT_FAIL);
+            writeAccessLog(null, ipAddress, AccessLogService.FAIL);
             throw loginFailed();
         }
         long memberId = member.getMemberId();
 
         // ② 잠금 중
         if (lockEnabled && member.isLocked()) {
-            writeAccessLog(memberId, ipAddress, RESULT_FAIL);
+            writeAccessLog(memberId, ipAddress, AccessLogService.FAIL);
             throw unauthorized("LOGIN_LOCKED", "10분 뒤 다시 시도해 주세요");
         }
 
@@ -116,13 +112,13 @@ public class LoginService {
             if (lockEnabled) {
                 memberMapper.increaseLoginFail(memberId, MAX_FAIL_COUNT, LOCK_MINUTES);
             }
-            writeAccessLog(memberId, ipAddress, RESULT_FAIL);
+            writeAccessLog(memberId, ipAddress, AccessLogService.FAIL);
             throw loginFailed();
         }
 
         // ④ 탈퇴 회원
         if (STATUS_WITHDRAWN.equals(member.getStatus())) {
-            writeAccessLog(memberId, ipAddress, RESULT_FAIL);
+            writeAccessLog(memberId, ipAddress, AccessLogService.FAIL);
             throw unauthorized("WITHDRAWN_MEMBER", "탈퇴한 계정이에요");
         }
 
@@ -131,7 +127,7 @@ public class LoginService {
             memberMapper.resetLoginFail(memberId);
         }
         IssuedToken token = tokenService.issue(memberId, member.getLoginId(), member.getRole());
-        writeAccessLog(memberId, ipAddress, RESULT_SUCCESS);
+        writeAccessLog(memberId, ipAddress, AccessLogService.SUCCESS);
 
         LocalDateTime expiresAt = LocalDateTime.ofInstant(token.expiresAt(), KOREA);
         String tokenType = TokenService.TOKEN_TYPE;
@@ -152,7 +148,7 @@ public class LoginService {
             return false;
         }
         try {
-            return accessLogMapper.countIpBlockTriggers(
+            return accessLogService.countIpBlockTriggers(
                             ipAddress, IP_FAIL_LIMIT, IP_FAIL_WINDOW_MINUTES, IP_BLOCK_HOURS)
                     > 0;
         } catch (DataAccessException e) {
@@ -170,22 +166,10 @@ public class LoginService {
         }
     }
 
-    // ACCESS_LOG 기록. 번호(MAX + 1)가 겹치면 한 번 더 시도하고,
-    // 그래도 실패하면 서버 로그만 남긴다 (기록 실패 때문에 로그인을 막지 않는다)
+    // ACCESS_LOG 기록 (F-09-01). 저장에 실패해도 AccessLogService 가 서버 로그만 남긴다
+    // → 기록 실패 때문에 로그인을 막지 않는다
     private void writeAccessLog(Long memberId, String ipAddress, String result) {
-        for (int attempt = 1; attempt <= 2; attempt++) {
-            try {
-                accessLogMapper.insertAccessLog(memberId, LOGIN_SCREEN, ipAddress, result);
-                return;
-            } catch (DuplicateKeyException e) {
-                if (attempt == 2) {
-                    log.error("접속 기록 저장 실패 (번호 겹침 · {})", result, e);
-                }
-            } catch (DataAccessException e) {
-                log.error("접속 기록 저장 실패 ({})", result, e);
-                return;
-            }
-        }
+        accessLogService.record(memberId, LOGIN_SCREEN, ipAddress, result);
     }
 
     // 아이디가 없을 때와 비밀번호가 틀렸을 때 같은 문구 → 어떤 아이디가 있는지 알려 주지 않기 위해
