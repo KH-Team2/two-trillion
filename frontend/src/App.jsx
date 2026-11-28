@@ -268,6 +268,13 @@ export default function App() {
   function notify(t) {
     setToast(t);
   }
+  // [수정 11/23] 사이드바 · 상단 계정 메뉴가 같이 쓰는 로그아웃
+  function logout() {
+    accountService.logout();
+    setSession(null);
+    go('login');
+    notify('로그아웃했습니다.');
+  }
   // 실제 입력을 복사해 가상 조건을 만들므로 원본 소득·지출을 덮어쓰지 않습니다.
   // 출발값은 서버에 저장된 소득(기준 결과를 계산한 값)으로 맞춰요. 브라우저 입력값은 다른 브라우저 ·
   // 시크릿 창 · 저장 삭제 때 비어 있어서, 바꾸지 않은 칸까지 기준과 달라지는 것을 막아요.
@@ -431,10 +438,9 @@ export default function App() {
             page={page}
             data={data}
             mobile={mobile}
-            setSession={setSession}
             admin={admin}
             go={go}
-            notify={notify}
+            onLogout={logout}
             normalInput={normalInput}
           />
           {mobile && <div className="scrim" onClick={() => setMobile(false)} />}
@@ -461,6 +467,7 @@ export default function App() {
               }}
               setNotification={setNotification}
               go={go}
+              onLogout={logout}
             />
             <main className="content">
               {page === 'input' ? (

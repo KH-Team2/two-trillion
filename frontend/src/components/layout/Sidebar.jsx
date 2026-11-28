@@ -1,19 +1,9 @@
 import React from 'react';
-import { ArrowRight, LogOut, ShieldCheck, Leaf, ChevronDown } from 'lucide-react';
-import { accountService } from '@/api/account-service.js';
+import { ArrowRight, LogOut, ShieldCheck, Leaf } from 'lucide-react';
 import { nav, Logo } from '@/components/common/site-primitives.jsx';
 
 // 기존 메뉴·사용자 정보·로그아웃을 포함한 사이드바입니다.
-export default function Sidebar({
-  page,
-  data,
-  mobile,
-  setSession,
-  admin,
-  go,
-  notify,
-  normalInput,
-}) {
+export default function Sidebar({ page, data, mobile, admin, go, onLogout, normalInput }) {
   return (
     <aside className={'sidebar ' + (mobile ? 'open' : '')}>
       <button className="bare" onClick={() => go('home')}>
@@ -67,17 +57,9 @@ export default function Sidebar({
               {admin ? '관리자' : '일반 회원'}
             </small>
           </span>
-          <ChevronDown size={15} />
+          {/* [수정 11/23] ▾ 삭제 · 메뉴가 열리는 것처럼 보이지만 마이페이지로만 이동했음 (메뉴는 상단 계정 버튼) */}
         </button>
-        <button
-          className="logout"
-          onClick={() => {
-            accountService.logout();
-            setSession(null);
-            go('login');
-            notify('로그아웃했습니다.');
-          }}
-        >
+        <button className="logout" onClick={onLogout}>
           <LogOut size={14} />
           로그아웃
         </button>

@@ -935,6 +935,35 @@ footer > span:last-child {
   height: 28px;
   font-size: 10px;
 }
+/* [추가 11/23] 상단 계정 메뉴 (마이페이지 · 로그아웃) */
+.account-menu-wrap {
+  position: relative;
+}
+.account-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  z-index: 30;
+  width: 150px !important;
+  padding: 6px !important;
+  display: grid !important;
+  gap: 2px;
+  box-shadow: 0 15px 50px #2b405826;
+}
+.account-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  text-align: left;
+}
+.account-menu button:hover {
+  background: var(--bg);
+}
 .bell {
   position: relative;
   padding: 4px;
