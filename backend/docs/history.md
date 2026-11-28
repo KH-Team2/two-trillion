@@ -244,7 +244,7 @@
     - `MEMBER_ID` = 토큰의 회원번호 (로그인 전이면 NULL) · `SCREEN` = 요청 주소 (100자 넘으면 자름) · `IP_ADDRESS` = `getRemoteAddr()` (`X-Forwarded-For` 안 씀)
   - `common/service/AccessLogService` (새 파일): `record(memberId, screen, ip, result)` · 결과 값 상수 `SUCCESS` · `FAIL` · `DENIED` · 저장 실패는 `log.error`만 (본래 동작을 막지 않음)
   - `AccessLogMapper.xml`: `LOG_ID` 를 `MAX + 1` → `SEQ_ACCESS_LOG.NEXTVAL` · `LoginService`: Mapper 직접 호출 · 번호 겹침 재시도 → `AccessLogService.record` 한 줄
-  - 하지 않은 것: 남의 데이터 요청(404) `DENIED` 기록 · 97번 SQL(오래된 기록 정리) · IP 기준 제한(D-16 보류) → `tasks.md`
+  - 하지 않은 것: 남의 데이터 요청(404) `DENIED` 기록 · 97번 SQL(오래된 기록 정리) · IP 기준 제한(D-16 보류)
 - **변경 사유**: 기능명세서 F-09-01 · 참고 저장소 sjlimiei26/5_Framework `log-demo/AccessLogFilter`(`OncePerRequestFilter` + finally 에서 상태 코드로 기록) · final_project_sample(SecurityConfig 단계 번호 주석 · 필터 끼워 넣기) · secure-coding-lab-student(화면에는 짧게 · 원인은 서버 로그에만)
 - **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` 272건 중 270건 통과 (실패 2건은 기존 expense `회원번호_헤더가_없으면_401` · 변경 전에도 같은 2건 실패 확인)
   - 새 테스트: `AccessLogFilterTest` 7건 · `AccessLogServiceTest` 3건 · `SecurityConfigTest` 1건(실제 필터 순서에서 403 → DENIED · 관리자 404 → FAIL · 401 → 기록 없음) · `LoginServiceTest` 재시도 테스트 → 저장 실패해도 로그인 성공으로 바꿈

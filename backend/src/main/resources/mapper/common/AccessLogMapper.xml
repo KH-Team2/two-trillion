@@ -7,7 +7,7 @@
     <!--
         접근 기록 저장 (F-09-01)
         - LOG_ID는 시퀀스(SEQ_ACCESS_LOG)로 정한다 → 동시에 저장해도 번호가 겹치지 않음
-          (예전 MAX + 1로 쌓인 기록이 있는 DB는 시퀀스를 MAX(LOG_ID) + 1 이상으로 맞춰야 함 · docs/tasks.md)
+          (예전 MAX + 1로 쌓인 기록이 있는 DB는 시퀀스를 MAX(LOG_ID) + 1 이상으로 맞춰야 함)
         - ACCESSED_AT은 기본값(SYSDATE)이 있어 넣지 않는다.
     -->
     <insert id="insertAccessLog">
