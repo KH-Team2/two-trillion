@@ -60,7 +60,7 @@
 
 ## 그 밖의 연결 위치
 
-- 고객센터 문의(`SupportPage.jsx`) · 관리자 문의 관리(`AdminTools.jsx` `InquiryManagement`): 서버 API(`inquiry-service.js` · PR #53) · 관리자의 회원 · 기준값 · 예측 결과 · 접근 기록 탭은 「준비 중」 (예전 브라우저 시연 코드 `prototype-records.js`는 git 기록에 있음)
+- 고객센터 문의(`SupportPage.jsx`) · 관리자 문의 관리(`AdminTools.jsx` `InquiryManagement`): 서버 API(`inquiry-service.js` · PR #53) · 관리자의 회원(`admin-member-service.js`) · 기준값(`tax-criteria-service.js`) · 예측 결과(`admin-prediction-service.js`) · 접근 기록(`access-log-service.js`) 탭도 서버 API (예전 브라우저 시연 코드 `prototype-records.js`는 git 기록에 있음)
 - AI 상담(`ChatbotPage.jsx` · 대시보드 상담 카드): 「준비 중」 · 상담방/메시지 저장, Gemma3·RAG 호출 연결 필요 (예전 고정 응답 `ChatPanel.jsx`는 git 기록에 있음)
 - `App.jsx`, `userService`: 입력·계산 이력·시나리오 조회/저장을 서버로 교체. 원본과 가상 입력은 분리 유지.
 
@@ -76,6 +76,7 @@
 - 결과 대시보드(F-06-01)의 상세 기록: [`api_integ_logs/TT-14_대시보드_저장결과조회.md`](api_integ_logs/TT-14_대시보드_저장결과조회.md)
 - 그룹 비교 통계(F-06-02)의 상세 기록: [`api_integ_logs/TT-14_그룹비교통계.md`](api_integ_logs/TT-14_그룹비교통계.md)
 - 조건 변경 시뮬레이션 · 결과 이력(F-04-01 · F-04-02)의 상세 기록: [`api_integ_logs/TT-105_시뮬레이션_결과이력.md`](api_integ_logs/TT-105_시뮬레이션_결과이력.md)
+- 실시간 알림(F-09-03) · 관리자 상담 채팅(F-07-03)은 따로 상세 기록을 두지 않습니다. PR #46 · #51 · #58 본문과 `backend/docs/history.md`의 같은 작업 항목을 봅니다.
 
 그 밖의 세부 사항은 아래 원본을 봅니다.
 
@@ -138,8 +139,33 @@
 - 비교 화면은 기존 · 변경 후 모두 서버 값입니다. 서버 결과가 없으면 「비교할 결과가 없어요」 안내를 보여 줍니다.
 - 비교 화면 아래 결과 이력: `fetchPredictions(taxYear)` → `GET /api/predictions?year=` · 「열기」 → `fetchPrediction(id)` → `GET /api/predictions/{id}`.
 
+### 실시간 알림 (F-09-03)
+
+로그인 → `App`이 `src/api/notification-service.js`의 `fetchNotifications()` → `GET /api/notifications` → `src/api/notification-stream.js`의 `openNotificationStream()` → `GET /api/notifications/stream` (SSE)
+
+- 저장된 목록(안 읽은 개수 + 최근 20개)을 먼저 불러오고, 그 목록의 가장 큰 알림 번호부터 실시간 연결을 엽니다. 목록을 불러오는 사이에 생긴 알림도 놓치지 않습니다.
+- 실시간 연결은 `EventSource`가 아니라 `fetch` 스트림입니다. `Authorization: Bearer` 헤더를 보내야 해서입니다. 이벤트 이름은 `notification` 하나입니다.
+- 끊기면 5초 뒤 다시 연결하고, 마지막으로 받은 알림 번호를 `Last-Event-ID` 헤더로 보내 끊긴 동안의 알림을 다시 받습니다. 60초 동안 아무것도 안 오면 끊고 다시 연결합니다. 401이면 로그인 정보를 지우고 멈춥니다.
+- 같은 번호의 알림은 하나만 남깁니다 (목록 · 다시 받은 알림이 겹칠 수 있음).
+- 종 배지 = 서버가 준 안 읽은 개수 + 그 뒤 실시간으로 받은 알림 수. 종을 열면 `markNotificationsRead()` → `PUT /api/notifications/read`.
+
+### 관리자 상담 채팅 (F-07-03)
+
+고객센터 「상담 채팅」 탭 → `src/pages/support/ConsultChat.jsx` → `src/api/consult-service.js`(REST) · `src/api/consult-socket.js`(WebSocket · STOMP)
+
+- 회원: 「상담 시작하기」 → `openConsultRoom()` → `POST /api/consult/rooms` (내 방이 있으면 그 방 번호). 관리자: `fetchConsultRooms()` → `GET /api/admin/consult/rooms`에서 방을 고릅니다.
+- 방에 들어가면 `fetchConsultMessages(roomId)` → `GET /api/consult/rooms/{roomId}/messages`로 최근 30개를 받고, 동시에 `openConsultSocket()`으로 `/ws`에 연결합니다. 「이전 메시지」는 `beforeId`로 30개씩 더 받습니다.
+- 연결할 때 STOMP CONNECT 헤더에 `Authorization: Bearer` 토큰을 넣습니다 (주소에 `?token=`을 붙이지 않음). 받기는 `/sub/consult/{roomId}` 구독, 보내기는 `/pub/consult/{roomId}`에 `{content}`, 오류는 `/user/queue/errors`.
+- 내 말풍선도 바로 그리지 않고 서버 방송으로 받아서 그립니다. 실시간으로 받은 것과 다시 불러온 것이 겹치면 메시지 번호로 하나만 남깁니다 (`mergeMessages()`).
+- 끊기면 5초 뒤 다시 연결하고 최근 30개를 다시 받아 합칩니다. 서버가 막으면(토큰 만료 · 남의 방) 다시 연결하지 않습니다.
+- 개발 서버에서는 `vite.config.js`의 `/ws` 프록시를 거칩니다.
+
 ### 아직 연결 안 된 부분
 
-- 카드 사용액: 업로드 내역이 서버(`EXPENSE`)에 저장되기 전까지 서버 계산에 들어가지 않습니다.
-- 시뮬레이션의 무주택 세대주: 기존 결과는 회원 정보(`MEMBER`), 시뮬레이션은 화면 입력값이라 두 값이 다르면 월세 · 청약 공제가 다르게 나올 수 있습니다.
-- 시뮬레이션의 카드 사용액: 기존 결과는 서버 `EXPENSE`로, 시뮬레이션은 화면의 업로드 거래 + 가상 추가액으로 계산합니다. 업로드가 `EXPENSE`에 저장되기 전에는 조건을 안 바꿔도 카드 공제가 다르게 나올 수 있습니다.
+- 시뮬레이션의 무주택 세대주: 기존 결과는 회원 정보(`MEMBER` · 마이페이지에서 수정 · PR #60), 시뮬레이션은 화면 입력값이라 두 값이 다르면 월세 · 청약 공제가 다르게 나올 수 있습니다.
+- 혜택 진단 화면의 「나의 자격 정보」: 아직 브라우저 입력값을 보여 줍니다. 판정은 서버 회원 정보로 합니다.
+
+해결된 것 (2026-11-25 정리)
+
+- 카드 사용액: 업로드 내역이 서버(`EXPENSE`)에 저장되고 서버 계산에 들어갑니다.
+- 시뮬레이션의 카드 사용액: 서버 합계(`GET /api/expense-totals?year=`)에서 출발해 가상 추가액을 더합니다. 기존 결과와 같은 `EXPENSE` 기준입니다 (TT-118).

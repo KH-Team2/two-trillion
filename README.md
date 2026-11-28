@@ -53,8 +53,6 @@
 - Python 3.11.9
 - FastAPI
 - Ollama (Gemma 3 4B)
-- LangChain
-- Elasticsearch
 
 ### Collaboration
 - Git
@@ -69,7 +67,7 @@
 
 ### 개발 흐름
 
-개인 브랜치 → 팀깃 기능 브랜치 → Pull Request(2인 승인) → develop(테스트 및 통합) → Pull Request(조장, 형상 승인) → main
+개인 브랜치 → 팀깃 기능 브랜치 → Pull Request(모두 승인) → develop(테스트 및 통합) → Pull Request(조장, 형상 승인) → main
 
 ## 📌 Git 규칙
 
@@ -138,11 +136,21 @@
  │   │   ├── api/                             # Spring Boot API 호출 · 화면용 데이터 변환
  │   │   │   ├── api-client.js                # JWT 포함 공통 HTTP 요청 처리
  │   │   │   ├── faq-service.js               # FAQ 목록·상세·질문 분류 API 호출
+ │   │   │   ├── guide-service.js             # 맞춤 절세 가이드 생성·조회 API 호출
  │   │   │   ├── account-service.js           # 로그인 · 로그아웃 · 현재 로그인 회원
  │   │   │   ├── card-upload-service.js       # 카드 업로드 · 거래 내역 서버 API 호출 (업로드 · 이력 · 거래 목록 · 삭제)
  │   │   │   ├── calculation-contract.js      # 계산 응답 계약 관련 로직
  │   │   │   ├── erd-contract.js              # ERD 관련 데이터 계약
  │   │   │   ├── expense-service.js           # 지출·업로드 관련 서비스
+ │   │   │   ├── income-service.js            # 소득 · 공제 정보 저장 · 조회 API 호출
+ │   │   │   ├── calculation-service.js       # 예상 세액 계산 · 저장된 계산 결과 조회 API 호출
+ │   │   │   ├── benefit-service.js           # 청년 혜택 자격 진단 API 호출 · 준비 서류 안내
+ │   │   │   ├── prediction-service.js        # 조건 변경 시뮬레이션 · 카드 합계 조회 API 호출
+ │   │   │   ├── statistics-service.js        # 그룹 비교 통계 API 호출
+ │   │   │   ├── notification-service.js      # 알림 목록 · 모두 읽음 API 호출
+ │   │   │   ├── notification-stream.js       # 실시간 알림(SSE) 연결 · 끊기면 다시 연결
+ │   │   │   ├── consult-service.js           # 상담 방 만들기 · 지난 메시지 · 관리자 방 목록 API 호출
+ │   │   │   ├── consult-socket.js            # 상담 채팅 WebSocket(STOMP) 연결 · 구독 · 보내기
  │   │   │   └── services.js                  # 입력 기본값 · 입력 검사 · 화면 표기
  │   │   ├── components/
  │   │   │   ├── common/                      # 공통 표현 컴포넌트
@@ -156,18 +164,19 @@
  │   │   │   │   ├── Sidebar.jsx              # 사이드바
  │   │   │   │   └── Topbar.jsx               # 상단바
  │   │   │   ├── chatbot/                     # 로그인 후 이용하는 FAQ 챗봇 UI·상태 관리
+ │   │   │   │   ├── FaqChatbot.jsx           # FAQ 챗봇 팝업·질문·답변 화면
  │   │   │   │   ├── FaqContext.jsx           # 질문 제출 및 메시지 상태
  │   │   │   │   └── FaqLayout.jsx            # FAQ 챗봇 레이아웃
+ │   │   │   ├── guide/                       # 맞춤 절세 가이드 UI
+ │   │   │   │   └── TaxGuidePanel.jsx        # 추천 항목별 설명 표시·접기/펼치기·로딩 및 오류 처리
  │   │   │   └── ui/                          # 재사용 UI 컴포넌트 다수
  │   │   │       # button.jsx, input.jsx, dialog.jsx, chart.jsx, table.jsx 등
  │   │   ├── pages/                           # 실제 화면 구성
  │   │   │   ├── admin/
- │   │   │   │   └── AdminPage.jsx            # 관리자 화면 (준비 중)
+ │   │   │   │   └── AdminPage.jsx            # 관리자 화면 (문의 · 회원 · 기준값 · 예측 결과 · 접근 기록)
  │   │   │   ├── auth/
  │   │   │   │   ├── AccountForms.jsx         # 회원 관련 입력 폼
  │   │   │   │   └── AuthPage.jsx             # 로그인·가입 등 인증 화면
- │   │   │   ├── chatbot/
- │   │   │   │   └── ChatbotPage.jsx          # AI 상담 페이지 (준비 중)
  │   │   │   ├── dashboard/
  │   │   │   │   ├── Dashboard.jsx            # 대시보드 UI
  │   │   │   │   └── DashboardPage.jsx        # 대시보드 페이지
@@ -181,6 +190,7 @@
  │   │   │   │   ├── GroupStats.jsx           # 그룹 통계 시각화
  │   │   │   │   └── StatisticsPage.jsx       # 그룹 통계 페이지
  │   │   │   ├── support/
+ │   │   │   │   ├── ConsultChat.jsx          # 관리자 상담 채팅 (회원 화면 · 관리자 방 목록)
  │   │   │   │   └── SupportPage.jsx          # 고객센터
  │   │   │   └── tax/
  │   │   │       ├── BenefitsPage.jsx         # 청년 혜택 화면
@@ -210,6 +220,11 @@
  │   │       └── tax-year.js                  # 귀속 연도 유틸
  │   └── tests/
  │       ├── feedback-contract.mjs            # 응답 계약 관련 테스트
+ │       ├── calculation-service.mjs          # 계산 API 호출 테스트
+ │       ├── benefit-service.mjs              # 혜택 진단 API 호출 테스트
+ │       ├── prediction-service.mjs           # 시뮬레이션 API 호출 테스트
+ │       ├── notification-stream.mjs          # 실시간 알림(SSE) 연결 테스트
+ │       ├── consult-chat.mjs                 # 상담 채팅 API · 소켓 테스트
  │       ├── prototype-flows.mjs              # 업로드 집계 · 입력 검사 · 그룹 통계 테스트
  │       └── render-pages.mjs                 # 화면 렌더링 테스트
  │
@@ -269,10 +284,27 @@
  │       │   │   │   ├── service/
  │       │   │   │   ├── mapper/
  │       │   │   │   └── dto/
- │       │   │   └── chatbot/                   # FAQ 조회 및 질문 분류 중계 (FastAPI 내부 토큰 인증)
- │       │   │       ├── controller/            # GET /api/faqs · /api/faq-categories · /api/faqs/{faqId}
- │       │   │       ├── service/               # 챗봇 서비스 연동
- │       │   │       └── client/                # FastAPI /faq 내부 호출 (X-Chatbot-Token)
+ │       │   │   │
+ │       │   │   ├── notification/              # 실시간 알림 (SSE) · 알림 저장 · 목록 · 읽음 · 12월 마감 안내
+ │       │   │   │   ├── config/                # NotificationSchedulingConfig (@EnableScheduling)
+ │       │   │   │   ├── controller/            # NotificationController (GET /api/notifications/stream · GET /api/notifications · PUT /api/notifications/read)
+ │       │   │   │   ├── service/               # NotificationService · DeadlineNotificationScheduler
+ │       │   │   │   ├── mapper/                # NotificationMapper (NOTIFICATION)
+ │       │   │   │   └── dto/
+ │       │   │   │
+ │       │   │   ├── consult/                   # 관리자 상담 채팅 (WebSocket · STOMP)
+ │       │   │   │   ├── config/                # WebSocketConfig (/ws · /pub · /sub) · StompAuthChannelInterceptor (토큰 · 방 권한 확인)
+ │       │   │   │   ├── controller/            # ConsultController (방 만들기 · 지난 메시지 · 관리자 방 목록) · ConsultMessageController (메시지 받기)
+ │       │   │   │   ├── service/               # ConsultService · ConsultNotifier (상담 알림)
+ │       │   │   │   ├── mapper/                # ConsultMapper (CONSULT_ROOM · CONSULT_MESSAGE)
+ │       │   │   │   └── dto/
+ │       │   │   │
+ │       │   │   └── chatbot/                   # FAQ 챗봇 및 맞춤 절세 가이드
+ │       │   │       ├── controller/            # ChatbotController(FAQ 조회·질문 분류) · GuideController(가이드 생성·조회)
+ │       │   │       ├── service/               # ChatbotService · GuideService · GuideServiceImpl(추천 판정·생성·저장·재사용)
+ │       │   │       ├── client/                # FaqClient(FAQ FastAPI 호출) · GuideClient(가이드 FastAPI 호출)
+ │       │   │       ├── mapper/                # GuideMapper(추천 조건 조회·동시성 제어·저장)
+ │       │   │       └── dto/                   # 가이드 추천 입력 및 챗봇 관련 DTO
  │       │   │
  │       │   └── resources/
  │       │       ├── application.yml            # Spring Boot 공통 설정
@@ -280,6 +312,9 @@
  │       │           ├── income/IncomeMapper.xml
  │       │           ├── expense/CardUploadMapper.xml · ExpenseMapper.xml
  │       │           ├── prediction/PredictionMapper.xml
+ │       │           ├── notification/NotificationMapper.xml
+ │       │           ├── consult/ConsultMapper.xml
+ │       │           ├── chatbot/GuideMapper.xml 
  │       │           └── statistics/GroupStatMapper.xml
  │       │
  │       └── test/java/com/hoperefund/
@@ -287,6 +322,9 @@
  │           ├── income/
  │           ├── expense/
  │           ├── prediction/
+ │           ├── notification/
+ │           ├── consult/
+ │           ├── chatbot/                      
  │           └── statistics/
  │
  ├── calc/                                    # Python FastAPI · 세액 계산·혜택·카드 처리 서버
@@ -367,13 +405,13 @@
  │   ├── README.md
  │   ├── 계정_1_생성.sql                       # 주인 계정 · 계산 서버 계정 만들기 (DB 관리자)
  │   ├── 00_초기화.sql
- │   ├── 01_schema.sql                        # 테이블 21개 · 제약조건 · 시퀀스 · 인덱스
+ │   ├── 01_schema.sql                        # 테이블 22개 · 제약조건 · 시퀀스 · 인덱스
  │   ├── 02_기준데이터.sql                     # 공제 · 세율 · 혜택 조건 등 기준값
  │   ├── 04_분류함수.sql                       # 가맹점명 정제 함수 FN_NORMALIZE_NAME
  │   └── 계정_2_계산서버_권한.sql               # 계산 서버 계정 읽기 권한 (DB 관리자)
  │   # 03_데이터적재.sql · cp949/ 복사본은 크기 때문에 팀 노션 zip에만 있음
  │
- ├── chatbot/                                 # Python FastAPI · Ollama 기반 세법 용어 FAQ 서버
+ ├── chatbot/                                 # Python FastAPI · Ollama 기반 FAQ 분류 및 맞춤 절세 가이드 생성 서버
  │   ├── .env.example                         # 내부 토큰·Ollama 환경변수 예시 (실제 .env 커밋 금지)
  │   ├── AGENTS.md                            # 챗봇 개발 규칙
  │   ├── README.md                            # 챗봇 설치·실행·API 안내
@@ -387,15 +425,19 @@
  │   │   │   ├── __init__.py
  │   │   │   ├── deps.py                      # X-Chatbot-Token 내부 인증
  │   │   │   ├── faq.py                       # FAQ HTTP 요청·응답 처리
+ │   │   │   ├── guide.py                     # 절세 가이드 HTTP 요청·응답 처리
  │   │   │   └── health.py                    # GET /health (인증 제외)
  │   │   ├── repositories/
  │   │   │   ├── __init__.py
+ │   │   │   ├── guide_repository.py          # tax_guides.json 조회
  │   │   │   └── faq_repository.py            # tax_terms.json 조회      
  │   │   ├── data/
+ │   │   │   ├── tax_guides.json              # 검증된 Gemma 가이드 생성 자료
  │   │   │   └── tax_terms.json               # 검증된 FAQ 답변 원본
  │   │   └── services/
  │   │       ├── privacy_filter.py            # 자유 질문 개인정보 검사
  │   │       ├── faq_service.py               # FAQ 조회·자유 질문 처리 업무 흐름
+ │   │       ├── guide_service.py             # Ollama Gemma 3 가이드 생성
  │   │       └── classifier.py                # Ollama Gemma 3 FAQ ID 분류
  │   └── tests/
  │       ├── test_health.py                   # 상태 확인 테스트

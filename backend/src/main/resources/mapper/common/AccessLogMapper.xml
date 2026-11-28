@@ -26,4 +26,41 @@
         )
     </insert>
 
+    <!--
+        [추가 11/24 고은] D-16 IP 기준 로그인 제한 (F-09-01) · 인덱스 IX_ACCESS_LOG_IP (IP_ADDRESS, ACCESSED_AT) 사용
+        이유: 한 IP가 1분에 50번 이상 로그인에 실패하면 12시간 동안 그 IP의 로그인을 막기 위해
+              (막는 목록 테이블 BLOCKED_IP 없이 D-15 · ACCESS_LOG 만 보고 판단)
+
+        쉬운 설명
+        - 안쪽 SELECT: 이 IP의 실패 기록마다 "그 시각까지 최근 1분 동안 실패가 몇 번이었는지"(FAIL_COUNT)를 붙인다
+            · COUNT(*) OVER (...) = 행을 줄이지 않고 옆에 개수를 붙이는 집계 (분석 함수)
+            · RANGE BETWEEN (1분) PRECEDING AND CURRENT ROW = 지금 행 시각에서 1분 전까지
+            · DATE 끼리는 1 = 하루라서 1분 = 1 / 1440, 12시간 = 12 / 24
+            · 12시간 + 1분 전부터 읽는 이유: 12시간 경계에 걸친 1분 구간도 50번을 제대로 세려고
+        - 바깥 WHERE: 최근 12시간 안에 FAIL_COUNT 가 50 이상이 된 행이 있는지 센다 → 1 이상이면 아직 막는 중
+          (50번째 실패 시각 + 12시간이 지나면 0이 되어 자동으로 풀림)
+        - 막힌 동안의 시도는 DENIED 로 기록돼 여기서 세지 않음 → 차단 시간이 늘어나지 않음
+        
+        [수정 11/25 고은] 로그인 실패만 세기
+        이유: 다른 기능의 FAIL 기록까지 세면 로그인과 상관없이 IP가 막힐 수 있어서
+         · 로그인 화면(`/api/auth/login`) 실패만 셈 (11/25 수정)
+    -->
+    <select id="countIpBlockTriggers" resultType="int">
+        SELECT COUNT(*)
+          FROM (
+                SELECT ACCESSED_AT,
+                       COUNT(*) OVER (
+                           ORDER BY ACCESSED_AT
+                           RANGE BETWEEN #{windowMinutes} / 1440 PRECEDING AND CURRENT ROW
+                       ) AS FAIL_COUNT
+                  FROM ACCESS_LOG
+                 WHERE IP_ADDRESS = #{ipAddress}
+                   AND RESULT = 'FAIL'
+                   AND SCREEN = '/api/auth/login'
+                   AND ACCESSED_AT &gt;= SYSDATE - #{blockHours} / 24 - #{windowMinutes} / 1440
+               )
+         WHERE FAIL_COUNT &gt;= #{failLimit}
+           AND ACCESSED_AT &gt;= SYSDATE - #{blockHours} / 24
+    </select>
+
 </mapper>

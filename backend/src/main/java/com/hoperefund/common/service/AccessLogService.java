@@ -10,7 +10,7 @@ import org.springframework.stereotype.Service;
  * 접근 기록(ACCESS_LOG) 저장 (F-09-01).
  *
  * <pre>
- * 부르는 곳: LoginService (로그인 성공 · 실패) · AccessLogFilter (업로드 · 계산 · 관리자 동작 · 403)
+ * 부르는 곳: LoginService (로그인 성공 · 실패 · IP 제한 확인) · AccessLogFilter (업로드 · 계산 · 관리자 동작 · 403)
  * 저장에 실패해도 예외를 밖으로 던지지 않는다 → 기록 때문에 로그인 · 계산 같은 본래 동작이 막히지 않게
  * </pre>
  */
@@ -35,6 +35,14 @@ public class AccessLogService {
         } catch (DataAccessException e) {
             log.error("접근 기록 저장 실패 (회원={} · 화면={} · 결과={})", memberId, screen, result, e);
         }
+    }
+
+    // D-16 IP 로그인 제한 확인용 (LoginService.isIpBlocked) · 0이면 막지 않음 · 1 이상이면 막음
+    // DB 오류는 그대로 던진다 → 막을지 말지는 부르는 쪽(LoginService)이 정한다
+    public int countIpBlockTriggers(
+            String ipAddress, int failLimit, int windowMinutes, int blockHours) {
+        return accessLogMapper.countIpBlockTriggers(
+                ipAddress, failLimit, windowMinutes, blockHours);
     }
 
     // 칸 길이(100자)를 넘는 주소는 잘라서 넣는다 (넘으면 ORA-12899로 기록이 통째로 빠짐)

@@ -7,6 +7,7 @@ from fastapi import FastAPI
 
 from app.api.faq import router as faq_router
 from app.api.health import router as health_router
+from app.api.guide import router as guide_router
 
 # chatbot/.env 파일에서 환경변수를 읽는다.
 load_dotenv()
@@ -35,5 +36,6 @@ app = FastAPI(
 # 상태 확인은 인증 없이 허용
 app.include_router(health_router)
 
-# FAQ 관련 API는 내부 인증 필수
+# API 내부 인증 필수
 app.include_router(faq_router)
+app.include_router(guide_router)

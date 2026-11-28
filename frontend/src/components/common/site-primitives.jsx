@@ -2,7 +2,6 @@ import React from 'react';
 import {
   LayoutDashboard,
   FilePenLine,
-  Sparkles,
   BadgeCheck,
   ChartNoAxesCombined,
   UserRound,
@@ -16,7 +15,6 @@ export const money = (n) => n.toLocaleString('ko-KR');
 export const nav = [
   ['dashboard', '대시보드', LayoutDashboard],
   ['input', '정보 입력', FilePenLine],
-  ['guide', 'AI 절세 가이드', Sparkles],
   ['benefits', '청년 혜택 자격진단', BadgeCheck],
   ['stats', '그룹 통계', ChartNoAxesCombined],
   ['profile', '마이페이지', UserRound],
