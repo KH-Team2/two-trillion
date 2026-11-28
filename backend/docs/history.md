@@ -2,6 +2,16 @@
 
 최신 작업이 맨 위에 오도록 기록한다.
 
+### [2026-11-28] develop 반영 · 관리자 접근 기록 중복 정리 (F-09-01)
+- **작업 내용**:
+  - develop 병합: `LoginService` 결과 상수를 `AccessLogService.SUCCESS · FAIL · DENIED`로 통일 · IP 차단 확인(`isIpBlocked`)은 `AccessLogService.countIpBlockTriggers`로 연결 · `api-rules.md` 403 · 429 줄 정리
+  - `README.md` · `.env.example` · `application.yml`: 이전 병합에서 남은 옛날 내용을 develop 최신 내용으로 맞춤 (README 는 접근 기록 필터 · 서비스 폴더 설명만 추가)
+  - `AccessLogFilter`: 관리자 서비스가 성공 기록을 직접 남기는 요청(GET access-logs · members · predictions / PUT members/{id}/role · tax-criteria / POST tax-criteria · tax-criteria/years)은 성공이면 필터가 남기지 않음 (`isRecordedByAdminService`) · 실패는 필터가 FAIL 로 남김
+  - 그 밖의 관리자 주소(기준값 조회 · 변경 이력 · 문의 목록 · 문의 답변 등)는 계속 필터가 기록
+  - `AccessLogFilterTest`: 관리자 서비스 기록 요청 성공 → 안 남김 · 실패 → FAIL · 서비스가 안 남기는 주소 → 기록 테스트
+- **변경 사유**: develop 의 관리자 서비스(11/23)와 필터가 같은 관리자 요청을 둘 다 기록해 ACCESS_LOG 가 2줄씩 쌓임 → 팀원 코드는 그대로 두고 필터에서 겹치는 부분만 뺌
+- **검증 결과**: `./mvnw spotless:check` 통과 · `./mvnw -B verify` (CHATBOT_API_TOKEN 테스트용 값) 373개 통과 · BUILD SUCCESS
+
 ### [2026-11-27] 맞춤 절세 가이드 구현
 - **작업 내용**:
   - Spring Boot에서 계산 결과를 기반으로 주택청약종합저축·연금저축·IRP 추천 조건 판정 구현

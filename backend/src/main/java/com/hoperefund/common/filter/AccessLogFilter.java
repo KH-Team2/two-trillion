@@ -22,6 +22,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
  *   업로드      POST /api/card-uploads
  *   계산        POST /api/calculations/** · POST /api/simulations/**
  *   관리자 동작  /api/admin/** (조회 포함 · 모든 방식)
+ *               단, 관리자 서비스가 성공 기록을 직접 남기는 요청은 성공이면 남기지 않는다 (같은 기록 2줄 방지)
+ *               → isRecordedByAdminService 목록 · 실패(FAIL)는 서비스가 안 남기므로 필터가 남긴다
  *   권한 없음    403 이면 주소와 관계없이 DENIED
  * 기록하지 않는 요청
  *   401 (로그인 안 함 · 토큰 만료) · 로그인(LoginService 가 따로 남김) · 그 밖의 주소 · CORS 사전 요청(OPTIONS)
@@ -78,7 +80,31 @@ public class AccessLogFilter extends OncePerRequestFilter {
         if (failed || status >= 400) {
             return AccessLogService.FAIL;
         }
+        if (isRecordedByAdminService(request.getMethod(), request.getRequestURI())) {
+            return null; // 관리자 서비스가 이미 SUCCESS 로 남김
+        }
         return AccessLogService.SUCCESS;
+    }
+
+    // 관리자 서비스가 성공했을 때 ACCESS_LOG 를 직접 남기는 요청 (develop 의 관리자 기능 · 11/23 고은)
+    //   AdminAccessLogService · AdminMemberService
+    //   AdminPredictionService · AdminTaxCriteriaService
+    // 관리자 서비스에 기록을 더하거나 빼면 이 목록도 같이 고친다
+    static boolean isRecordedByAdminService(String method, String uri) {
+        if (HttpMethod.GET.matches(method)) {
+            return uri.equals("/api/admin/access-logs")
+                    || uri.equals("/api/admin/members")
+                    || uri.equals("/api/admin/predictions");
+        }
+        if (HttpMethod.PUT.matches(method)) {
+            return uri.matches("/api/admin/members/[^/]+/role")
+                    || uri.equals("/api/admin/tax-criteria");
+        }
+        if (HttpMethod.POST.matches(method)) {
+            return uri.equals("/api/admin/tax-criteria")
+                    || uri.equals("/api/admin/tax-criteria/years");
+        }
+        return false;
     }
 
     // 기록 대상 주소인지 (D-14: 로그인 · 업로드 · 계산 · 관리자 · 로그인은 LoginService 가 남김)

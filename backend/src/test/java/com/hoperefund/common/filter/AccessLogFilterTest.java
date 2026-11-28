@@ -86,19 +86,53 @@ class AccessLogFilterTest {
         verify(accessLogService).record(3L, "/api/calculations/2026", IP, "FAIL");
     }
 
-    // 관리자 주소는 조회(GET)까지 모두 기록
+    // 관리자 서비스가 기록하지 않는 관리자 주소는 조회(GET)까지 필터가 기록
     @Test
-    void adminRequestsAreAllRecorded() throws Exception {
+    void adminRequestsNotRecordedByServiceAreRecorded() throws Exception {
 
         loginAs(1L);
 
-        send("GET", "/api/admin/members", 200);
+        send("GET", "/api/admin/tax-criteria", 200);
+        send("GET", "/api/admin/tax-criteria/history", 200);
+        send("GET", "/api/admin/inquiries", 200);
         send("PUT", "/api/admin/inquiries/5/answer", 200);
         send("DELETE", "/api/admin/members/9", 404);
 
-        verify(accessLogService).record(1L, "/api/admin/members", IP, "SUCCESS");
+        verify(accessLogService).record(1L, "/api/admin/tax-criteria", IP, "SUCCESS");
+        verify(accessLogService).record(1L, "/api/admin/tax-criteria/history", IP, "SUCCESS");
+        verify(accessLogService).record(1L, "/api/admin/inquiries", IP, "SUCCESS");
         verify(accessLogService).record(1L, "/api/admin/inquiries/5/answer", IP, "SUCCESS");
         verify(accessLogService).record(1L, "/api/admin/members/9", IP, "FAIL");
+    }
+
+    // 관리자 서비스가 직접 SUCCESS 를 남기는 요청은 성공이면 필터가 남기지 않는다 (같은 기록 2줄 방지)
+    @Test
+    void adminRequestsRecordedByServiceAreSkippedOnSuccess() throws Exception {
+
+        loginAs(1L);
+
+        send("GET", "/api/admin/access-logs", 200);
+        send("GET", "/api/admin/members", 200);
+        send("PUT", "/api/admin/members/1002/role", 200);
+        send("GET", "/api/admin/predictions", 200);
+        send("POST", "/api/admin/tax-criteria", 200);
+        send("PUT", "/api/admin/tax-criteria", 200);
+        send("POST", "/api/admin/tax-criteria/years", 200);
+
+        verify(accessLogService, never()).record(any(), any(), any(), any());
+    }
+
+    // 관리자 서비스는 실패를 남기지 않으므로, 같은 요청이 실패하면 필터가 FAIL 로 남긴다
+    @Test
+    void adminRequestsRecordedByServiceAreRecordedOnFail() throws Exception {
+
+        loginAs(1L);
+
+        send("PUT", "/api/admin/members/1002/role", 409);
+        send("POST", "/api/admin/tax-criteria/years", 500);
+
+        verify(accessLogService).record(1L, "/api/admin/members/1002/role", IP, "FAIL");
+        verify(accessLogService).record(1L, "/api/admin/tax-criteria/years", IP, "FAIL");
     }
 
     // 403 → DENIED
